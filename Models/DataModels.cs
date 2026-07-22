@@ -31,6 +31,13 @@ namespace DR2CDebugTool.Models
         }
         public int EffectiveValue => BaseValue + BonusValue;
 
+        private bool _known = false;
+        public bool Known
+        {
+            get => _known;
+            set { _known = value; OnPropertyChanged(); }
+        }
+
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? name = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

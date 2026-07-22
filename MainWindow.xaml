@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:DR2CDebugTool.Controls"
         xmlns:local="clr-namespace:DR2CDebugTool"
+        xmlns:helpers="clr-namespace:DR2CDebugTool.Helpers"
         Title="{Binding TitleText}" Height="850" Width="1400"
         Background="#F5F5F5" WindowStartupLocation="CenterScreen"
         Loaded="Window_Loaded">
@@ -18,6 +19,7 @@
             <Setter Property="Margin" Value="5,0"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
+        <helpers:BindingProxy x:Key="Proxy" Data="{Binding}"/>
     </Window.Resources>
     <Grid Margin="15">
         <Grid.RowDefinitions>
@@ -35,7 +37,7 @@
             <StackPanel Orientation="Horizontal">
                 <Button Content="{Binding RefreshText}" Click="RefreshProcesses_Click" Width="80"/>
                 <TextBox x:Name="ProcessFilterBox" Width="120" Margin="10,0" TextChanged="ProcessFilterBox_TextChanged" ToolTip="Filter process name"/>
-                <ComboBox x:Name="ProcessComboBox" Width="220" Margin="0" DisplayMemberPath="DisplayName" SelectedValuePath="Id" IsEditable="False"/>
+                <ComboBox x:Name="ProcessComboBox" Width="220" Margin="0" ItemsSource="{Binding FilteredProcesses}" DisplayMemberPath="DisplayName" SelectedValuePath="Id" IsEditable="False"/>
                 <Button Content="{Binding AttachText}" Click="Attach_Click" Width="60" Margin="10,0"/>
                 <TextBlock x:Name="StatusTextBlock" Text="{Binding StatusText}" Margin="20,0,0,0" VerticalAlignment="Center" Foreground="#333"/>
                 <Button Content="{Binding SettingsText}" Click="OpenSettings_Click" Width="60" Margin="30,0,0,0"/>
@@ -46,8 +48,8 @@
         <Border Grid.Row="2" Background="White" BorderBrush="#CCC" BorderThickness="1" CornerRadius="5" Padding="10" Margin="0,0,0,10">
             <StackPanel Orientation="Horizontal">
                 <Button Content="{Binding ScanCharaText}" Click="ScanCharacters_Click" Width="120" Margin="0,0,10,0"/>
-                <ComboBox x:Name="CharacterListBox" Width="250" Margin="0" SelectionChanged="CharacterListBox_SelectionChanged"/>
-                <TextBlock Text="{Binding OffsetInfoText}" Margin="20,0,0,0" VerticalAlignment="Center" Foreground="#555" FontFamily="Consolas" FontSize="12"/>
+                <ComboBox x:Name="CharacterListBox" Width="250" Margin="0" ItemsSource="{Binding Player.CharacterList}" DisplayMemberPath="DisplayInfo" SelectedValuePath="Index" SelectionChanged="CharacterListBox_SelectionChanged"/>
+                <TextBlock Text="{Binding Player.OffsetInfoText}" Margin="20,0,0,0" VerticalAlignment="Center" Foreground="#555" FontFamily="Consolas" FontSize="12"/>
             </StackPanel>
         </Border>
 
@@ -74,37 +76,73 @@
                                 </Grid.RowDefinitions>
 
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding EntityNameText}" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                <TextBox x:Name="NameBox" Grid.Row="0" Grid.Column="1" Margin="5,0" Width="120" HorizontalAlignment="Left" PreviewKeyDown="NameBox_OnKeyDown"/>
+                                <TextBox x:Name="NameBox" Grid.Row="0" Grid.Column="1" Text="{Binding Player.PlayerName, UpdateSourceTrigger=PropertyChanged}" Margin="5,0" Width="120" HorizontalAlignment="Left" PreviewKeyDown="NameBox_OnKeyDown"/>
                                 <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding EntityHPText}" VerticalAlignment="Center" Margin="10,0,5,0"/>
-                                <controls:NumericUpDown Grid.Row="0" Grid.Column="3" Margin="5,0" x:Name="HealthBox" Value="0" Minimum="-10" Maximum="65535" Width="80" ValueChanged="CharacterHealth_Changed" HorizontalAlignment="Left"/>
+                                <controls:NumericUpDown Grid.Row="0" Grid.Column="3" Margin="5,0" x:Name="HealthBox" Value="{Binding Player.PlayerHealth}" Minimum="-10" Maximum="65535" Width="80" ValueChanged="CharacterHealth_Changed" HorizontalAlignment="Left"/>
 
                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding PerkLabel}" VerticalAlignment="Center" Margin="0,5,5,0"/>
-                                <TextBox x:Name="PerkBox" Grid.Row="1" Grid.Column="1" Margin="5,5,0,0" Width="120" HorizontalAlignment="Left" IsReadOnly="True" Background="#F0F0F0"/>
+                                <TextBox x:Name="PerkBox" Grid.Row="1" Grid.Column="1" Text="{Binding Player.PlayerPerk}" Margin="5,5,0,0" Width="120" HorizontalAlignment="Left" IsReadOnly="True" Background="#F0F0F0"/>
                                 <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding TraitLabel}" VerticalAlignment="Center" Margin="10,5,5,0"/>
-                                <TextBox x:Name="TraitBox" Grid.Row="1" Grid.Column="3" Margin="5,5,0,0" Width="120" HorizontalAlignment="Left" IsReadOnly="True" Background="#F0F0F0"/>
+                                <TextBox x:Name="TraitBox" Grid.Row="1" Grid.Column="3" Text="{Binding Player.PlayerTrait}" Margin="5,5,0,0" Width="120" HorizontalAlignment="Left" IsReadOnly="True" Background="#F0F0F0"/>
                             </Grid>
                         </GroupBox>
 
                         <!-- 属性表格 -->
-                        <DataGrid x:Name="PlayerStatsGrid" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                        <DataGrid x:Name="PlayerStatsGrid" ItemsSource="{Binding Player.PlayerStats}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
                                   ColumnHeaderStyle="{StaticResource GridHeaderStyle}" RowHeight="30" AlternationCount="2">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="{Binding AttributeHeader}" Binding="{Binding DisplayName}" IsReadOnly="True" Width="100"/>
-                                <DataGridTemplateColumn Header="{Binding BaseHeader}" Width="100">
+                                <DataGridTextColumn Binding="{Binding DisplayName}" IsReadOnly="True" Width="100">
+                                    <DataGridTextColumn.Header>
+                                        <TextBlock Text="{Binding Data.AttributeHeader, Source={StaticResource Proxy}}"/>
+                                    </DataGridTextColumn.Header>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="TextAlignment" Value="Center"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTemplateColumn Width="100">
+                                    <DataGridTemplateColumn.Header>
+                                        <TextBlock Text="{Binding Data.BaseHeader, Source={StaticResource Proxy}}"/>
+                                    </DataGridTemplateColumn.Header>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <controls:NumericUpDown Value="{Binding BaseValue, UpdateSourceTrigger=PropertyChanged}" ValueChanged="BaseValue_Changed" Minimum="-100" Maximum="100" Width="80"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="{Binding BonusHeader}" Width="100">
+                                <DataGridTemplateColumn Width="100">
+                                    <DataGridTemplateColumn.Header>
+                                        <TextBlock Text="{Binding Data.BonusHeader, Source={StaticResource Proxy}}"/>
+                                    </DataGridTemplateColumn.Header>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <controls:NumericUpDown Value="{Binding BonusValue, UpdateSourceTrigger=PropertyChanged}" ValueChanged="BonusValue_Changed" Minimum="-100" Maximum="100" Width="80"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="{Binding EffectiveHeader}" Binding="{Binding EffectiveValue}" IsReadOnly="True" Width="80"/>
+                                <DataGridTemplateColumn Width="50">
+                                    <DataGridTemplateColumn.Header>
+                                        <TextBlock Text="{Binding Data.KnownHeader, Source={StaticResource Proxy}}"/>
+                                    </DataGridTemplateColumn.Header>
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                             <CheckBox IsChecked="{Binding Known, UpdateSourceTrigger=PropertyChanged}" 
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       Click="Known_Changed"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Binding="{Binding EffectiveValue}" IsReadOnly="True" Width="80">
+                                    <DataGridTextColumn.Header>
+                                        <TextBlock Text="{Binding Data.EffectiveHeader, Source={StaticResource Proxy}}"/>
+                                    </DataGridTextColumn.Header>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="TextAlignment" Value="Center"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
                             </DataGrid.Columns>
                         </DataGrid>
                         <Button Content="{Binding ReadText}" Click="ReadPlayerStats_Click" Width="120" Margin="0,10,0,0" HorizontalAlignment="Left"/>
@@ -130,7 +168,7 @@
                                 <Button Content="{Binding RefreshText}" Click="RefreshEntityList_Click" Width="70" Margin="5,0"/>
                                 <TextBlock Text="|" Margin="10,0" Foreground="#CCC" VerticalAlignment="Center"/>
                                 <TextBlock Text="{Binding TypeText}" VerticalAlignment="Center" Margin="5,0"/>
-                                <ComboBox x:Name="EntityTypeFilter" Style="{StaticResource FilterComboBoxStyle}" SelectionChanged="EntityFilter_Changed">
+                                <ComboBox x:Name="EntityTypeFilter" Style="{StaticResource FilterComboBoxStyle}" SelectedIndex="{Binding Entity.TypeFilterIndex}" SelectionChanged="EntityFilter_Changed">
                                     <ComboBoxItem Content="{Binding EntityAllText}" IsSelected="True"/>
                                     <ComboBoxItem Content="{Binding EntityHumanText}"/>
                                     <ComboBoxItem Content="{Binding EntityZombieText}"/>
@@ -138,21 +176,19 @@
                                     <ComboBoxItem Content="{Binding EntityProjectileText}"/>
                                 </ComboBox>
                                 <TextBlock Text="{Binding AreaText}" VerticalAlignment="Center" Margin="5,0"/>
-                                <ComboBox x:Name="EntityAreaFilter" Style="{StaticResource FilterComboBoxStyle}" SelectionChanged="EntityFilter_Changed">
-                                    <ComboBoxItem Content="{Binding EntityAllText}" IsSelected="True"/>
-                                </ComboBox>
+                                <ComboBox x:Name="EntityAreaFilter" Style="{StaticResource FilterComboBoxStyle}" ItemsSource="{Binding Entity.AreaOptions}" SelectedItem="{Binding Entity.AreaFilter}" SelectionChanged="EntityFilter_Changed"/>
                                 <TextBlock Text="{Binding SearchText}" VerticalAlignment="Center" Margin="10,0,5,0"/>
-                                <TextBox x:Name="EntitySearchBox" Width="80" TextChanged="EntityFilter_Changed" ToolTip="Search by ID"/>
+                                <TextBox x:Name="EntitySearchBox" Text="{Binding Entity.SearchText, UpdateSourceTrigger=PropertyChanged}" Width="80" ToolTip="Search by ID"/>
                             </StackPanel>
 
                             <!-- 统计信息 -->
-                            <TextBlock DockPanel.Dock="Top" x:Name="EntityCountText" Text="{Binding EntitiesTab, StringFormat={}{0}: 0}" Foreground="#555" FontSize="12" Margin="2,0,0,5"/>
+                            <TextBlock DockPanel.Dock="Top" x:Name="EntityCountText" Text="{Binding Entity.EntityCountText}" Foreground="#555" FontSize="12" Margin="2,0,0,5"/>
 
                             <!-- 状态栏 -->
-                            <TextBlock DockPanel.Dock="Bottom" x:Name="EntityStatus" Text="{Binding EntitiesTab}" Foreground="#555" FontSize="12" Margin="2,5,0,0"/>
+                            <TextBlock DockPanel.Dock="Bottom" x:Name="EntityStatus" Text="{Binding Entity.EntityStatus}" Foreground="#555" FontSize="12" Margin="2,5,0,0"/>
 
                             <!-- 实体表格 - 全部只读 -->
-                            <DataGrid x:Name="EntityDataGrid" AutoGenerateColumns="False" 
+                            <DataGrid x:Name="EntityDataGrid" ItemsSource="{Binding Entity.FilteredEntities}" AutoGenerateColumns="False" 
                                     CanUserAddRows="False" CanUserDeleteRows="False"
                                     SelectionMode="Single" SelectionUnit="FullRow"
                                     ColumnHeaderStyle="{StaticResource GridHeaderStyle}"
@@ -173,15 +209,51 @@
                                     </Style>
                                 </DataGrid.Resources>
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="ID" Binding="{Binding EntityId}" Width="45"/>
-                                    <DataGridTextColumn Header="Type" Binding="{Binding TypeName}" Width="70"/>
-                                    <DataGridTextColumn Header="SubType" Binding="{Binding SubTypeName}" Width="60"/>
-                                    <DataGridTextColumn Header="HP" Binding="{Binding Health}" Width="45"/>
-                                    <DataGridTextColumn Header="Area" Binding="{Binding Pos.AreaId}" Width="50"/>
-                                    <DataGridTextColumn Header="Pos X" Binding="{Binding Pos.PosX, StringFormat=F1}" Width="60"/>
-                                    <DataGridTextColumn Header="Pos Y" Binding="{Binding Pos.PosY, StringFormat=F1}" Width="60"/>
-                                    <DataGridTextColumn Header="Pos Z" Binding="{Binding Pos.PosZ, StringFormat=F1}" Width="60"/>
-                                    <DataGridTextColumn Header="Address" Binding="{Binding BaseAddress, StringFormat=X}" Width="80"/>
+                                    <DataGridTextColumn Binding="{Binding EntityId}" Width="45">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColEntityID, Source={StaticResource Proxy}}"/>
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding TypeName}" Width="70">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColEntityType, Source={StaticResource Proxy}}"/>
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding SubTypeName}" Width="60">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColEntitySubType, Source={StaticResource Proxy}}"/>
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding Health}" Width="45">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColEntityHP, Source={StaticResource Proxy}}"/>
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding Pos.AreaId}" Width="50">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColEntityArea, Source={StaticResource Proxy}}"/>
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding Pos.PosX, StringFormat=F1}" Width="60">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColEntityPosX, Source={StaticResource Proxy}}"/>
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding Pos.PosY, StringFormat=F1}" Width="60">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColEntityPosY, Source={StaticResource Proxy}}"/>
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding Pos.PosZ, StringFormat=F1}" Width="60">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColEntityPosZ, Source={StaticResource Proxy}}"/>
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding BaseAddress, StringFormat=X}" Width="80">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColEntityAddress, Source={StaticResource Proxy}}"/>
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </DockPanel>
@@ -213,19 +285,19 @@
                                         </Grid.RowDefinitions>
 
                                         <TextBlock Grid.Row="0" Grid.Column="0" Text="ID:" Margin="0,2" FontWeight="SemiBold"/>
-                                        <TextBox Grid.Row="0" Grid.Column="1" x:Name="EntityIdBox" Margin="2,2" Width="50" HorizontalAlignment="Left" IsReadOnly="True" Background="#F0F0F0"/>
+                                        <TextBox Grid.Row="0" Grid.Column="1" x:Name="EntityIdBox" Text="{Binding Entity.DetailEntityId}" Margin="2,2" Width="50" HorizontalAlignment="Left" IsReadOnly="True" Background="#F0F0F0"/>
                                         
                                         <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding TypeText, StringFormat={}{0}:}" Margin="5,2,0,2" FontWeight="SemiBold"/>
-                                        <TextBox Grid.Row="0" Grid.Column="3" x:Name="EntityTypeBox" Margin="2,2" Width="70" HorizontalAlignment="Left" IsReadOnly="True" Background="#F0F0F0"/>
+                                        <TextBox Grid.Row="0" Grid.Column="3" x:Name="EntityTypeBox" Text="{Binding Entity.DetailTypeName}" Margin="2,2" Width="70" HorizontalAlignment="Left" IsReadOnly="True" Background="#F0F0F0"/>
 
                                         <TextBlock Grid.Row="0" Grid.Column="4" Text="{Binding SubTypeText, StringFormat={}{0}:}" Margin="5,2,0,2" FontWeight="SemiBold"/>
-                                        <TextBox Grid.Row="0" Grid.Column="5" x:Name="EntitySubTypeBox" Margin="2,2" Width="70" HorizontalAlignment="Left" IsReadOnly="True" Background="#F0F0F0"/>
+                                        <TextBox Grid.Row="0" Grid.Column="5" x:Name="EntitySubTypeBox" Text="{Binding Entity.DetailSubTypeName}" Margin="2,2" Width="70" HorizontalAlignment="Left" IsReadOnly="True" Background="#F0F0F0"/>
                                         
                                         <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding EntityHPText, StringFormat={}{0}:}" Margin="5,2,0,2" FontWeight="SemiBold"/>
-                                        <controls:NumericUpDown Grid.Row="1" Grid.Column="1" x:Name="EntityHPBox" Value="0" Minimum="-10" Maximum="65535" Width="60" ValueChanged="EntityHealth_Changed"/>
+                                        <controls:NumericUpDown Grid.Row="1" Grid.Column="1" x:Name="EntityHPBox" Value="{Binding Entity.DetailHealth}" Minimum="-10" Maximum="65535" Width="60" ValueChanged="EntityHealth_Changed"/>
 
                                         <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding AreaText, StringFormat={}{0}:}" Margin="5,2,0,2" FontWeight="SemiBold"/>
-                                        <TextBox Grid.Row="1" Grid.Column="3" x:Name="EntityAreaIdBox" Margin="2,2" Width="70" HorizontalAlignment="Left" IsReadOnly="True" Background="#F0F0F0"/>
+                                        <TextBox Grid.Row="1" Grid.Column="3" x:Name="EntityAreaIdBox" Text="{Binding Entity.DetailAreaId}" Margin="2,2" Width="70" HorizontalAlignment="Left" IsReadOnly="True" Background="#F0F0F0"/>
                                     </Grid>
                                 </GroupBox>
 
@@ -246,22 +318,22 @@
                                         </Grid.RowDefinitions>
 
                                         <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding PosText, StringFormat={}{0} X:}" Margin="0,2" FontWeight="SemiBold"/>
-                                        <controls:NumericUpDown Grid.Row="0" Grid.Column="1" x:Name="EntityPosXBox" Value="0" Minimum="-65535" Maximum="65535" Width="60" ValueChanged="EntityPos_Changed"/>
+                                        <controls:NumericUpDown Grid.Row="0" Grid.Column="1" x:Name="EntityPosXBox" Value="{Binding Entity.DetailPosX}" Minimum="-65535" Maximum="65535" Width="60" ValueChanged="EntityPos_Changed"/>
 
                                         <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding PosText, StringFormat={}{0} Y:}" Margin="5,2,0,2" FontWeight="SemiBold"/>
-                                        <controls:NumericUpDown Grid.Row="0" Grid.Column="3" x:Name="EntityPosYBox" Value="0" Minimum="-65535" Maximum="65535" Width="60" ValueChanged="EntityPos_Changed"/>
+                                        <controls:NumericUpDown Grid.Row="0" Grid.Column="3" x:Name="EntityPosYBox" Value="{Binding Entity.DetailPosY}" Minimum="-65535" Maximum="65535" Width="60" ValueChanged="EntityPos_Changed"/>
 
                                         <TextBlock Grid.Row="0" Grid.Column="4" Text="{Binding PosText, StringFormat={}{0} Z:}" Margin="5,2,0,2" FontWeight="SemiBold"/>
-                                        <controls:NumericUpDown Grid.Row="0" Grid.Column="5" x:Name="EntityPosZBox" Value="0" Minimum="-65535" Maximum="65535" Width="60" ValueChanged="EntityPos_Changed"/>
+                                        <controls:NumericUpDown Grid.Row="0" Grid.Column="5" x:Name="EntityPosZBox" Value="{Binding Entity.DetailPosZ}" Minimum="-65535" Maximum="65535" Width="60" ValueChanged="EntityPos_Changed"/>
 
                                         <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding VelText, StringFormat={}{0} X:}" Margin="0,2" FontWeight="SemiBold"/>
-                                        <controls:NumericUpDown Grid.Row="1" Grid.Column="1" x:Name="EntityVelXBox" Value="0" Minimum="-65535" Maximum="65535" Width="60" ValueChanged="EntityPos_Changed"/>
+                                        <controls:NumericUpDown Grid.Row="1" Grid.Column="1" x:Name="EntityVelXBox" Value="{Binding Entity.DetailVelX}" Minimum="-65535" Maximum="65535" Width="60" ValueChanged="EntityPos_Changed"/>
 
                                         <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding VelText, StringFormat={}{0} Y:}" Margin="5,2,0,2" FontWeight="SemiBold"/>
-                                        <controls:NumericUpDown Grid.Row="1" Grid.Column="3" x:Name="EntityVelYBox" Value="0" Minimum="-65535" Maximum="65535" Width="60" ValueChanged="EntityPos_Changed"/>
+                                        <controls:NumericUpDown Grid.Row="1" Grid.Column="3" x:Name="EntityVelYBox" Value="{Binding Entity.DetailVelY}" Minimum="-65535" Maximum="65535" Width="60" ValueChanged="EntityPos_Changed"/>
 
                                         <TextBlock Grid.Row="1" Grid.Column="4" Text="{Binding VelText, StringFormat={}{0} Z:}" Margin="5,2,0,2" FontWeight="SemiBold"/>
-                                        <controls:NumericUpDown Grid.Row="1" Grid.Column="5" x:Name="EntityVelZBox" Value="0" Minimum="-65535" Maximum="65535" Width="60" ValueChanged="EntityPos_Changed"/>
+                                        <controls:NumericUpDown Grid.Row="1" Grid.Column="5" x:Name="EntityVelZBox" Value="{Binding Entity.DetailVelZ}" Minimum="-65535" Maximum="65535" Width="60" ValueChanged="EntityPos_Changed"/>
                                     </Grid>
                                 </GroupBox>
 
@@ -277,31 +349,31 @@
                                         <StackPanel Grid.Column="0" Orientation="Vertical">
                                             <StackPanel Orientation="Horizontal" Margin="0,8,0,6">
                                                 <TextBlock Text="{Binding NoCollideText}" Margin="0,0,6,0" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                                <CheckBox x:Name="EntityNoCollide" VerticalAlignment="Center" Checked="DebugProp_Changed" Unchecked="DebugProp_Changed"/>
+                                                <CheckBox x:Name="EntityNoCollide" IsChecked="{Binding Entity.DetailNoCollide}" VerticalAlignment="Center" Click="EntityDebugCheckBox_Click"/>
                                             </StackPanel>
                                             <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                                 <TextBlock Text="{Binding InvisibleText}" Margin="0,0,6,0" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                                <CheckBox x:Name="EntityInvisible" VerticalAlignment="Center" Checked="DebugProp_Changed" Unchecked="DebugProp_Changed"/>
+                                                <CheckBox x:Name="EntityInvisible" IsChecked="{Binding Entity.DetailInvisible}" VerticalAlignment="Center" Click="EntityDebugCheckBox_Click"/>
                                             </StackPanel>
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Orientation="Vertical">
                                             <StackPanel Orientation="Horizontal" Margin="0,8,0,6">
                                                 <TextBlock Text="{Binding InvincibleText}" Margin="0,0,6,0" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                                <CheckBox x:Name="EntityInvincible" VerticalAlignment="Center" Checked="DebugProp_Changed" Unchecked="DebugProp_Changed"/>
+                                                <CheckBox x:Name="EntityInvincible" IsChecked="{Binding Entity.DetailInvincible}" VerticalAlignment="Center" Click="EntityDebugCheckBox_Click"/>
                                             </StackPanel>
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="{Binding GlowText}" Margin="0,0,6,0" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                                <CheckBox x:Name="EntityGlow" VerticalAlignment="Center" Checked="DebugProp_Changed" Unchecked="DebugProp_Changed"/>
+                                                <CheckBox x:Name="EntityGlow" IsChecked="{Binding Entity.DetailGlow}" VerticalAlignment="Center" Click="EntityDebugCheckBox_Click"/>
                                             </StackPanel>
                                         </StackPanel>
                                         <StackPanel Grid.Column="2" Orientation="Vertical">
                                             <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                                 <TextBlock Text="{Binding MassText}" Margin="0,0,6,0" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                                <controls:NumericUpDown x:Name="EntityMass" Value="1" Minimum="0" Maximum="65535" Width="90" ValueChanged="DebugNumeric_Changed"/>
+                                                <controls:NumericUpDown x:Name="EntityMass" Value="{Binding Entity.DetailMass}" Minimum="0" Maximum="65535" Width="90"/>
                                             </StackPanel>
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="{Binding FrictionText}" Margin="0,0,6,0" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                                <controls:NumericUpDown x:Name="EntityFriction" Value="1" Minimum="-100" Maximum="100" Width="90" ValueChanged="DebugNumeric_Changed"/>
+                                                <controls:NumericUpDown x:Name="EntityFriction" Value="{Binding Entity.DetailFriction}" Minimum="-100" Maximum="100" Width="90"/>
                                             </StackPanel>
                                         </StackPanel>
                                     </Grid>
@@ -318,10 +390,10 @@
                                         </Grid.ColumnDefinitions>
 
                                         <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding AIStateText}" Margin="0,2" FontWeight="SemiBold"/>
-                                        <controls:NumericUpDown Grid.Row="0" Grid.Column="1" x:Name="EntityAIState" Value="0" Minimum="0" Maximum="100" Width="60" ValueChanged="DebugNumeric_Changed"/>
+                                        <controls:NumericUpDown Grid.Row="0" Grid.Column="1" x:Name="EntityAIState" Value="{Binding Entity.DetailAIState}" Minimum="0" Maximum="100" Width="60"/>
 
                                         <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding AIWaitText}" Margin="5,2,0,2" FontWeight="SemiBold"/>
-                                        <controls:NumericUpDown Grid.Row="0" Grid.Column="3" x:Name="EntityAIWait" Value="0" Minimum="0" Maximum="9999" Width="60" ValueChanged="DebugNumeric_Changed"/>
+                                        <controls:NumericUpDown Grid.Row="0" Grid.Column="3" x:Name="EntityAIWait" Value="{Binding Entity.DetailAIWait}" Minimum="0" Maximum="9999" Width="60"/>
                                     </Grid>
                                 </GroupBox>
 
@@ -334,7 +406,7 @@
 
                                 <!-- 目标状态 -->
                                 <Border Background="#F0F8FF" BorderBrush="#007ACC" BorderThickness="1" CornerRadius="3" Padding="8" Margin="0,10,0,0">
-                                    <TextBlock x:Name="TargetStatusText" Text="{Binding EntityNoTargetSelected}" FontSize="12" Foreground="#555"/>
+                                    <TextBlock x:Name="TargetStatusText" Text="{Binding Entity.TargetStatusText}" FontSize="12" Foreground="#555"/>
                                 </Border>
                             </StackPanel>
                         </ScrollViewer>
@@ -363,32 +435,56 @@
                             <Border DockPanel.Dock="Top" Background="#F0F8FF" BorderBrush="#007ACC" BorderThickness="1" CornerRadius="3" Padding="6" Margin="0,0,0,8">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="{Binding CurrentCharacterText}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="WeaponCharInfo" Text="{Binding NoPlayerSelectedText}" Margin="5,0" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="WeaponCharInfo" Text="{Binding Weapon.WeaponCharInfo}" Margin="5,0" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
 
-                            <DataGrid x:Name="WeaponSlotsGrid" AutoGenerateColumns="False" 
+                            <DataGrid x:Name="WeaponSlotsGrid" ItemsSource="{Binding Weapon.WeaponSlots}" AutoGenerateColumns="False" 
                                     CanUserAddRows="False" CanUserDeleteRows="False"
                                     ColumnHeaderStyle="{StaticResource GridHeaderStyle}"
                                     RowHeight="30" AlternationCount="2"
                                     SelectionMode="Single" SelectionUnit="FullRow"
                                     VerticalScrollBarVisibility="Auto">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Slot" Binding="{Binding DisplayName}" Width="60" IsReadOnly="True"/>
+                                    <DataGridTextColumn Binding="{Binding DisplayName}" Width="60" IsReadOnly="True">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColSlot, Source={StaticResource Proxy}}"/>
+                                        </DataGridTextColumn.Header>
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="TextAlignment" Value="Center"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
                                     
-                                    <DataGridTemplateColumn Header="Weapon ID" Width="75">
+                                    <DataGridTemplateColumn Width="75">
+                                        <DataGridTemplateColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColWeaponID, Source={StaticResource Proxy}}"/>
+                                        </DataGridTemplateColumn.Header>
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <TextBox Text="{Binding WeaponId, UpdateSourceTrigger=PropertyChanged, TargetNullValue=0}" 
-                                                        Width="55" VerticalAlignment="Center" HorizontalAlignment="Left"
-                                                        LostFocus="WeaponIdTextBox_LostFocus"/>
+                                                <controls:NumericUpDown Value="{Binding WeaponId, UpdateSourceTrigger=PropertyChanged}" 
+                                                                        Minimum="0" Maximum="16384" Width="55"
+                                                                        ValueChanged="WeaponId_ValueChanged"/>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
                                     
-                                    <DataGridTextColumn Header="Weapon Name" Binding="{Binding WeaponName}" Width="120" IsReadOnly="True"/>
+                                    <DataGridTextColumn Binding="{Binding WeaponName}" Width="120" IsReadOnly="True">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColWeaponName, Source={StaticResource Proxy}}"/>
+                                        </DataGridTextColumn.Header>
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="TextAlignment" Value="Center"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
                                     
-                                    <DataGridTemplateColumn Header="Stack" Width="65">
+                                    <DataGridTemplateColumn Width="65">
+                                        <DataGridTemplateColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColWeaponStack, Source={StaticResource Proxy}}"/>
+                                        </DataGridTemplateColumn.Header>
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <controls:NumericUpDown Value="{Binding StackCount, UpdateSourceTrigger=PropertyChanged}" 
@@ -398,12 +494,15 @@
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
                                     
-                                    <DataGridTemplateColumn Header="Locked" Width="50">
+                                    <DataGridTemplateColumn Width="50">
+                                        <DataGridTemplateColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColWeaponLocked, Source={StaticResource Proxy}}"/>
+                                        </DataGridTemplateColumn.Header>
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <CheckBox IsChecked="{Binding IsLocked, UpdateSourceTrigger=PropertyChanged}" 
                                                         VerticalAlignment="Center" HorizontalAlignment="Center"
-                                                        Checked="LockedState_Changed" Unchecked="LockedState_Changed"/>
+                                                        Click="LockedState_Changed"/>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
@@ -417,24 +516,43 @@
                         <DockPanel LastChildFill="True">
                             <TextBlock DockPanel.Dock="Top" Text="{Binding StorageWeaponText}" FontSize="14" FontWeight="Bold" Foreground="#007ACC" Margin="0,0,0,8"/>
 
-                            <DataGrid x:Name="StorageWeaponsGrid" AutoGenerateColumns="False" 
+                            <DataGrid x:Name="StorageWeaponsGrid" ItemsSource="{Binding Weapon.StorageWeapons}" AutoGenerateColumns="False" 
                                     CanUserAddRows="False" CanUserDeleteRows="False"
                                     ColumnHeaderStyle="{StaticResource GridHeaderStyle}"
                                     RowHeight="26" AlternationCount="2"
                                     VerticalScrollBarVisibility="Auto">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="#" Binding="{Binding SlotIndex, StringFormat={}{0}}" Width="35" IsReadOnly="True"/>
-                                    <DataGridTemplateColumn Header="Weapon ID" Width="75">
+                                    <DataGridTextColumn Binding="{Binding SlotIndex, StringFormat={}{0}}" Width="35" IsReadOnly="True">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColStorageIndex, Source={StaticResource Proxy}}"/>
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTemplateColumn Width="75">
+                                        <DataGridTemplateColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColStorageWeaponID, Source={StaticResource Proxy}}"/>
+                                        </DataGridTemplateColumn.Header>
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <TextBox Text="{Binding WeaponId, UpdateSourceTrigger=PropertyChanged, TargetNullValue=0}" 
-                                                        Width="55" VerticalAlignment="Center" HorizontalAlignment="Left"
-                                                        LostFocus="StorageWeaponId_LostFocus"/>
+                                                <controls:NumericUpDown Value="{Binding WeaponId, UpdateSourceTrigger=PropertyChanged}" 
+                                                                        Minimum="0" Maximum="16384" Width="55"
+                                                                        ValueChanged="StorageWeaponId_ValueChanged"/>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTextColumn Header="Weapon Name" Binding="{Binding WeaponName}" Width="120" IsReadOnly="True"/>
-                                    <DataGridTemplateColumn Header="Count" Width="65">
+                                    <DataGridTextColumn Binding="{Binding WeaponName}" Width="120" IsReadOnly="True">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColStorageWeaponName, Source={StaticResource Proxy}}"/>
+                                        </DataGridTextColumn.Header>
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="TextAlignment" Value="Center"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTemplateColumn Width="65">
+                                        <DataGridTemplateColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColStorageStack, Source={StaticResource Proxy}}"/>
+                                        </DataGridTemplateColumn.Header>
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <controls:NumericUpDown Value="{Binding Count, UpdateSourceTrigger=PropertyChanged}" 
@@ -462,12 +580,12 @@
                                 <Button Content="{Binding RefreshWeaponText}" Click="RefreshWeaponSlots_Click" Width="90" Margin="5,0" ToolTip="Refresh all weapon slots and storage"/>
                                 <TextBlock Text="|" Margin="10,0" Foreground="#CCC" VerticalAlignment="Center"/>
                                 <TextBlock Text="{Binding SearchText}" VerticalAlignment="Center" Margin="5,0"/>
-                                <TextBox x:Name="WeaponSearchBox" Width="120" TextChanged="WeaponSearchBox_TextChanged"/>
+                                <TextBox x:Name="WeaponSearchBox" Text="{Binding Weapon.WeaponSearchText, UpdateSourceTrigger=PropertyChanged}" Width="120"/>
                             </StackPanel>
 
-                            <TextBlock DockPanel.Dock="Top" x:Name="WeaponCountText" Text="{Binding WeaponsTab, StringFormat={}{0}: 0}" Foreground="#555" FontSize="12" Margin="0,0,0,5"/>
+                            <TextBlock DockPanel.Dock="Top" x:Name="WeaponCountText" Text="{Binding Weapon.WeaponCountText}" Foreground="#555" FontSize="12" Margin="0,0,0,5"/>
 
-                            <DataGrid x:Name="WeaponPoolGrid" AutoGenerateColumns="False"
+                            <DataGrid x:Name="WeaponPoolGrid" ItemsSource="{Binding Weapon.FilteredWeaponPool}" AutoGenerateColumns="False"
                                     CanUserAddRows="False" CanUserDeleteRows="False"
                                     ColumnHeaderStyle="{StaticResource GridHeaderStyle}"
                                     RowHeight="24" AlternationCount="2"
@@ -475,8 +593,16 @@
                                     VerticalScrollBarVisibility="Auto"
                                     HorizontalScrollBarVisibility="Auto">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50" IsReadOnly="True"/>
-                                    <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="260" IsReadOnly="True"/>
+                                    <DataGridTextColumn Binding="{Binding Id}" Width="50" IsReadOnly="True">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColPoolID, Source={StaticResource Proxy}}"/>
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Binding="{Binding Name}" Width="260" IsReadOnly="True">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColPoolName, Source={StaticResource Proxy}}"/>
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </DockPanel>
@@ -502,14 +628,21 @@
                                 <Button Content="{Binding ApplyText}" Click="ApplyGlobalResources_Click" Width="100" Margin="5,0"/>
                             </StackPanel>
 
-                            <DataGrid x:Name="GlobalResourcesGrid" AutoGenerateColumns="False" 
+                            <DataGrid x:Name="GlobalResourcesGrid" ItemsSource="{Binding Resource.GlobalResources}" AutoGenerateColumns="False" 
                                     CanUserAddRows="False" CanUserDeleteRows="False"
                                     ColumnHeaderStyle="{StaticResource GridHeaderStyle}"
                                     RowHeight="32" AlternationCount="2"
                                     VerticalScrollBarVisibility="Auto">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Resource" Binding="{Binding Name}" Width="120" IsReadOnly="True"/>
-                                    <DataGridTemplateColumn Header="Value" Width="100">
+                                    <DataGridTextColumn Binding="{Binding Name}" Width="120" IsReadOnly="True">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColResourceName, Source={StaticResource Proxy}}"/>
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTemplateColumn Width="100">
+                                        <DataGridTemplateColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColResourceValue, Source={StaticResource Proxy}}"/>
+                                        </DataGridTemplateColumn.Header>
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <controls:NumericUpDown Value="{Binding Value, UpdateSourceTrigger=PropertyChanged}" 
@@ -533,7 +666,7 @@
                             <Border DockPanel.Dock="Top" Background="#F0F8FF" BorderBrush="#007ACC" BorderThickness="1" CornerRadius="3" Padding="8" Margin="0,0,0,10">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="{Binding CurrentCharacterText}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="ResourceCharInfo" Text="{Binding NoPlayerSelectedText}" Margin="5,0" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="ResourceCharInfo" Text="{Binding Resource.ResourceCharInfo}" Margin="5,0" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
 
@@ -542,14 +675,21 @@
                                 <Button Content="{Binding ApplyText}" Click="ApplyPlayerResources_Click" Width="100" Margin="5,0"/>
                             </StackPanel>
 
-                            <DataGrid x:Name="PlayerResourcesGrid" AutoGenerateColumns="False" 
+                            <DataGrid x:Name="PlayerResourcesGrid" ItemsSource="{Binding Resource.PlayerResources}" AutoGenerateColumns="False" 
                                     CanUserAddRows="False" CanUserDeleteRows="False"
                                     ColumnHeaderStyle="{StaticResource GridHeaderStyle}"
                                     RowHeight="32" AlternationCount="2"
                                     VerticalScrollBarVisibility="Auto">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Resource" Binding="{Binding Name}" Width="120" IsReadOnly="True"/>
-                                    <DataGridTemplateColumn Header="Value" Width="100">
+                                    <DataGridTextColumn Binding="{Binding Name}" Width="120" IsReadOnly="True">
+                                        <DataGridTextColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColResourceName, Source={StaticResource Proxy}}"/>
+                                        </DataGridTextColumn.Header>
+                                    </DataGridTextColumn>
+                                    <DataGridTemplateColumn Width="100">
+                                        <DataGridTemplateColumn.Header>
+                                            <TextBlock Text="{Binding Data.ColResourceValue, Source={StaticResource Proxy}}"/>
+                                        </DataGridTemplateColumn.Header>
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <controls:NumericUpDown Value="{Binding Value, UpdateSourceTrigger=PropertyChanged}" 
@@ -568,13 +708,12 @@
                     <GroupBox Header="⚙️ Attribute Upper Limit" Margin="0,0,0,10">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="{Binding NewMaxText}" VerticalAlignment="Center" FontWeight="SemiBold"/>
-                            <!-- TextBox x:Name="NewMaxBox" Width="60" Margin="10,0" Text="6"/ -->
                             <Button Content="{Binding ApplyText}" Click="ChangeMax_Click" Margin="10,0" Width="120"/>
-                            <TextBlock x:Name="MaxStatus" Margin="15,0,0,0" VerticalAlignment="Center" Foreground="#555"/>
+                            <TextBlock x:Name="MaxStatus" Text="{Binding Advanced.MaxStatus}" Margin="15,0,0,0" VerticalAlignment="Center" Foreground="#555"/>
                         </StackPanel>
                     </GroupBox>
                     <GroupBox Header="ℹ️ Current Offsets" Margin="0,10,0,0">
-                        <TextBlock Text="{Binding OffsetInfoText}" TextWrapping="Wrap" FontFamily="Consolas" FontSize="13" Foreground="#333"/>
+                        <TextBlock Text="{Binding Advanced.OffsetInfoText}" TextWrapping="Wrap" FontFamily="Consolas" FontSize="13" Foreground="#333"/>
                     </GroupBox>
                 </StackPanel>
             </TabItem>

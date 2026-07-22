@@ -18,6 +18,7 @@ namespace DR2CDebugTool.Models
         public int PlayerNameOffset { get; set; } = 0x1C;
         public int PlayerPerkOffset { get; set; } = 0x44;
         public int PlayerTraitOffset { get; set; } = 0x6C;
+        public int PlayerDisplayFlagOffset { get; set; } = 0x1BC;
         
         // ===== 实体池 =====
         public uint EntityPoolOffset { get; set; } = 0x5632E0;

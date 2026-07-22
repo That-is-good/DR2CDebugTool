@@ -73,16 +73,17 @@ namespace DR2CDebugTool.ViewModels
             return count;
         }
 
-        public void RefreshWeaponSlots(int characterIndex, string? characterName)
+        public void RefreshWeaponSlots(int characterIndex)
         {
             if (!_memory.IsReady) return;
             IntPtr playerBase = _memory.GetPlayerBase(characterIndex);
             if (playerBase == IntPtr.Zero) return;
 
             var weapons = _memory.WeaponManager.ReadCharacterWeapons(playerBase);
+            
             ApplyCharacterWeaponSlots(weapons);
 
-            WeaponCharInfo = $"{(characterName ?? "Unknown")} (Index: {characterIndex})";
+            WeaponCharInfo = $"{_memory.ReadPlayerName(playerBase) ?? "Unknown"} (Index: {characterIndex})";
             ApplyStorageWeaponSlots();
         }
 
@@ -153,7 +154,7 @@ namespace DR2CDebugTool.ViewModels
 
             if (_memory.WeaponManager.WriteAllWeaponSlots(playerBase, weapons))
             {
-                RefreshWeaponSlots(characterIndex, null);
+                RefreshWeaponSlots(characterIndex);
             }
         }
 

@@ -2,6 +2,7 @@ using DR2CDebugTool.Models;
 using DR2CDebugTool.Services;
 using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 
 namespace DR2CDebugTool.ViewModels
@@ -13,7 +14,7 @@ namespace DR2CDebugTool.ViewModels
         private const int EntityCountAddressOffset = 0x3CC318;
 
         public ObservableCollection<EntityInfo> AllEntities { get; } = [];
-        public ObservableCollection<EntityInfo> FilteredEntities { get; } = [];
+        public ICollectionView FilteredEntities { get; }
 
         private EntityInfo? _currentEntity;
         public EntityInfo? CurrentEntity
@@ -65,21 +66,21 @@ namespace DR2CDebugTool.ViewModels
         public int TypeFilterIndex
         {
             get => _typeFilterIndex;
-            set { SetProperty(ref _typeFilterIndex, value); ApplyFilter(); }
+            set { SetProperty(ref _typeFilterIndex, value); FilteredEntities.Refresh(); }
         }
 
         private string _areaFilter = LanguageManager.Get("ENTITY_TYPE_ALL");
         public string AreaFilter
         {
             get => _areaFilter;
-            set { SetProperty(ref _areaFilter, value); ApplyFilter(); }
+            set { SetProperty(ref _areaFilter, value); FilteredEntities.Refresh(); }
         }
 
         private string _searchText = "";
         public string SearchText
         {
             get => _searchText;
-            set { SetProperty(ref _searchText, value); ApplyFilter(); }
+            set { SetProperty(ref _searchText, value); FilteredEntities.Refresh(); }
         }
 
         public ObservableCollection<string> AreaOptions { get; } = [LanguageManager.Get("ENTITY_TYPE_ALL")];
@@ -119,17 +120,62 @@ namespace DR2CDebugTool.ViewModels
         private bool _detailGlow;
         public bool DetailGlow { get => _detailGlow; set => SetProperty(ref _detailGlow, value); }
         private float _detailMass;
-        public float DetailMass { get => _detailMass; set { SetProperty(ref _detailMass, value); ApplyEntityDebug(); } }
+        public float DetailMass { get => _detailMass; set => SetProperty(ref _detailMass, value); }
         private float _detailFriction;
-        public float DetailFriction { get => _detailFriction; set { SetProperty(ref _detailFriction, value); ApplyEntityDebug(); } }
+        public float DetailFriction { get => _detailFriction; set => SetProperty(ref _detailFriction, value); }
         private int _detailAIState;
-        public int DetailAIState { get => _detailAIState; set { SetProperty(ref _detailAIState, value); ApplyEntityDebug(); } }
+        public int DetailAIState { get => _detailAIState; set => SetProperty(ref _detailAIState, value); }
         private int _detailAIWait;
-        public int DetailAIWait { get => _detailAIWait; set { SetProperty(ref _detailAIWait, value); ApplyEntityDebug(); } }
+        public int DetailAIWait { get => _detailAIWait; set => SetProperty(ref _detailAIWait, value); }
 
         public EntityViewModel(MemoryService memory)
         {
             _memory = memory;
+            var view = System.Windows.Data.CollectionViewSource.GetDefaultView(AllEntities);
+            view.Filter = FilterPredicate;
+            FilteredEntities = view;
+        }
+
+        private bool FilterPredicate(object item)
+        {
+            if (item is not EntityInfo entity) return false;
+
+            // Type filter
+            if (_typeFilterIndex > 0)
+            {
+                byte filterType = _typeFilterIndex switch
+                {
+                    1 => (byte)Settings.ENTITY_TYPE.ENTITY_TYPE_HUMAN,
+                    2 => (byte)Settings.ENTITY_TYPE.ENTITY_TYPE_ZOMBIE,
+                    3 => (byte)Settings.ENTITY_TYPE.ENTITY_TYPE_ITEM,
+                    4 => (byte)Settings.ENTITY_TYPE.ENTITY_TYPE_PROJECTILE,
+                    _ => 0
+                };
+                if (filterType > 0 && entity.EntityType != filterType)
+                    return false;
+            }
+
+            // Area filter
+            if (_areaFilter != "All" && byte.TryParse(_areaFilter, out byte areaId))
+            {
+                if (entity.Pos.AreaId != areaId) return false;
+            }
+
+            // Text search
+            if (!string.IsNullOrEmpty(_searchText))
+            {
+                if (ushort.TryParse(_searchText, out ushort searchId))
+                {
+                    if (entity.EntityId != searchId) return false;
+                }
+                else
+                {
+                    if (!entity.SubTypeName.Contains(_searchText, StringComparison.OrdinalIgnoreCase))
+                        return false;
+                }
+            }
+
+            return true;
         }
 
         public void ScanEntities()
@@ -166,14 +212,19 @@ namespace DR2CDebugTool.ViewModels
                 }
 
                 UpdateAreaFilter();
-                ApplyFilter();
+                FilteredEntities.Refresh();
                 EntityStatus = LanguageManager.Combine("Total_Entity", AllEntities.Count.ToString(), ": ");
-                EntityCountText = LanguageManager.Combine("Entities", AllEntities.Count.ToString(), ": ");
+                UpdateEntityCountText();
             }
             catch (Exception ex)
             {
                 EntityStatus = $"Scan Error: {ex.Message}";
             }
+        }
+
+        private void UpdateEntityCountText()
+        {
+            EntityCountText = $"{LanguageManager.Get("Entities")}: {FilteredEntities.Cast<EntityInfo>().Count()} (from {AllEntities.Count})";
         }
 
         private EntityInfo? ReadEntityData(IntPtr entityAddr)
@@ -204,7 +255,6 @@ namespace DR2CDebugTool.ViewModels
 
                 string typeName = GetTypeName(entityType);
                 string subTypeName = GetSubTypeName(entityType, subType);
-
                 return new EntityInfo
                 {
                     BaseAddress = entityAddr,
@@ -247,7 +297,7 @@ namespace DR2CDebugTool.ViewModels
                 {
                     0x00 => LanguageManager.Get("Furniture"),
                     0x01 => LanguageManager.Get("Pickup"),
-                    0x02 => LanguageManager.Get("Weapon"),
+                    0x02 => LanguageManager.Get("Weapons"),
                     0x03 => LanguageManager.Get("Vehicle"),
                     0x04 => LanguageManager.Get("PickupSpec"),
                     _ => $"0x{subType:X2}"
@@ -273,17 +323,6 @@ namespace DR2CDebugTool.ViewModels
             TargetEntity = _currentEntity;
         }
 
-        public void RefreshCurrentEntity()
-        {
-            if (_currentEntity == null || !_memory.IsReady) return;
-            var refreshed = ReadEntityData(_currentEntity.BaseAddress);
-            if (refreshed != null)
-            {
-                CurrentEntity = refreshed;
-                EntityStatus = $"Refreshed #{refreshed.EntityId}";
-            }
-        }
-
         private void UpdateEntityUI(EntityInfo entity)
         {
             DetailEntityId = entity.EntityId;
@@ -307,12 +346,26 @@ namespace DR2CDebugTool.ViewModels
             DetailAIWait = entity.AIWait;
         }
 
+        /// <summary>
+        /// Replace an entity in AllEntities by index, then refresh the filter.
+        /// The ICollectionView will auto-reevaluate the filter for this item,
+        /// and if the item no longer matches, it's removed from the filtered view;
+        /// if it now matches, it's added back in sorted order.
+        /// </summary>
+        private void UpdateEntityInList(EntityInfo entity)
+        {
+            if (entity == null) return;
+            AllEntities[entity.Index] = entity;
+            // ICollectionView auto-detects item replacement and re-evaluates the filter
+            UpdateEntityCountText();
+        }
+
         public void ApplyEntityPosition()
         {
-            if (_currentEntity == null || !_memory.IsReady) return;
+            if (CurrentEntity == null || !_memory.IsReady) return;
             try
             {
-                IntPtr addr = _currentEntity.BaseAddress;
+                IntPtr addr = CurrentEntity.BaseAddress;
                 var s = _memory.Settings;
 
                 _memory.WriteFloat(addr + s.EntityPosXOffset, DetailPosX);
@@ -322,14 +375,12 @@ namespace DR2CDebugTool.ViewModels
                 _memory.WriteFloat(addr + s.EntityVelYOffset, DetailVelY);
                 _memory.WriteFloat(addr + s.EntityVelZOffset, DetailVelZ);
 
-                _currentEntity.Pos.PosX = DetailPosX;
-                _currentEntity.Pos.PosY = DetailPosY;
-                _currentEntity.Pos.PosZ = DetailPosZ;
-                _currentEntity.Pos.VelX = DetailVelX;
-                _currentEntity.Pos.VelY = DetailVelY;
-                _currentEntity.Pos.VelZ = DetailVelZ;
-
-                EntityStatus = $"Position updated #{_currentEntity.EntityId}";
+                CurrentEntity = ReadEntityData(CurrentEntity.BaseAddress);
+                if (CurrentEntity != null)
+                {
+                    UpdateEntityInList(CurrentEntity);
+                    EntityStatus = $"Position updated #{CurrentEntity.EntityId}";
+                }
             }
             catch (Exception ex)
             {
@@ -339,16 +390,17 @@ namespace DR2CDebugTool.ViewModels
 
         public void ApplyEntityHealth()
         {
-            if (_currentEntity == null || !_memory.IsReady) return;
-            _memory.WriteInt32(_currentEntity.BaseAddress + _memory.Settings.EntityHealthOffset, DetailHealth);
+            if (CurrentEntity == null || !_memory.IsReady) return;
+            _memory.WriteInt32(CurrentEntity.BaseAddress + _memory.Settings.EntityHealthOffset, DetailHealth);
+            AllEntities[CurrentEntity.Index].Health = DetailHealth;
         }
 
         public void ApplyEntityDebug()
         {
-            if (_currentEntity == null || !_memory.IsReady) return;
+            if (CurrentEntity == null || !_memory.IsReady) return;
             try
             {
-                IntPtr addr = _currentEntity.BaseAddress;
+                IntPtr addr = CurrentEntity.BaseAddress;
                 _memory.WriteByte(addr + 0x0D, (byte)(DetailNoCollide ? 1 : 0));
                 _memory.WriteByte(addr + 0x13, (byte)(DetailInvisible ? 1 : 0));
                 _memory.WriteByte(addr + 0x27A, (byte)(DetailInvincible ? 1 : 0));
@@ -357,7 +409,12 @@ namespace DR2CDebugTool.ViewModels
                 _memory.WriteFloat(addr + 0x5C, DetailFriction);
                 _memory.WriteInt32(addr + 0x288, DetailAIState);
                 _memory.WriteInt32(addr + 0x2A8, DetailAIWait);
-                EntityStatus = $"Debug props applied to #{_currentEntity.EntityId}";
+                CurrentEntity = ReadEntityData(CurrentEntity.BaseAddress);
+                if (CurrentEntity != null)
+                {
+                    UpdateEntityInList(CurrentEntity);
+                    EntityStatus = $"Debug props applied to #{CurrentEntity.EntityId}";
+                }
             }
             catch (Exception ex)
             {
@@ -367,17 +424,20 @@ namespace DR2CDebugTool.ViewModels
 
         public void TeleportToTarget()
         {
-            if (_currentEntity == null || _targetEntity == null) return;
+            if (CurrentEntity == null || TargetEntity == null) return;
             if (!_memory.IsReady) return;
 
             try
             {
-                var pos = _memory.ReadEntityPosition(_targetEntity.BaseAddress);
-                if (_memory.WriteEntityPosition(_currentEntity.BaseAddress, pos))
+                var pos = _memory.ReadEntityPosition(TargetEntity.BaseAddress);
+                if (_memory.WriteEntityPosition(CurrentEntity.BaseAddress, pos))
                 {
                     EntityStatus = LanguageManager.Get("Teleported");
-                    RefreshCurrentEntity();
-                    ApplyFilter();
+                    CurrentEntity = ReadEntityData(CurrentEntity.BaseAddress);
+                    if (CurrentEntity != null)
+                    {
+                        UpdateEntityInList(CurrentEntity);
+                    }
                 }
             }
             catch (Exception ex)
@@ -388,20 +448,24 @@ namespace DR2CDebugTool.ViewModels
 
         public void SwapPositions()
         {
-            if (_currentEntity == null || _targetEntity == null) return;
+            if (CurrentEntity == null || TargetEntity == null) return;
             if (!_memory.IsReady) return;
 
             try
             {
-                IntPtr srcAddr = _currentEntity.BaseAddress;
-                IntPtr dstAddr = _targetEntity.BaseAddress;
-                var srcPos = _memory.ReadEntityPosition(srcAddr);
-                var dstPos = _memory.ReadEntityPosition(dstAddr);
-                if (_memory.WriteEntityPosition(srcAddr, dstPos) && _memory.WriteEntityPosition(dstAddr, srcPos))
+                var srcPos = _memory.ReadEntityPosition(CurrentEntity.BaseAddress);
+                var dstPos = _memory.ReadEntityPosition(TargetEntity.BaseAddress);
+                if (_memory.WriteEntityPosition(CurrentEntity.BaseAddress, dstPos) &&
+                    _memory.WriteEntityPosition(TargetEntity.BaseAddress, srcPos))
                 {
                     EntityStatus = LanguageManager.Get("Swapped");
-                    RefreshCurrentEntity();
-                    ApplyFilter();
+                    TargetEntity = ReadEntityData(TargetEntity.BaseAddress);
+                    CurrentEntity = ReadEntityData(CurrentEntity.BaseAddress);
+                    if (CurrentEntity != null && TargetEntity != null)
+                    {
+                        UpdateEntityInList(CurrentEntity);
+                        UpdateEntityInList(TargetEntity);
+                    }
                 }
             }
             catch (Exception ex)
@@ -423,48 +487,6 @@ namespace DR2CDebugTool.ViewModels
                         AreaOptions.Add(area.ToString());
                 }
                 AreaFilter = "All";
-            }
-            catch { }
-        }
-
-        private void ApplyFilter()
-        {
-            try
-            {
-                FilteredEntities.Clear();
-                if (AllEntities.Count == 0) { EntityCountText = LanguageManager.Combine("Entities", "0", ": "); return; }
-
-                var query = AllEntities.AsEnumerable();
-
-                if (TypeFilterIndex > 0)
-                {
-                    byte filterType = TypeFilterIndex switch
-                    {
-                        1 => (byte)Settings.ENTITY_TYPE.ENTITY_TYPE_HUMAN,
-                        2 => (byte)Settings.ENTITY_TYPE.ENTITY_TYPE_ZOMBIE,
-                        3 => (byte)Settings.ENTITY_TYPE.ENTITY_TYPE_ITEM,
-                        4 => (byte)Settings.ENTITY_TYPE.ENTITY_TYPE_PROJECTILE,
-                        _ => 0
-                    };
-                    if (filterType > 0)
-                        query = query.Where(e => e.EntityType == filterType);
-                }
-
-                if (AreaFilter != "All" && byte.TryParse(AreaFilter, out byte areaId))
-                    query = query.Where(e => e.Pos.AreaId == areaId);
-
-                if (!string.IsNullOrEmpty(SearchText))
-                {
-                    if (ushort.TryParse(SearchText, out ushort searchId))
-                        query = query.Where(e => e.EntityId == searchId);
-                    else
-                        query = query.Where(e => e.TypeName.Contains(SearchText, StringComparison.OrdinalIgnoreCase));
-                }
-
-                foreach (var entity in query)
-                    FilteredEntities.Add(entity);
-
-                EntityCountText = $"{LanguageManager.Get("Entities")}: {FilteredEntities.Count} (from {AllEntities.Count})";
             }
             catch { }
         }

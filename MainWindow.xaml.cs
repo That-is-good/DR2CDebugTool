@@ -46,7 +46,7 @@ namespace DR2CDebugTool
             if (CharacterListBox.SelectedItem is Models.CharacterInfo selected)
             {
                 ViewModel.Player.SelectCharacter(selected.Index);
-                ViewModel.Weapon.RefreshWeaponSlots(selected.Index, ViewModel.Player.PlayerName);
+                ViewModel.Weapon.RefreshWeaponSlots(selected.Index);
             }
         }
 
@@ -113,7 +113,7 @@ namespace DR2CDebugTool
 
         private void DebugNumeric_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            // Handled via property setters in EntityViewModel
+            ViewModel.Entity.ApplyEntityDebug();
         }
 
         private void SetTarget_Click(object sender, RoutedEventArgs e) => ViewModel.Entity.SetTarget();
@@ -125,12 +125,12 @@ namespace DR2CDebugTool
         {
             ViewModel.Weapon.ScanWeaponPool();
             if (ViewModel.Player.CharacterList.Count > 0)
-                ViewModel.Weapon.RefreshWeaponSlots(ViewModel.Player.CurrentCharacterIndex, ViewModel.Player.PlayerName);
+                ViewModel.Weapon.RefreshWeaponSlots(ViewModel.Player.CurrentCharacterIndex);
         }
 
         private void RefreshWeaponSlots_Click(object sender, RoutedEventArgs e)
         {
-            ViewModel.Weapon.RefreshWeaponSlots(ViewModel.Player.CurrentCharacterIndex, ViewModel.Player.PlayerName);
+            ViewModel.Weapon.RefreshWeaponSlots(ViewModel.Player.CurrentCharacterIndex);
         }
 
         private void Known_Changed(object sender, RoutedEventArgs e)

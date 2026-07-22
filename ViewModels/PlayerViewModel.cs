@@ -94,6 +94,8 @@ namespace DR2CDebugTool.ViewModels
         public void ScanCharacters()
         {
             if (!_memory.IsReady) return;
+            IntPtr lastbaseAddr = _memory.GetPlayerBase(CurrentCharacterIndex);
+            CurrentCharacterIndex = -1;
 
             CharacterList.Clear();
             for (int i = 0; i < PlayerSlots; i++)
@@ -118,6 +120,10 @@ namespace DR2CDebugTool.ViewModels
                         Health = health,
                         IsPlayer = !string.IsNullOrEmpty(perk) || !string.IsNullOrEmpty(trait)
                     });
+                    if (lastbaseAddr == baseAddr)
+                    {
+                        SelectCharacter(i);
+                    }
                 }
                 catch { break; }
             }

@@ -37,7 +37,7 @@
             <StackPanel Orientation="Horizontal">
                 <Button Content="{Binding RefreshText}" Click="RefreshProcesses_Click" Width="80"/>
                 <TextBox x:Name="ProcessFilterBox" Width="120" Margin="10,0" TextChanged="ProcessFilterBox_TextChanged" ToolTip="Filter process name"/>
-                <ComboBox x:Name="ProcessComboBox" Width="220" Margin="0" ItemsSource="{Binding FilteredProcesses}" DisplayMemberPath="DisplayName" SelectedValuePath="Id" IsEditable="False"/>
+                <ComboBox x:Name="ProcessComboBox" Width="220" Margin="0" ItemsSource="{Binding FilteredProcesses}" DisplayMemberPath="DisplayName" SelectedValuePath="Id" SelectedItem="{Binding SelectedProcess}" IsEditable="False"/>
                 <Button Content="{Binding AttachText}" Click="Attach_Click" Width="60" Margin="10,0"/>
                 <TextBlock x:Name="StatusTextBlock" Text="{Binding StatusText}" Margin="20,0,0,0" VerticalAlignment="Center" Foreground="#333"/>
                 <Button Content="{Binding SettingsText}" Click="OpenSettings_Click" Width="60" Margin="30,0,0,0"/>
@@ -48,7 +48,7 @@
         <Border Grid.Row="2" Background="White" BorderBrush="#CCC" BorderThickness="1" CornerRadius="5" Padding="10" Margin="0,0,0,10">
             <StackPanel Orientation="Horizontal">
                 <Button Content="{Binding ScanCharaText}" Click="ScanCharacters_Click" Width="120" Margin="0,0,10,0"/>
-                <ComboBox x:Name="CharacterListBox" Width="250" Margin="0" ItemsSource="{Binding Player.CharacterList}" DisplayMemberPath="DisplayInfo" SelectedValuePath="Index" SelectionChanged="CharacterListBox_SelectionChanged"/>
+                <ComboBox x:Name="CharacterListBox" Width="250" Margin="0" ItemsSource="{Binding Player.CharacterList}" DisplayMemberPath="DisplayInfo" SelectedValuePath="Index" SelectedValue="{Binding Player.CurrentCharacterIndex}" SelectionChanged="CharacterListBox_SelectionChanged"/>
                 <TextBlock Text="{Binding Player.OffsetInfoText}" Margin="20,0,0,0" VerticalAlignment="Center" Foreground="#555" FontFamily="Consolas" FontSize="12"/>
             </StackPanel>
         </Border>
@@ -369,11 +369,11 @@
                                         <StackPanel Grid.Column="2" Orientation="Vertical">
                                             <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                                 <TextBlock Text="{Binding MassText}" Margin="0,0,6,0" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                                <controls:NumericUpDown x:Name="EntityMass" Value="{Binding Entity.DetailMass}" Minimum="0" Maximum="65535" Width="90"/>
+                                                <controls:NumericUpDown x:Name="EntityMass" Value="{Binding Entity.DetailMass}" Minimum="0" Maximum="65535" Width="90" ValueChanged="DebugNumeric_Changed"/>
                                             </StackPanel>
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="{Binding FrictionText}" Margin="0,0,6,0" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                                <controls:NumericUpDown x:Name="EntityFriction" Value="{Binding Entity.DetailFriction}" Minimum="-100" Maximum="100" Width="90"/>
+                                                <controls:NumericUpDown x:Name="EntityFriction" Value="{Binding Entity.DetailFriction}" Minimum="-100" Maximum="100" Width="90" ValueChanged="DebugNumeric_Changed"/>
                                             </StackPanel>
                                         </StackPanel>
                                     </Grid>
@@ -390,10 +390,10 @@
                                         </Grid.ColumnDefinitions>
 
                                         <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding AIStateText}" Margin="0,2" FontWeight="SemiBold"/>
-                                        <controls:NumericUpDown Grid.Row="0" Grid.Column="1" x:Name="EntityAIState" Value="{Binding Entity.DetailAIState}" Minimum="0" Maximum="100" Width="60"/>
+                                        <controls:NumericUpDown Grid.Row="0" Grid.Column="1" x:Name="EntityAIState" Value="{Binding Entity.DetailAIState}" Minimum="0" Maximum="100" Width="60" ValueChanged="DebugNumeric_Changed"/>
 
                                         <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding AIWaitText}" Margin="5,2,0,2" FontWeight="SemiBold"/>
-                                        <controls:NumericUpDown Grid.Row="0" Grid.Column="3" x:Name="EntityAIWait" Value="{Binding Entity.DetailAIWait}" Minimum="0" Maximum="9999" Width="60"/>
+                                        <controls:NumericUpDown Grid.Row="0" Grid.Column="3" x:Name="EntityAIWait" Value="{Binding Entity.DetailAIWait}" Minimum="0" Maximum="9999" Width="60" ValueChanged="DebugNumeric_Changed"/>
                                     </Grid>
                                 </GroupBox>
 

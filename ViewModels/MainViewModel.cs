@@ -21,7 +21,7 @@ namespace DR2CDebugTool.ViewModels
         public ObservableCollection<ProcessInfo> AllProcesses { get; } = [];
         public ObservableCollection<ProcessInfo> FilteredProcesses { get; } = [];
 
-        private string _processFilter = "";
+        private string _processFilter;
         public string ProcessFilter
         {
             get => _processFilter;
@@ -165,6 +165,7 @@ namespace DR2CDebugTool.ViewModels
             Resource = new ResourceViewModel(Memory);
             Advanced = new AdvancedViewModel(Memory);
 
+            //ProcessFilter = "prog";
             StatusText = LanguageManager.Get("NotAttached");
             int storageSlots = Memory.Settings != null && Memory.Settings.StorageWeaponSlots > 0 ? (int)Memory.Settings.StorageWeaponSlots : 15;
             Weapon.InitializeStorage(storageSlots);
@@ -188,8 +189,9 @@ namespace DR2CDebugTool.ViewModels
                 Advanced.RefreshOffsetInfo();
 
                 Player.ScanCharacters();
-                if (Player.CharacterList.Count > 0)
+                if (Player.CharacterList.Count > 0){
                     Player.SelectCharacter(0);
+                }
 
                 Entity.ScanEntities();
             }

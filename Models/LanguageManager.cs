@@ -163,17 +163,20 @@ namespace DR2CDebugTool.Models
                 {"Settings_Language", "Language:"},
                 {"Settings_PlayerArrayOffset", "Player Array Offset (hex):"},
                 {"Settings_PlayerStructSize", "Player Struct Size (hex):"},
-                {"Settings_PlayerBaseOffset", "Player Base Offset (stat@):"},
-                {"Settings_PlayerBonusOffset", "Player Bonus Offset (bonus@):"},
+                {"Settings_PlayerSlots", "Player Slots:"},
+
                 {"Settings_EntityPoolOffset", "Entity Pool Offset (hex):"},
                 {"Settings_EntitySize", "Entity Size (hex):"},
-                {"Settings_EntityTypeOffset", "Entity Type Offset (hex):"},
+                {"Settings_EntitySlots", "Entity Slots:"},
+
                 {"Settings_WeaponPoolOffset", "Weapon Pool Offset (hex):"},
                 {"Settings_WeaponSize", "Weapon Size (hex):"},
-                {"Settings_MaxWeapons", "Max Weapons (hex):"},
+                {"Settings_MaxWeapons", "Weapons Slots:"},
+
+                {"Settings_StorageResourceOffset", "Storage Resource Offset (hex):"},
                 {"Settings_StorageWeaponOffset", "Storage Weapon Offset (hex):"},
-                {"Settings_StorageWeaponSlots", "Storage Weapon Slots:"},
                 {"Settings_StorageWeaponSize", "Storage Weapon Size (hex):"},
+                {"Settings_StorageWeaponSlots", "Storage Weapon Slots:"},
             },
             ["zh-CN"] = new()
             {
@@ -329,17 +332,189 @@ namespace DR2CDebugTool.Models
                 {"Settings_Language", "语言:"},
                 {"Settings_PlayerArrayOffset", "玩家数组偏移 (十六进制):"},
                 {"Settings_PlayerStructSize", "玩家结构体大小 (十六进制):"},
-                {"Settings_PlayerBaseOffset", "玩家基础属性偏移 (stat@):"},
-                {"Settings_PlayerBonusOffset", "玩家加成属性偏移 (bonus@):"},
+                {"Settings_PlayerSlots", "玩家数组大小:"},
+
                 {"Settings_EntityPoolOffset", "实体池偏移 (十六进制):"},
                 {"Settings_EntitySize", "实体大小 (十六进制):"},
-                {"Settings_EntityTypeOffset", "实体类型偏移 (十六进制):"},
+                {"Settings_EntitySlots", "实体数组大小:"},
+                
                 {"Settings_WeaponPoolOffset", "武器池偏移 (十六进制):"},
                 {"Settings_WeaponSize", "武器结构体大小 (十六进制):"},
-                {"Settings_MaxWeapons", "武器数量 (十六进制):"},
+                {"Settings_MaxWeapons", "武器数组大小:"},
+
+                {"Settings_StorageResourceOffset", "仓库资源偏移 (十六进制):"},
                 {"Settings_StorageWeaponOffset", "仓库武器偏移 (十六进制):"},
                 {"Settings_StorageWeaponSlots", "仓库武器数量:"},
-                {"Settings_StorageWeaponSize", "仓库武器结构体大小 (十六进制):"},
+                {"Settings_StorageWeaponSize", "仓库武器数组大小:"},
+            },
+            ["ja-JP"] = new()
+            {
+                // 基础词元
+                {"MainWindow_Title", "Death Road to Canadaデバッグツール"},
+                {"Refresh", "更新"},
+                {"Refreshed", "更新した"},
+                {"Apply", "適用"},
+                {"Cancel", "キャンセル"},
+                {"Attach", "添付する"},
+                {"Settings", "設定"},
+                {"Read", "読み取り"},
+                {"Write", "書き込み"},
+                {"Search", "検索"},
+                {"Name", "名前"},
+                {"Error", "エラー："},
+                {"Applied", "適用した"},
+                {"Found", "見つけ"},
+                {"Filtered", "フィルタ済み"},
+                {"Address", "アドレス"},
+                {"Value", "値"},
+                {"Slot", "スロット"},
+                {"ID", "ID"},
+
+                // 选项卡标题
+                {"PlayerStats", "キャラステータス"},
+                {"Entities", "実体"},
+                {"Weapons", "武器"},
+                {"Resources", "リソース"},
+                {"Advanced", "詳細"},
+
+                // === 状态 ===
+                {"NotAttached", "未添付"},
+                {"Attached", "添付済み (PID)"},
+                {"NoProcesses", "プロセス未検出"},
+                {"FailedOpenProcess", "プロセス取得失敗"},
+                {"FailedGetModuleBase", "モジュールベースの取得に失敗"},
+                {"ErrorGettingModule", "モジュールの取得エラー"},
+
+                // === 进程 ===
+                {"NoPlayerSelected", "キャラ未選択"},
+                {"CurrentCharacter", "現在キャラ"},
+                {"NoSourceEntity", "元実体未選択"},
+                {"NoTargetEntity", "目標実体未選択"},
+                {"SameSourceAndTarget", "元と目標は同じ！"},
+                {"Empty", "なし"},
+
+                // === 角色面板 ===
+                {"ScanCharacters", "キャラを検索"},
+                {"Character", "キャラ"},
+                {"Health", "HP"},
+                {"Perk", "特技"},
+                {"Trait", "特長"},
+                {"PositionText", "位置"},
+                {"BasicInfoText", "基本状態"},
+                {"DebugPropertiesText", "Debug設定"},
+                {"AIPropertiesText", "AI設定"},
+                {"NoCollide", "非衝突"},
+                {"Invisible", "非表示"},
+                {"Invincible", "無敵"},
+                {"Glow", "発光"},
+                {"Mass", "質量"},
+                {"Friction", "摩擦力"},
+                {"AIState", "AI状態"},
+                {"AIWait", "AI待機"},
+
+                // === 属性面板 ===
+                {"Attribute", "属性"},
+                {"Col_Base", "基本値 (stat@)"},
+                {"Col_Bonus", "追加値 (bonus@)"},
+                {"Col_Effective", "有効値 (effstat)"},
+                {"Known", "既知"},
+
+                // === 属性名 ===
+                {"STAT_MORALE", "やる気"},
+                {"STAT_ATTITUDE", "態度"},
+                {"STAT_COMPOSURE", "冷静"},
+                {"STAT_CHARM", "魅力"},
+                {"STAT_WITS", "智慧"},
+                {"STAT_LOYALTY", "忠誠"},
+                {"STAT_MEDICAL", "医療"},
+                {"STAT_MECHANICAL", "機械"},
+                {"STAT_SHOOTING", "射撃"},
+                {"STAT_STRENGTH", "力"},
+                {"STAT_DEXTERITY", "敏捷"},
+                {"STAT_FITNESS", "体力"},
+                {"STAT_VITALITY", "活力"},
+
+                // === 实体 ===
+                {"ScanEntity", "実体を検索"},
+                {"Scanning", "実体を検索してる..."},
+                {"Type", "型"},
+                {"SubType", "子型"},
+                {"Area", "区域"},
+                {"Pos", "位置"},
+                {"Vel", "速さ"},
+                {"FilterError", "フィルタ失敗"},
+                {"InvalidEntityCount", "無効実体："},
+                {"ScanError", "検索失敗："},
+                {"SelectedEntity", "実体選択済み"},
+                {"RefreshedEntity", "実体を更新した"},
+                {"TeleportToTarget", "目標へ転送"},
+                {"SwapPositions", "位置を交換"},
+                {"SetTarget", "目標設定"},
+                {"Teleported", "転送済み"},
+                {"Swapped", "位置を交換した"},
+                {"FailWritePos", "位置を書き込めない"},
+                {"TeleportError", "転送失敗："},
+                {"PositionUpdated", "位置を更新した"},
+                {"AppliedChanges", "実体に適用した"},
+                {"Total_Entity", "全実体: "},
+
+                // 实体类型
+                {"ENTITY_TYPE_ALL", "全て"},
+                {"ENTITY_TYPE_HUMAN", "人類"},
+                {"ENTITY_TYPE_ZOMBIE", "ゾンビ"},
+                {"ENTITY_TYPE_ITEM", "物"},
+                {"ENTITY_TYPE_PROJECTILE", "投射物"},
+                {"ENTITY_TYPE_UNKNOWN", "未知"},
+                {"Furniture", "家具"},
+                {"Pickup", "拾取物"},
+                {"Vehicle", "乗り物"},
+                {"PickupSpec", "特殊"},
+
+                // === 武器 ===
+                {"ScanWeaponPool", "武器プールを検索"},
+                {"WeaponRefresh", "武器スロットを更新"},
+                {"WeaponSlot", "武器スロット"},
+                {"StorageWeapon", "倉庫武器"},
+                {"Stack", "個数"},              // Count和Stack统一
+                {"NoDrop", "非破棄"},
+                {"WeaponScanError", "武器検索失敗"},
+                {"WeaponApplySuccess", "武器適用した"},
+                {"WeaponApplyFailed", "武器適用失敗"},
+
+                // 资源
+                {"GlobalResources", "倉庫資源"},
+                {"PlayerResources", "キャラ資源"},
+                {"Food", "食べ物"},
+                {"Gasoline", "ガソリン"},
+                {"Medical", "医療"},
+                {"PistolAmmo", "ピストル弾"},
+                {"RifleAmmo", "ライフル弾"},
+                {"ShotgunAmmo", "ショットガン弾"},
+
+                // 进阶
+                {"NewMaxText", "取消属性上限"},
+                {"Junk01", "尽管修改了代码, 但 CHAR_STAT_MAX和CHAR_STAT_MIN 还要你自己修改.\n在控制台里输入 {X to CHAR_STAT_MAX}和{X to CHAR_STAT_MIN}, X 为你想要的值."},
+                {"Junk02", "但是这个工具也能做到，所以何意味？"},
+
+                // 设置窗口
+                {"Settings_Title", "設定"},
+                {"Settings_Language", "言語:"},
+                {"Settings_PlayerArrayOffset", "キャラ配列オフセット (十六進):"},
+                {"Settings_PlayerStructSize", "キャラ構造体サイズ (十六進):"},
+                {"Settings_PlayerSlots", "キャラ配列数:"},
+
+                {"Settings_EntityPoolOffset", "実体配列オフセット (十六進):"},
+                {"Settings_EntitySize", "実体構造体サイズ (十六進):"},
+                {"Settings_EntitySlots", "実体配列数:"},
+
+                {"Settings_WeaponPoolOffset", "武器配列オフセット (十六進):"},
+                {"Settings_WeaponSize", "武器構造体サイズ (十六進):"},
+                {"Settings_MaxWeapons", "武器配列数:"},
+
+                {"Settings_StorageResourceOffset", "倉庫資源オフセット (十六進):"},
+                {"Settings_StorageWeaponOffset", "倉庫武器配列オフセット (十六進):"},
+                {"Settings_StorageWeaponSize", "倉庫武器構造体サイズ (十六進):"},
+                {"Settings_StorageWeaponSlots", "倉庫武器配列数:"},
             }
         };
 

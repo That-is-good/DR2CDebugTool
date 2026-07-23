@@ -264,8 +264,10 @@ namespace DR2CDebugTool.ViewModels
 
         public void OpenSettings()
         {
-            var settingsWin = new SettingsWindow(Memory.Settings ?? new Settings());
-            settingsWin.Owner = OwnerWindow;
+            var settingsWin = new SettingsWindow(Memory.Settings ?? new Settings())
+            {
+                Owner = OwnerWindow
+            };
             if (settingsWin.ShowDialog() == true)
             {
                 Memory.LoadSettings(settingsWin.UpdatedSettings);

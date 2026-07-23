@@ -35,7 +35,8 @@
                     <TextBlock x:Name="LanguageLabel" Grid.Column="0" Text="Language:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,10,0"/>
                     <ComboBox x:Name="LanguageCombo" Grid.Column="1" Margin="0,0,0,0" SelectedIndex="0">
                         <ComboBoxItem Content="English" Tag="en-US"/>
-                        <ComboBoxItem Content="中文" Tag="zh-CN"/>
+                        <ComboBoxItem Content="简体中文" Tag="zh-CN"/>
+                        <ComboBoxItem Content="日本語" Tag="ja-JP"/>
                     </ComboBox>
                 </Grid>
             </Border>
@@ -43,7 +44,6 @@
             <GroupBox Grid.Row="2" Grid.ColumnSpan="2" Header="Player Settings" Margin="0,0,0,10" BorderBrush="#007ACC">
                 <Grid Margin="5">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
@@ -59,17 +59,15 @@
                     <TextBlock x:Name="PlayerStructSizeLabel" Grid.Row="1" Grid.Column="0" Text="Player Struct Size (hex):" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,2"/>
                     <TextBox x:Name="PlayerStructSizeBox" Grid.Row="1" Grid.Column="1" Margin="5,2" Text="2E0"/>
 
-                    <TextBlock x:Name="PlayerBaseOffsetLabel" Grid.Row="2" Grid.Column="0" Text="Player Base Offset (stat@):" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,2"/>
-                    <TextBox x:Name="PlayerBaseOffsetBox" Grid.Row="2" Grid.Column="1" Margin="5,2" Text="1C9"/>
-
-                    <TextBlock x:Name="PlayerBonusOffsetLabel" Grid.Row="3" Grid.Column="0" Text="Player Bonus Offset (bonus@):" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,2"/>
-                    <TextBox x:Name="PlayerBonusOffsetBox" Grid.Row="3" Grid.Column="1" Margin="5,2" Text="1E3"/>
+                    <TextBlock x:Name="PlayerSlotsLabel" Grid.Row="2" Grid.Column="0" Text="Player Slots:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,2"/>
+                    <TextBox x:Name="PlayerSlotsBox" Grid.Row="2" Grid.Column="1" Margin="5,2" Text="100"/>
                 </Grid>
             </GroupBox>
 
             <GroupBox Grid.Row="3" Grid.ColumnSpan="2" Header="Entity Settings" Margin="0,0,0,10" BorderBrush="#007ACC">
                 <Grid Margin="5">
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
@@ -85,8 +83,8 @@
                     <TextBlock x:Name="EntitySizeLabel" Grid.Row="1" Grid.Column="0" Text="Entity Size (hex):" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,2"/>
                     <TextBox x:Name="EntitySizeBox" Grid.Row="1" Grid.Column="1" Margin="5,2" Text="304"/>
 
-                    <TextBlock x:Name="StorageOffsetLabel" Grid.Row="2" Grid.Column="0" Text="Storage Offset (hex):" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,2"/>
-                    <TextBox x:Name="StorageOffsetBox" Grid.Row="2" Grid.Column="1" Margin="5,2" Text="5E2260"/>
+                    <TextBlock x:Name="EntitySlotsLabel" Grid.Row="3" Grid.Column="0" Text="Entity Slots:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,2"/>
+                    <TextBox x:Name="EntitySlotsBox" Grid.Row="3" Grid.Column="1" Margin="5,2" Text="262"/>
                 </Grid>
             </GroupBox>
 
@@ -119,20 +117,24 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="220"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock x:Name="StorageWeaponOffsetLabel" Grid.Row="0" Grid.Column="0" Text="Storage Weapon Offset (hex):" FontWeight="SemiBold" Margin="0,2"/>
-                    <TextBox x:Name="StorageWeaponOffsetBox" Grid.Row="0" Grid.Column="1" Margin="5,2" Text="5E2280"/>
+                    <TextBlock x:Name="StorageResourceOffsetLabel" Grid.Row="0" Grid.Column="0" Text="Storage Resource Offset (hex):" FontWeight="SemiBold" Margin="0,2"/>
+                    <TextBox x:Name="StorageResourceOffsetBox" Grid.Row="0" Grid.Column="1" Margin="5,2" Text="5E2260"/>
 
-                    <TextBlock x:Name="StorageWeaponSlotsLabel" Grid.Row="1" Grid.Column="0" Text="Storage Weapon Slots:" FontWeight="SemiBold" Margin="0,2"/>
-                    <TextBox x:Name="StorageWeaponSlotsBox" Grid.Row="1" Grid.Column="1" Margin="5,2" Text="15"/>
+                    <TextBlock x:Name="StorageWeaponOffsetLabel" Grid.Row="1" Grid.Column="0" Text="Storage Weapon Offset (hex):" FontWeight="SemiBold" Margin="0,2"/>
+                    <TextBox x:Name="StorageWeaponOffsetBox" Grid.Row="1" Grid.Column="1" Margin="5,2" Text="5E2280"/>
 
                     <TextBlock x:Name="StorageWeaponSizeLabel" Grid.Row="2" Grid.Column="0" Text="Storage Weapon Size (hex):" FontWeight="SemiBold" Margin="0,2"/>
                     <TextBox x:Name="StorageWeaponSizeBox" Grid.Row="2" Grid.Column="1" Margin="5,2" Text="8"/>
+
+                    <TextBlock x:Name="StorageWeaponSlotsLabel" Grid.Row="3" Grid.Column="0" Text="Storage Weapon Slots:" FontWeight="SemiBold" Margin="0,2"/>
+                    <TextBox x:Name="StorageWeaponSlotsBox" Grid.Row="3" Grid.Column="1" Margin="5,2" Text="15"/>
                 </Grid>
             </GroupBox>
 

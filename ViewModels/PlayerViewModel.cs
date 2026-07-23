@@ -10,7 +10,7 @@ namespace DR2CDebugTool.ViewModels
         private readonly MemoryService _memory;
         public ObservableCollection<CharacterInfo> CharacterList { get; } = [];
         public ObservableCollection<PlayerStat> PlayerStats { get; } = [];
-        public uint PlayerSlots {get; set;} = 0x100;
+        public uint PlayerSlots => _memory.Settings?.PlayerSlots ?? 0x100;
 
         private int _currentCharacterIndex = 0;
         public int CurrentCharacterIndex

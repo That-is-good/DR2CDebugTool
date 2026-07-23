@@ -10,6 +10,7 @@ namespace DR2CDebugTool.Models
         // ===== 玩家角色数组 =====
         public uint PlayerArrayOffset { get; set; } = 0x5E25D8;
         public uint PlayerStructSize { get; set; } = 0x2E0;
+        public uint PlayerSlots { get; set; } = 0x100;
         
         // 玩家字段偏移
         public int PlayerHealthOffset { get; set; } = 0x140;
@@ -19,6 +20,7 @@ namespace DR2CDebugTool.Models
         public int PlayerPerkOffset { get; set; } = 0x44;
         public int PlayerTraitOffset { get; set; } = 0x6C;
         public int PlayerDisplayFlagOffset { get; set; } = 0x1BC;
+        public const int ResourceOffset = 0x288;
         
         // ===== 实体池 =====
         public uint EntityPoolOffset { get; set; } = 0x5632E0;
@@ -36,14 +38,8 @@ namespace DR2CDebugTool.Models
         public int EntityVelXOffset { get; set; } = 0x38;        // float: X速度
         public int EntityVelYOffset { get; set; } = 0x3C;        // float: Y速度
         public int EntityVelZOffset { get; set; } = 0x40;        // float: Z速度
-        public int EntitySpeedOffset { get; set; } = 0x44;        // float: 速度值
+        //public int EntitySpeedOffset { get; set; } = 0x44;        // float: 速度值
         public int EntityAreaIdOffset { get; set; } = 0x04;
-        
-        // ===== 实体高亮相关 =====
-        public int EntityLightROffset { get; set; } = 0x1F0;     // float: 光照 R
-        public int EntityLightGOffset { get; set; } = 0x1F4;     // float: 光照 G
-        public int EntityLightBOffset { get; set; } = 0x1F8;     // float: 光照 B
-        public int EntityLightAOffset { get; set; } = 0x1FC;     // float: 光照 A
 
         // ===== 实体类型常量 =====
         public enum ENTITY_TYPE: byte
@@ -63,7 +59,6 @@ namespace DR2CDebugTool.Models
         public uint StorageWeaponSize { get; set; } = 8;
 
         // ===== 仓库资源 =====
-        public const int ResourceOffset = 0x288;
         public uint StorageOffset { get; set; } = 0x5E2260;
 
         private static string ConfigPath = "settings.json";

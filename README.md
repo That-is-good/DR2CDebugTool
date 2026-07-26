@@ -1,94 +1,84 @@
-# Death Road to Canada Debug Tool
+# DR2C 调试工具
 
-A memory editing utility for the game **Death Road to Canada**, designed to help players inspect and modify in‑game data such as character stats, entities, weapons, and resources.  
-Built with C# and a multi‑language UI.
+## 项目简介
 
----
+DR2C 调试工具是一款针对加拿大死亡之路的内存编辑与调试辅助软件，基于 Qt 框架开发，通过读取和修改游戏进程内存，实现对游戏角色、实体、全局资源等数据的实时查看和修改。
 
-## Features
-
-- **Process Attachment** – Attach to the running game process with a single click.
-- **Player Stats** – View and edit health, perks, traits, position, AI settings, and debug flags (no‑collide, invisible, invincible, glow, etc.).
-- **Entity Management** – Scan all game entities (humans, zombies, items, projectiles, furniture, vehicles), filter by type, teleport, swap positions, and update entity properties.
-- **Weapon Pool** – Browse and modify weapon slots, stack counts, and lock status.
-- **Global & Player Resources** – Edit food, gasoline, medical supplies, and ammunition (pistol, rifle, shotgun).
-- **Advanced Options** – Bypass stat limits (requires manual console commands or built‑in support).
-- **Multi‑Language Support** – Switch between English (en‑US), Simplified Chinese (zh‑CN), and Japanese (ja‑JP) on the fly.
-- **Customizable Offsets** – Adjust memory offsets and structure sizes via the Settings window to accommodate different game versions.
+该工具提供了直观的图形界面，支持进程附加、角色属性编辑、实体管理、全局资源和武器修改等核心功能，适用于游戏调试、数据研究及 Mod 开发等场景。
 
 ---
 
-## Usage
+## 主要功能
 
-1. Launch **Death Road to Canada**.
-2. Open the debug tool and click **Attach** to select the game process.
-3. Navigate through the tabs:
-   - **Player Stats** – Select a character slot and modify attributes.
-   - **Entities** – Scan for entities, choose a source/target, and perform actions (teleport, swap).
-   - **Weapons** – Refresh weapon slots and edit each weapon’s data.
-   - **Resources** – Adjust global and player‑specific resource values.
-   - **Advanced** – Access extra tweaks (e.g., stat limit removal).
-4. After making changes, click **Apply** to write the new values to memory.
+### 1. 进程管理
+- 枚举当前系统进程，支持按进程名或 PID 过滤。
+- 一键附加到目标进程，获取内存访问权限。
+- 显示已附加进程信息及模块基址。
 
----
+### 2. 角色（Character）面板
+- 列出所有游戏角色，按名称选择。
+- **基本属性**：角色名、特性（Perk）、特长（Trait）、描述、生命值、额外速度。
+- **状态位**：8 个独立状态开关（如生病、受伤、疲倦、训练狗等）。
+- **核心属性表**（共 13 项）：
+  - 士气、态度、镇静、魅力、智慧、忠诚、医疗技能、机械技能、射击、力量、灵巧、体能、活力。
+  - 每项支持基础值、附加值，自动计算有效值，并标记是否已知。
+- **资源**：7 类资源（食物、汽油、医疗、子弹、步枪、霰弹）数量编辑。
+- **武器栏**：3 个武器槽，支持选择武器 ID、设置数量及锁定状态。
 
-## Configuration
+### 3. 实体（Entity）面板
+- 显示所有游戏实体列表（人类、僵尸、物品、抛射物、家具等），支持按类型和区域过滤。
+- **实体标志**：无碰撞、不可见、不绘制、淡去、不发光、发光、不可被击中、不受伤害、暂停。
+- **物理属性**：三维坐标、三维速度、质量、摩擦力、弹跳力。
+- **生命值**及 **AI 状态**（AI 状态值、AI 发呆时间）。
+- **实体操作**：
+  - 设置目标实体
+  - 传送当前实体至目标实体位置
+  - 交换两个实体的位置和区域
 
-Open the **Settings** window to fine‑tune memory layout parameters (all values are in hexadecimal unless stated otherwise):
-
-| Category             | Setting                          | Description                                 |
-|----------------------|----------------------------------|---------------------------------------------|
-| **Player**           | Player Array Offset              | Base offset of the player array             |
-|                      | Player Struct Size               | Size of each player structure               |
-|                      | Player Slots                     | Maximum number of player slots              |
-| **Entity**           | Entity Pool Offset               | Offset to the entity pool                   |
-|                      | Entity Size                      | Size of each entity structure               |
-|                      | Entity Slots                     | Maximum number of entity slots              |
-| **Weapon**           | Weapon Pool Offset               | Offset to the weapon pool                   |
-|                      | Weapon Size                      | Size of each weapon structure               |
-|                      | Weapons Slots                    | Maximum number of weapon slots              |
-| **Storage**          | Storage Resource Offset          | Offset for global resource storage          |
-|                      | Storage Weapon Offset            | Offset for storage weapon array             |
-|                      | Storage Weapon Size              | Size of each storage weapon structure       |
-|                      | Storage Weapon Slots             | Number of storage weapon slots              |
-
-> **Note:** Incorrect values may cause the tool to fail or crash. Only adjust if you know the game’s memory layout.
+### 4. 全局（Mission）面板
+- 显示当前任务中的 4 个角色 ID（仅读取）。
+- **全局资源**：7 类资源数量编辑。
+- **仓库武器**：15 个存储槽位（3 行 × 5 列），每个槽位可设置武器 ID 和数量。
 
 ---
 
-## Localization
+## 技术架构
 
-The tool currently supports three languages:
-
-- `en-US` – English
-- `zh-CN` – Simplified Chinese
-- `ja-JP` – Japanese
-
-Change the language in the **Settings** window.  
-All UI strings are defined in `LanguageManager.cs`. To add a new language, duplicate an existing dictionary and translate the keys.
+- **开发框架**：Qt 6（C++）
+- **内存操作**：通过 `MemoryManager` 类封装 Windows 进程内存读写（`ReadProcessMemory` / `WriteProcessMemory`）。
+- **数据解析**：`GameDataReader` 负责从内存中读取和写入结构化数据，包括角色、实体、全局数据等，基于固定的内存偏移和结构布局。
+- **界面设计**：使用 Qt Designer 生成的 `.ui` 文件，结合自定义委托（`SpinBoxDelegate`）实现表格内数值编辑。
+- **刷新机制**：定时器（500ms）定期刷新当前活动标签页的数据，并在用户编辑输入控件时自动暂停刷新，避免干扰操作。
 
 ---
 
+## 编译与运行
 
-The `LanguageManager` provides:
-- `CurrentLanguage` – property to get/set the active language code.
-- `Get(string key)` – returns the translated string for the current language.
-- `Combine` / `Combine3` – helpers to concatenate translated tokens (e.g., `Read` + `Entities` → `"Read Entities"`).
+### 环境要求
+- Windows 操作系统（依赖 Windows API 进行进程内存操作）
+- Qt 6 及以上版本（CMake）
+- C++11 或更高版本编译器（MSVC / MinGW）
+
+### 构建步骤
+1. 使用 Qt Creator 打开项目使用 CMake 生成构建文件。
+2. 确保所有源文件已包含。
+3. 编译项目，生成可执行文件。
+
+### 运行
+- 点击“刷新”按钮枚举进程列表，输入进程名过滤（通常是 `prog.exe`，并且默认文本就是 `prog.exe`）。
+- 选中目标进程，点击“附加”建立连接。
+- 附加成功后，切换至各标签页查看和修改数据。
 
 ---
 
-## Contributing
+## 注意事项
 
-Contributions are welcome! You can help by:
-
-- Reporting bugs or suggesting features.
-- Adding support for additional languages.
-- Improving the memory offset detection or stability.
-
-Please open an issue or submit a pull request with your changes.
+- **内存偏移固定**：本工具基于游戏特定版本的内存布局编写，若游戏更新，相关偏移量可能需要重新定位。
+- **输入焦点保护**：当用户正在编辑输入框（如 QLineEdit、QSpinBox 等）时，定时刷新自动暂停，防止数据被意外覆盖。
 
 ---
 
-## Disclaimer
+## 后续大饼
 
-This tool modifies the memory of a running game. Use at your own risk. The author is not responsible for any game corruption, crashes, or bans (if applicable). Always back up your save files before using debug tools.
+- 增加配置，偏移量保存功能。
+- 本地化

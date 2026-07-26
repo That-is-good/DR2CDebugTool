@@ -105,6 +105,10 @@ namespace DR2CDebugTool.ViewModels
         public string EntityZombieText => LanguageManager.Get("ENTITY_TYPE_ZOMBIE");
         public string EntityItemText => LanguageManager.Get("ENTITY_TYPE_ITEM");
         public string EntityProjectileText => LanguageManager.Get("ENTITY_TYPE_PROJECTILE");
+        public string EntityFurnitureText => LanguageManager.Get("Furniture");
+        public string EntityPickupText => LanguageManager.Get("Pickup");
+        public string EntityVehicleText => LanguageManager.Get("Vehicle");
+        public string EntityPickupSpecText => LanguageManager.Get("PickupSpec");
         public string TeleportToTargetText => LanguageManager.Get("TeleportToTarget");
         public string SwapPositionsText => LanguageManager.Get("SwapPositions");
         public string SetTargetText => LanguageManager.Get("SetTarget");

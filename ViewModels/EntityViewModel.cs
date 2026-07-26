@@ -149,9 +149,14 @@ namespace DR2CDebugTool.ViewModels
                     2 => (byte)Settings.ENTITY_TYPE.ENTITY_TYPE_ZOMBIE,
                     3 => (byte)Settings.ENTITY_TYPE.ENTITY_TYPE_ITEM,
                     4 => (byte)Settings.ENTITY_TYPE.ENTITY_TYPE_PROJECTILE,
+                    5 => 5,
+                    6 => 6,
+                    7 => 7,
+                    8 => 8,
                     _ => 0
                 };
-                if (filterType > 0 && entity.EntityType != filterType)
+                if (filterType > 0 && filterType < 5 && entity.EntityType != filterType ||
+                    filterType > 4 && (entity.EntityType != 3 || entity.SubType + 5 != filterType))
                     return false;
             }
 

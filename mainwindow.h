@@ -106,6 +106,7 @@ private:
     void writeCharacterSpeed(int index);
     void writeCharacterStatus(int index);
     void writeCharacterStats(int index);
+    void writeCharacterTempStats(int index);
     void writeCharacterResources(int index);
     void writeCharacterWeaponSlot(int charIndex, int slot);
     void writeMissionStorageWeapon(int slotIndex);

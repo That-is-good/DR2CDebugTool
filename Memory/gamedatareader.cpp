@@ -183,6 +183,7 @@ CharacterData GameDataReader::readCharacter(int index) const
     // 批量读取属性块
     m_memMgr->readBytes(addr + 0x1BC, data.display_stat, 13);
     m_memMgr->readBytes(addr + 0x1C9, data.base_stats, 13);
+    m_memMgr->readBytes(addr + 0x1D6, data.temp_stats, 13);
     m_memMgr->readBytes(addr + 0x1E3, data.bonus_stats, 13);
 
     m_memMgr->read<float>(addr + 0x1F0, data.speed_bonus);
@@ -236,6 +237,7 @@ QList<CharacterData> GameDataReader::readAllCharacters() const
         // 属性块
         memcpy(data.display_stat, p + 0x1BC, 13);
         memcpy(data.base_stats,   p + 0x1C9, 13);
+        memcpy(data.temp_stats,   p + 0x1D6, 13);
         memcpy(data.bonus_stats,  p + 0x1E3, 13);
 
         data.speed_bonus = *reinterpret_cast<const float*>(p + 0x1F0);
@@ -272,6 +274,7 @@ bool GameDataReader::writeCharacter(int index, const CharacterData &data) const
     ok &= m_memMgr->writeString(addr + 0x144, data.description, 120);
     ok &= m_memMgr->writeBytes(addr + 0x1BC, data.display_stat, 13);
     ok &= m_memMgr->writeBytes(addr + 0x1C9, data.base_stats, 13);
+    ok &= m_memMgr->writeBytes(addr + 0x1D6, data.temp_stats, 13);
     ok &= m_memMgr->writeBytes(addr + 0x1E3, data.bonus_stats, 13);
     ok &= m_memMgr->write<float>(addr + 0x1F0, data.speed_bonus);
     ok &= m_memMgr->write<uint8_t>(addr + 0x1F8, data.status);
@@ -366,6 +369,14 @@ bool GameDataReader::writeCharacterStat(int charIndex, int statIndex, int8_t bas
     ok &= m_memMgr->write<int8_t>(addr + 0x1C9 + statIndex, baseVal);
     ok &= m_memMgr->write<int8_t>(addr + 0x1E3 + statIndex, bonusVal);
     return ok;
+}
+
+bool GameDataReader::writeCharacterTempStat(int charIndex, int statIndex, int8_t tempVal)
+{
+    if (statIndex < 0 || statIndex >= 13) return false;
+    uintptr_t addr = calcCharacterAddress(charIndex);
+    if (!addr || !isAttached()) return false;
+    return m_memMgr->write<int8_t>(addr + 0x1D6 + statIndex, tempVal);
 }
 
 // ==================== 本局游戏状态 ====================

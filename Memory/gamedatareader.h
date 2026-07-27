@@ -48,6 +48,7 @@ struct CharacterData {
     // 属性块
     int8_t display_stat[13] = {0}; // 0x1BC
     int8_t base_stats[13] = {0};   // 0x1C9
+    int8_t temp_stats[13] = {0};   // 0x1D6 临时属性
     int8_t bonus_stats[13] = {0};  // 0x1E3
     float speed_bonus = 0;          // 0x1F0
     uint8_t status = 0;             // 0x1F8
@@ -107,6 +108,7 @@ public:
     bool writeCharacterResource(int index, int resourceSlot, int32_t value);
     bool writeCharacterWeapon(int charIndex, int weaponSlot, int32_t id, int32_t stack, int32_t lock);
     bool writeCharacterStat(int charIndex, int statIndex, int8_t baseVal, int8_t bonusVal);
+    bool writeCharacterTempStat(int charIndex, int statIndex, int8_t tempVal);
 
     // ---- 本局游戏状态 ----
     MissionStateData readMissionState() const;

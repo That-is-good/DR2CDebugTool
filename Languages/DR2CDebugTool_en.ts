@@ -423,23 +423,22 @@
     </message>
     <message>
         <location filename="../mainwindow.ui" line="923"/>
-        <location filename="../mainwindow.cpp" line="327"/>
-        <location filename="../mainwindow.cpp" line="369"/>
+        <location filename="../mainwindow.cpp" line="329"/>
+        <location filename="../mainwindow.cpp" line="372"/>
         <source>资源</source>
         <translation type="unfinished">Resource</translation>
     </message>
     <message>
         <location filename="../mainwindow.ui" line="935"/>
         <location filename="../mainwindow.cpp" line="143"/>
-        <location filename="../mainwindow.cpp" line="343"/>
-        <location filename="../mainwindow.cpp" line="830"/>
+        <location filename="../mainwindow.cpp" line="345"/>
+        <location filename="../mainwindow.cpp" line="871"/>
         <source>武器</source>
         <translation type="unfinished">Weapon</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="53"/>
         <source>DR2C 调试工具</source>
-        <translation type="unfinished">DR2C Debug Tool</translation>
+        <translation type="obsolete">DR2C Debug Tool</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="43"/>
@@ -546,6 +545,11 @@
         <translation type="unfinished">Vitality</translation>
     </message>
     <message>
+        <location filename="../mainwindow.cpp" line="53"/>
+        <source>加拿大的死亡之路调试工具</source>
+        <translation type="unfinished">Death Road to Canada Debug Tool</translation>
+    </message>
+    <message>
         <location filename="../mainwindow.cpp" line="126"/>
         <source>输入进程名过滤...</source>
         <translation type="unfinished">Enter Process To Filter</translation>
@@ -558,49 +562,49 @@
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="137"/>
-        <location filename="../mainwindow.cpp" line="827"/>
+        <location filename="../mainwindow.cpp" line="868"/>
         <source>人类</source>
         <translation type="unfinished">Human</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="138"/>
-        <location filename="../mainwindow.cpp" line="827"/>
+        <location filename="../mainwindow.cpp" line="868"/>
         <source>僵尸</source>
         <translation type="unfinished">Zombie</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="139"/>
-        <location filename="../mainwindow.cpp" line="827"/>
+        <location filename="../mainwindow.cpp" line="868"/>
         <source>物品</source>
         <translation type="unfinished">Item</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="140"/>
-        <location filename="../mainwindow.cpp" line="827"/>
+        <location filename="../mainwindow.cpp" line="868"/>
         <source>抛射物</source>
         <translation type="unfinished">Projectile</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="141"/>
-        <location filename="../mainwindow.cpp" line="830"/>
+        <location filename="../mainwindow.cpp" line="871"/>
         <source>家具</source>
         <translation type="unfinished">Furniture</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="142"/>
-        <location filename="../mainwindow.cpp" line="830"/>
+        <location filename="../mainwindow.cpp" line="871"/>
         <source>拾取物</source>
         <translation type="unfinished">Pick up</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="144"/>
-        <location filename="../mainwindow.cpp" line="830"/>
+        <location filename="../mainwindow.cpp" line="871"/>
         <source>车辆</source>
         <translation type="unfinished">Vehicle</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="145"/>
-        <location filename="../mainwindow.cpp" line="830"/>
+        <location filename="../mainwindow.cpp" line="871"/>
         <source>特殊拾取</source>
         <translation type="unfinished">Pick Special</translation>
     </message>
@@ -660,77 +664,82 @@
         <translation type="unfinished">Known</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="327"/>
-        <location filename="../mainwindow.cpp" line="343"/>
-        <location filename="../mainwindow.cpp" line="369"/>
+        <location filename="../mainwindow.cpp" line="299"/>
+        <source>临时值</source>
+        <translation type="unfinished">Temp</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="329"/>
+        <location filename="../mainwindow.cpp" line="345"/>
+        <location filename="../mainwindow.cpp" line="372"/>
         <source>数量</source>
         <translation type="unfinished">Count</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="343"/>
+        <location filename="../mainwindow.cpp" line="345"/>
         <source>锁定</source>
         <translation type="unfinished">Lock</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="348"/>
-        <location filename="../mainwindow.cpp" line="396"/>
-        <location filename="../mainwindow.cpp" line="621"/>
-        <location filename="../mainwindow.cpp" line="723"/>
-        <location filename="../mainwindow.cpp" line="748"/>
-        <location filename="../mainwindow.cpp" line="1141"/>
+        <location filename="../mainwindow.cpp" line="350"/>
+        <location filename="../mainwindow.cpp" line="399"/>
+        <location filename="../mainwindow.cpp" line="649"/>
+        <location filename="../mainwindow.cpp" line="764"/>
+        <location filename="../mainwindow.cpp" line="789"/>
+        <location filename="../mainwindow.cpp" line="1182"/>
         <source>(空)</source>
         <translation type="unfinished">(Empty)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="445"/>
-        <location filename="../mainwindow.cpp" line="996"/>
-        <location filename="../mainwindow.cpp" line="1018"/>
+        <location filename="../mainwindow.cpp" line="448"/>
+        <location filename="../mainwindow.cpp" line="1037"/>
+        <location filename="../mainwindow.cpp" line="1059"/>
         <source>提示</source>
         <translation type="unfinished">Tip</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="445"/>
+        <location filename="../mainwindow.cpp" line="448"/>
         <source>请选择进程</source>
         <translation type="unfinished">Please Select Process</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="827"/>
+        <location filename="../mainwindow.cpp" line="868"/>
         <source>类型%1</source>
         <translation type="unfinished">Type%1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="830"/>
+        <location filename="../mainwindow.cpp" line="871"/>
         <source>子类型%1</source>
         <translation type="unfinished">SubType%1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="862"/>
+        <location filename="../mainwindow.cpp" line="903"/>
         <source>实体: %1</source>
         <translation type="unfinished">Entity: %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="987"/>
+        <location filename="../mainwindow.cpp" line="1028"/>
         <source>目标: ID=%1, 索引=%2</source>
         <translation type="unfinished">Target: ID=%1, Index=%2</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="996"/>
-        <location filename="../mainwindow.cpp" line="1018"/>
+        <location filename="../mainwindow.cpp" line="1037"/>
+        <location filename="../mainwindow.cpp" line="1059"/>
         <source>请先选择实体并设置目标</source>
         <translation type="unfinished">Please Select Entity and Target</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1010"/>
+        <location filename="../mainwindow.cpp" line="1051"/>
         <source>已传送至目标</source>
         <translation type="unfinished">Teleported to Target</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1036"/>
+        <location filename="../mainwindow.cpp" line="1077"/>
         <source>已交换位置</source>
         <translation type="unfinished">Swapped Target</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1120"/>
+        <location filename="../mainwindow.cpp" line="1161"/>
         <source>无</source>
         <translation type="unfinished">Empty</translation>
     </message>

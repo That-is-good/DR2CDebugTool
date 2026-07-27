@@ -50,7 +50,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     setupUI();
     setupConnections();
-    setWindowTitle(tr("DR2C 调试工具"));
+    setWindowTitle(tr("加拿大的死亡之路调试工具"));
     // 启动时读取配置文件
     QString configPath = QCoreApplication::applicationDirPath() + "/config.json";
     setting->loadFromFile(configPath);
@@ -130,8 +130,8 @@ void MainWindow::setupUI()
     setupCharacterWeaponTable();
     setupMissionResourceTable();
     setupMissionWeaponTable();
-    if (m_weaponNames.isEmpty())
-        m_weaponNames = m_gameData->readAllWeaponNames();
+    // 不要在 setupUI 中读取武器名，此时还未附加进程，m_moduleBase=0
+    // 改为在 refreshAll() 中附加进程后读取
 
     ui->entityTypecomboBox->addItem(tr("全部"), -1);
     ui->entityTypecomboBox->addItem(tr("人类"), 1);
@@ -294,23 +294,24 @@ void MainWindow::setupEntityTable()
 
 void MainWindow::setupCharacterStatTable()
 {
-    // QTableView: 5列: 属性名, 基础值, 附加值, 有效值, 是否已知
-    QStandardItemModel *m = new QStandardItemModel(13, 5, this);
-    m->setHorizontalHeaderLabels({tr("属性"), tr("基础值"), tr("附加值"), tr("有效值"), tr("是否已知")});
+    // QTableView: 6列: 属性名, 基础值, 临时值, 附加值, 有效值, 是否已知
+    QStandardItemModel *m = new QStandardItemModel(13, 6, this);
+    m->setHorizontalHeaderLabels({tr("属性"), tr("基础值"), tr("临时值"), tr("附加值"), tr("有效值"), tr("是否已知")});
 
     for (int i = 0; i < 13; ++i) {
         QStandardItem *nameItem = new QStandardItem(statNames[i]);
         nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEditable);
         m->setItem(i, 0, nameItem);                  // 属性名 Label
         m->setItem(i, 1, new QStandardItem("0"));     // 基础值 SpinBox
-        m->setItem(i, 2, new QStandardItem("0"));     // 附加值 SpinBox
+        m->setItem(i, 2, new QStandardItem("0"));     // 临时值 SpinBox
+        m->setItem(i, 3, new QStandardItem("0"));     // 附加值 SpinBox
         QStandardItem *effItem = new QStandardItem("0");
         effItem->setFlags(effItem->flags() & ~Qt::ItemIsEditable);
-        m->setItem(i, 3, effItem);                    // 有效值 Label
+        m->setItem(i, 4, effItem);                    // 有效值 Label
         QStandardItem *dispItem = new QStandardItem();
         dispItem->setFlags(dispItem->flags() | Qt::ItemIsUserCheckable);
         dispItem->setCheckable(true);
-        m->setItem(i, 4, dispItem);                   // 是否已知 CheckBox
+        m->setItem(i, 5, dispItem);                   // 是否已知 CheckBox
     }
 
     ui->charaStattableView->setModel(m);
@@ -318,6 +319,7 @@ void MainWindow::setupCharacterStatTable()
     // 设置 SpinBox 委托
     ui->charaStattableView->setItemDelegateForColumn(1, new SpinBoxDelegate(-128, 127, this));
     ui->charaStattableView->setItemDelegateForColumn(2, new SpinBoxDelegate(-128, 127, this));
+    ui->charaStattableView->setItemDelegateForColumn(3, new SpinBoxDelegate(-128, 127, this));
 }
 
 void MainWindow::setupCharacterResourceTable()
@@ -346,8 +348,9 @@ void MainWindow::setupCharacterWeaponTable()
         // 武器名 - Button
         //m->setItem(i, 0, new QStandardItem(tr("(空)"))); //onWeaponButtonClicked(-1, i);
         QPushButton *btn = new QPushButton(tr("(空)"), this);
-        connect(btn, &QPushButton::clicked, this, [this, &i](){
-            onWeaponButtonClicked(-1, i);
+        int slotIndex = i; // 按值拷贝，避免引用已销毁的循环变量
+        connect(btn, &QPushButton::clicked, this, [this, slotIndex](){
+            onWeaponButtonClicked(-1, slotIndex);
         });
         ui->charaWeapontableView->setIndexWidget(m->index(i, 0), btn);
         // 数量 - SpinBox
@@ -501,34 +504,58 @@ void MainWindow::onCharacterStatChanged(const QModelIndex &topLeft, const QModel
     if (m_updatingUI) return;
     int i = selectedCharacterIndex();
     if (i < 0) return;
-    // 只处理基础值和附加值列的变化 (col 1,2)
+    // col: 0=属性名, 1=基础值, 2=临时值, 3=附加值, 4=有效值(只读), 5=是否已知
     int col = topLeft.column();
     int row = topLeft.row();
-    if (col == 1 || col == 2) {
-        // 先更新缓存再写入
-        QStandardItemModel *sm = static_cast<QStandardItemModel*>(ui->charaStattableView->model());
+    QStandardItemModel *sm = static_cast<QStandardItemModel*>(ui->charaStattableView->model());
+
+    if (col == 1) {
+        // 基础值变化
         bool ok;
         int8_t baseVal = static_cast<int8_t>(sm->item(row, 1)->text().toInt(&ok));
         if (!ok) return;
-        int8_t bonusVal = static_cast<int8_t>(sm->item(row, 2)->text().toInt(&ok));
-        if (!ok) return;
+        int8_t tempVal = m_charCache[i].temp_stats[row];
+        int8_t bonusVal = m_charCache[i].bonus_stats[row];
         if (m_gameData->writeCharacterStat(i, row, baseVal, bonusVal)) {
             m_charCache[i].base_stats[row] = baseVal;
-            m_charCache[i].bonus_stats[row] = bonusVal;
-            // 更新有效值
-            int effective = baseVal + bonusVal;
+            // 更新有效值 = 基础值 + 临时值 + 附加值
+            int effective = baseVal + tempVal + bonusVal;
             m_updatingUI = true;
-            sm->item(row, 3)->setText(QString::number(effective));
+            sm->item(row, 4)->setText(QString::number(effective));
             m_updatingUI = false;
         }
-    } else if (col == 4) {
+    } else if (col == 2) {
+        // 临时值变化
+        bool ok;
+        int8_t tempVal = static_cast<int8_t>(sm->item(row, 2)->text().toInt(&ok));
+        if (!ok) return;
+        if (m_gameData->writeCharacterTempStat(i, row, tempVal)) {
+            m_charCache[i].temp_stats[row] = tempVal;
+            int8_t baseVal = m_charCache[i].base_stats[row];
+            int8_t bonusVal = m_charCache[i].bonus_stats[row];
+            int effective = baseVal + tempVal + bonusVal;
+            m_updatingUI = true;
+            sm->item(row, 4)->setText(QString::number(effective));
+            m_updatingUI = false;
+        }
+    } else if (col == 3) {
+        // 附加值变化
+        bool ok;
+        int8_t baseVal = m_charCache[i].base_stats[row];
+        int8_t tempVal = m_charCache[i].temp_stats[row];
+        int8_t bonusVal = static_cast<int8_t>(sm->item(row, 3)->text().toInt(&ok));
+        if (!ok) return;
+        if (m_gameData->writeCharacterStat(i, row, baseVal, bonusVal)) {
+            m_charCache[i].bonus_stats[row] = bonusVal;
+            int effective = baseVal + tempVal + bonusVal;
+            m_updatingUI = true;
+            sm->item(row, 4)->setText(QString::number(effective));
+            m_updatingUI = false;
+        }
+    } else if (col == 5) {
         // 是否已知列
-        int i = selectedCharacterIndex();
-        if (i < 0) return;
-        QStandardItemModel *sm = static_cast<QStandardItemModel*>(ui->charaStattableView->model());
-        bool checked = sm->item(row, 4)->checkState() == Qt::Checked;
+        bool checked = sm->item(row, 5)->checkState() == Qt::Checked;
         m_charCache[i].display_stat[row] = checked ? 1 : 0;
-        // 通过 writeCharacter 写入 display_stat
         uintptr_t addr = m_gameData->calcCharacterAddress(i);
         if (addr && m_memMgr->isAttached()) {
             m_memMgr->write<int8_t>(addr + 0x1BC + row, checked ? 1 : 0);
@@ -594,14 +621,15 @@ void MainWindow::refreshCharacterData(int ci)
     ui->charaStatuscheckBox002->setChecked(ch.status & STATUS_INJURED);
     ui->charaStatuscheckBox001->setChecked(ch.status & STATUS_SICK);
 
-    // 属性表
+    // 属性表: col 0=属性名, 1=基础值, 2=临时值, 3=附加值, 4=有效值, 5=是否已知
     QStandardItemModel *statM = static_cast<QStandardItemModel*>(ui->charaStattableView->model());
     for (int i = 0; i < 13; ++i) {
         statM->item(i, 1)->setText(QString::number(ch.base_stats[i]));
-        statM->item(i, 2)->setText(QString::number(ch.bonus_stats[i]));
-        int effective = ch.base_stats[i] + ch.bonus_stats[i];
-        statM->item(i, 3)->setText(QString::number(effective));
-        statM->item(i, 4)->setCheckState(ch.display_stat[i] ? Qt::Checked : Qt::Unchecked);
+        statM->item(i, 2)->setText(QString::number(ch.temp_stats[i]));
+        statM->item(i, 3)->setText(QString::number(ch.bonus_stats[i]));
+        int effective = ch.base_stats[i] + ch.temp_stats[i] + ch.bonus_stats[i];
+        statM->item(i, 4)->setText(QString::number(effective));
+        statM->item(i, 5)->setCheckState(ch.display_stat[i] ? Qt::Checked : Qt::Unchecked);
     }
 
     // 资源表
@@ -667,11 +695,24 @@ void MainWindow::writeCharacterStats(int i)
         bool ok;
         int8_t baseVal = static_cast<int8_t>(sm->item(row, 1)->text().toInt(&ok));
         if (!ok) baseVal = m_charCache[i].base_stats[row];
-        int8_t bonusVal = static_cast<int8_t>(sm->item(row, 2)->text().toInt(&ok));
+        int8_t bonusVal = static_cast<int8_t>(sm->item(row, 3)->text().toInt(&ok));
         if (!ok) bonusVal = m_charCache[i].bonus_stats[row];
         m_gameData->writeCharacterStat(i, row, baseVal, bonusVal);
         m_charCache[i].base_stats[row] = baseVal;
         m_charCache[i].bonus_stats[row] = bonusVal;
+    }
+}
+
+void MainWindow::writeCharacterTempStats(int i)
+{
+    if (i < 0) return;
+    QStandardItemModel *sm = static_cast<QStandardItemModel*>(ui->charaStattableView->model());
+    for (int row = 0; row < 13; ++row) {
+        bool ok;
+        int8_t tempVal = static_cast<int8_t>(sm->item(row, 2)->text().toInt(&ok));
+        if (!ok) tempVal = m_charCache[i].temp_stats[row];
+        if (m_gameData->writeCharacterTempStat(i, row, tempVal))
+            m_charCache[i].temp_stats[row] = tempVal;
     }
 }
 

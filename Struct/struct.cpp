@@ -146,6 +146,12 @@ struct character {
         int8_t base_stats[13]; // 0x1c9 基础属性
         CharacterStat baseStat;
     };
+
+    union
+    {
+        int8_t temp_stats[13]; // 0x1d6 临时属性
+        CharacterStat tempStat;
+    };
     
     union
     {
@@ -162,19 +168,16 @@ struct character {
         CommonResource Resource;
     };
     
-    struct
+    union
     {
-        union
+        int32_t weapon[3];
+        struct
         {
-            int32_t weapon[3];
-            struct
-            {
-                int32_t Stack; //数量
-                int32_t ID; //武器ID
-                int32_t Lock; //是否可丢
-            } Weapon;
-        };
-    } Weapon_slots[3];      // 0x2b0
+            int32_t Stack; //数量
+            int32_t ID; //武器ID
+            int32_t Lock; //是否可丢
+        } Weapon;
+    }Weapon_slots[3];// 0x2b0
 };
 // 武器 结构体
 // 大小: 0x1c4
@@ -198,15 +201,13 @@ struct mission_state {
     };
     
     // -------- 仓库武器槽 --------
-    struct {
-        union
+    union
+    {
+        int32_t weapon[2];
+        struct
         {
-            int32_t weapon[2];
-            struct
-            {
-                int32_t ID; // 武器 ID (0=空)
-                int32_t Stack; // 数量
-            } Weapon;
-        };
-    } Storage_slots[15];                // 0x48
+            int32_t ID; // 武器 ID (0=空)
+            int32_t Stack; // 数量
+        } Weapon;
+    }Storage_slots[15];                // 0x48
 };

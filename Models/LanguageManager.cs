@@ -429,7 +429,7 @@ namespace DR2CDebugTool.Models
                 {"STAT_MEDICAL", "医療"},
                 {"STAT_MECHANICAL", "機械"},
                 {"STAT_SHOOTING", "射撃"},
-                {"STAT_STRENGTH", "力"},
+                {"STAT_STRENGTH", "力量"},
                 {"STAT_DEXTERITY", "敏捷"},
                 {"STAT_FITNESS", "体力"},
                 {"STAT_VITALITY", "活力"},

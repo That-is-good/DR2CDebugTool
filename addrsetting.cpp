@@ -86,15 +86,15 @@ void AddrSetting::AppliedSetting(){
 }
 
 QList<intptr_t> AddrSetting::GetOffset(){
-    return QList<intptr_t>{Charaoffset, Entityoffset, Weaponoffset, Missonoffset};
+    return QList<intptr_t>{Entityoffset, Charaoffset, Weaponoffset, Missonoffset};
 }
 
 QList<uint> AddrSetting::GetSize(){
-    return QList<uint>{Charasize, Entitysize, Weaponsize};
+    return QList<uint>{Entitysize, Charasize, Weaponsize};
 }
 
 QList<ushort> AddrSetting::GetLength(){
-    return QList<ushort>{Charalength, Entitylength, Weaponlength};
+    return QList<ushort>{Entitylength, Charalength, Weaponlength};
 }
 
 ushort AddrSetting::GetUpdateFrequency(){

@@ -9,6 +9,7 @@
 #include <QModelIndex>
 #include <cstdint>
 
+#include "addrsetting.h"
 #include "Memory/gamedatareader.h"
 
 QT_BEGIN_NAMESPACE
@@ -27,6 +28,8 @@ public:
     ~MainWindow() override;
 
 private slots:
+    // 设置
+    void onSetting();
     // 进程
     void onRefreshProcess();
     void onAttachProcess();
@@ -86,6 +89,7 @@ private:
     void setupMissionResourceTable();
     void setupMissionWeaponTable();
 
+    void setBase();
     // 刷新
     void refreshAll();
     void refreshProcessList();
@@ -123,6 +127,7 @@ private:
     bool hasEditingFocus() const;
 
     Ui::MainWindow *ui;
+    AddrSetting *setting;
 
     MemoryManager *m_memMgr;
     GameDataReader *m_gameData;
@@ -138,6 +143,9 @@ private:
     int m_entityTypeFilter = -1;
     int m_entityAreaFilter = -1;
     int m_targetEntityIndex = -1;
+
+    QList<QString> resourceNames;
+    QList<QString> statNames;
 
     // 防递归
     bool m_updatingUI = false;

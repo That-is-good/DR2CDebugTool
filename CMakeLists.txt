@@ -20,11 +20,14 @@ qt_add_executable(DR2CDebugTool
     Memory/spinboxdelegate.cpp
     Memory/weapondialog.h
     Memory/weapondialog.cpp
+    addrsetting.h addrsetting.cpp addrsetting.ui
 )
 
 qt_add_translations(
     TARGETS DR2CDebugTool
-    TS_FILES DR2CDebugTool_zh_CN.ts
+    TS_FILES Languages/DR2CDebugTool_zh_CN.ts
+    TS_FILES Languages/DR2CDebugTool_ja.ts
+    TS_FILES Languages/DR2CDebugTool_en.ts
 )
 
 target_link_libraries(DR2CDebugTool

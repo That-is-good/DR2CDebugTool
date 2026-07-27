@@ -21,6 +21,8 @@
 #include <QHBoxLayout>
 #include <QWidget>
 #include <QScrollBar>
+#include <QCoreApplication>
+#include <QDir>
 
 // 状态位
 enum StatusBits {
@@ -29,31 +31,39 @@ enum StatusBits {
     STATUS_DOGPAL   = 64, STATUS_EXPLORER = 128
 };
 
-static const char* resourceNames[] = {
-    "资源0", "食物", "汽油", "医疗", "子弹", "步枪", "霰弹"
-};
-
-static const char* statNames[] = {
-    "士气", "态度", "镇静", "魅力", "智慧", "忠诚", "医疗技能",
-    "机械技能", "射击", "力量", "灵巧", "体能", "活力"
-};
-
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
+    , setting(new AddrSetting(this))
     , m_memMgr(new MemoryManager(this))
     , m_gameData(new GameDataReader(m_memMgr, this))
     , m_refreshTimer(new QTimer(this))
 {
+    resourceNames = {
+        tr("资源0"), tr("食物"), tr("汽油"), tr("医疗"), tr("手枪"), tr("步枪"), tr("霰弹")
+    };
+
+    statNames = {
+        tr("士气"), tr("态度"), tr("镇静"), tr("魅力"), tr("智慧"), tr("忠诚"), tr("医疗"),
+        tr("机械"), tr("射击"), tr("力量"), tr("灵巧"), tr("体能"), tr("活力")
+    };
     ui->setupUi(this);
     setupUI();
     setupConnections();
-    setWindowTitle("DR2C 调试工具");
+    setWindowTitle(tr("DR2C 调试工具"));
+    // 启动时读取配置文件
+    QString configPath = QCoreApplication::applicationDirPath() + "/config.json";
+    setting->loadFromFile(configPath);
+    setBase(); // 应用配置
 }
 
 MainWindow::~MainWindow()
 {
     // 必须在delete ui之前主动断开，避免m_memMgr析构时emit signal访问已销毁的ui
+    // 保存配置到文件
+    QString configPath = QCoreApplication::applicationDirPath() + "/config.json";
+    setting->saveToFile(configPath);
+
     m_memMgr->detachProcess();
     disconnect(m_memMgr, &MemoryManager::processDetached, 0, 0);
     setControlsEnabled(false);
@@ -113,7 +123,7 @@ bool MainWindow::hasEditingFocus() const
 // ==================== UI 初始化 ====================
 void MainWindow::setupUI()
 {
-    ui->filterProcessText->setPlaceholderText("输入进程名过滤...");
+    ui->filterProcessText->setPlaceholderText(tr("输入进程名过滤..."));
     setupEntityTable();
     setupCharacterStatTable();
     setupCharacterResourceTable();
@@ -123,19 +133,19 @@ void MainWindow::setupUI()
     if (m_weaponNames.isEmpty())
         m_weaponNames = m_gameData->readAllWeaponNames();
 
-    ui->entityTypecomboBox->addItem("全部", -1);
-    ui->entityTypecomboBox->addItem("人类", 1);
-    ui->entityTypecomboBox->addItem("僵尸", 2);
-    ui->entityTypecomboBox->addItem("物品", 3);
-    ui->entityTypecomboBox->addItem("抛射物", 4);
-    ui->entityTypecomboBox->addItem("家具", 5);
-    ui->entityTypecomboBox->addItem("拾取物", 6);
-    ui->entityTypecomboBox->addItem("武器", 7);
-    ui->entityTypecomboBox->addItem("车辆", 8);
-    ui->entityTypecomboBox->addItem("特殊拾取", 9);
-    ui->entityAreacomboBox->addItem("全部", -1);
+    ui->entityTypecomboBox->addItem(tr("全部"), -1);
+    ui->entityTypecomboBox->addItem(tr("人类"), 1);
+    ui->entityTypecomboBox->addItem(tr("僵尸"), 2);
+    ui->entityTypecomboBox->addItem(tr("物品"), 3);
+    ui->entityTypecomboBox->addItem(tr("抛射物"), 4);
+    ui->entityTypecomboBox->addItem(tr("家具"), 5);
+    ui->entityTypecomboBox->addItem(tr("拾取物"), 6);
+    ui->entityTypecomboBox->addItem(tr("武器"), 7);
+    ui->entityTypecomboBox->addItem(tr("车辆"), 8);
+    ui->entityTypecomboBox->addItem(tr("特殊拾取"), 9);
+    ui->entityAreacomboBox->addItem(tr("全部"), -1);
     for (int i = 0; i < 16; ++i)
-        ui->entityAreacomboBox->addItem(QString("区域%1").arg(i), i);
+        ui->entityAreacomboBox->addItem(QString(tr("区域%1")).arg(i), i);
 
     setControlsEnabled(false);
     m_refreshTimer->setInterval(500);
@@ -154,6 +164,8 @@ void MainWindow::setControlsEnabled(bool enabled)
 
 void MainWindow::setupConnections()
 {
+    //设置
+    connect(ui->settingBtn, &QPushButton::clicked, this, &MainWindow::onSetting);
     // 进程
     connect(ui->refreshProcessBtn, &QPushButton::clicked, this, &MainWindow::onRefreshProcess);
     connect(ui->attachProceesBtn, &QPushButton::clicked, this, &MainWindow::onAttachProcess);
@@ -249,21 +261,22 @@ void MainWindow::setupConnections()
     connect(m_memMgr, &MemoryManager::processAttached, this, [this]() {
         uintptr_t base = m_memMgr->moduleBaseAddress();
         m_gameData->setModuleBase(base);
-        statusBar()->showMessage(QString("已附加: %1 (PID: %2) 模块基址: 0x%3")
-            .arg(m_memMgr->attachedProcessName(),m_memMgr->attachedProcessId())
+        statusBar()->showMessage(QString(tr("已附加: %1 (PID: %2) 模块基址: 0x%3"))
+            .arg(m_memMgr->attachedProcessName())
+            .arg(m_memMgr->attachedProcessId())
             .arg(base, 0, 16));
         refreshAll();
         m_refreshTimer->start();
         setControlsEnabled(true);
     });
     connect(m_memMgr, &MemoryManager::processDetached, this, [this]() {
-        statusBar()->showMessage("已分离");
+        statusBar()->showMessage(tr("已分离"));
         setControlsEnabled(false);
         m_refreshTimer->stop();
     });
     connect(m_memMgr, &MemoryManager::attachError, this, [this](const QString &err) {
-        statusBar()->showMessage("错误: " + err);
-        QMessageBox::warning(this, "错误", err);
+        statusBar()->showMessage(tr("错误: ") + err);
+        QMessageBox::warning(this, tr("错误"), err);
     });
 }
 
@@ -272,7 +285,7 @@ void MainWindow::setupEntityTable()
 {
     QTableWidget *t = ui->entitytableWidget;
     t->setColumnCount(5);
-    t->setHorizontalHeaderLabels({"ID", "类型", "子类型", "区域", "地址"});
+    t->setHorizontalHeaderLabels({"ID", tr("类型"), tr("子类型"), tr("区域"), tr("地址")});
     t->setSelectionBehavior(QAbstractItemView::SelectRows);
     t->setSelectionMode(QAbstractItemView::SingleSelection);
     t->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -283,7 +296,7 @@ void MainWindow::setupCharacterStatTable()
 {
     // QTableView: 5列: 属性名, 基础值, 附加值, 有效值, 是否已知
     QStandardItemModel *m = new QStandardItemModel(13, 5, this);
-    m->setHorizontalHeaderLabels({"属性", "基础值", "附加值", "有效值", "是否已知"});
+    m->setHorizontalHeaderLabels({tr("属性"), tr("基础值"), tr("附加值"), tr("有效值"), tr("是否已知")});
 
     for (int i = 0; i < 13; ++i) {
         QStandardItem *nameItem = new QStandardItem(statNames[i]);
@@ -311,7 +324,7 @@ void MainWindow::setupCharacterResourceTable()
 {
     // QTableView: 2列: 资源名(Label), 数量(SpinBox)
     QStandardItemModel *m = new QStandardItemModel(7, 2, this);
-    m->setHorizontalHeaderLabels({"资源", "数量"});
+    m->setHorizontalHeaderLabels({tr("资源"), tr("数量")});
     for (int i = 0; i < 7; ++i) {
         QStandardItem *nameItem = new QStandardItem(resourceNames[i]);
         nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEditable);
@@ -327,12 +340,12 @@ void MainWindow::setupCharacterWeaponTable()
 {
     // QTableView: 3列: 武器名(Button), 数量(SpinBox), 锁定(CheckBox)
     QStandardItemModel *m = new QStandardItemModel(3, 3, this);
-    m->setHorizontalHeaderLabels({"武器", "数量", "锁定"});
+    m->setHorizontalHeaderLabels({tr("武器"), tr("数量"), tr("锁定")});
     ui->charaWeapontableView->setModel(m);
     for (int i = 0; i < 3; ++i) {
         // 武器名 - Button
-        //m->setItem(i, 0, new QStandardItem("(空)")); //onWeaponButtonClicked(-1, i);
-        QPushButton *btn = new QPushButton("(空)", this);
+        //m->setItem(i, 0, new QStandardItem(tr("(空)"))); //onWeaponButtonClicked(-1, i);
+        QPushButton *btn = new QPushButton(tr("(空)"), this);
         connect(btn, &QPushButton::clicked, this, [this, &i](){
             onWeaponButtonClicked(-1, i);
         });
@@ -353,7 +366,7 @@ void MainWindow::setupMissionResourceTable()
 {
     QTableWidget *t = ui->missionResourcetableWidget;
     t->setColumnCount(2);
-    t->setHorizontalHeaderLabels({"资源", "数量"});
+    t->setHorizontalHeaderLabels({tr("资源"), tr("数量")});
     t->setRowCount(7);
     for (int i = 0; i < 7; ++i) {
         t->setItem(i, 0, new QTableWidgetItem(resourceNames[i]));
@@ -380,7 +393,7 @@ void MainWindow::setupMissionWeaponTable()
             QHBoxLayout *hbox = new QHBoxLayout(cell);
             hbox->setContentsMargins(1, 1, 1, 1);
 
-            QPushButton *btn = new QPushButton("(空)", this);
+            QPushButton *btn = new QPushButton(tr("(空)"), this);
             btn->setProperty("slotIndex", idx);
             connect(btn, &QPushButton::clicked, this, [this, idx]() {
                 onStorageWeaponClicked(idx);
@@ -401,7 +414,21 @@ void MainWindow::setupMissionWeaponTable()
         }
     }
 }
+// ==================== 设置 ====================
+void MainWindow::setBase(){
+    m_gameData->SetOffset(setting->GetOffset());
+    m_gameData->SetSize(setting->GetSize());
+    m_gameData->SetLength(setting->GetLength());
 
+    m_refreshTimer->setInterval(setting->GetUpdateFrequency());
+}
+
+void MainWindow::onSetting(){
+    if (setting->isHidden()){
+        setting->exec();
+        setBase();
+    }
+}
 // ==================== 进程 ====================
 void MainWindow::onRefreshProcess() { refreshProcessList(); }
 
@@ -415,7 +442,7 @@ void MainWindow::onAttachProcess()
 {
     int idx = ui->processcomboBox->currentIndex();
     if (idx < 0) {
-        QMessageBox::information(this, "提示", "请选择进程");
+        QMessageBox::information(this, tr("提示"), tr("请选择进程"));
         return;
     }
     uint32_t pid = ui->processcomboBox->currentData().toUInt();
@@ -433,7 +460,7 @@ void MainWindow::refreshProcessList()
         if (!filter.isEmpty() && !name.contains(filter, Qt::CaseInsensitive)
             && !QString::number(pid).contains(filter))
             continue;
-        ui->processcomboBox->addItem(name + " (PID:" + QString::number(pid) + ")", pid);
+    ui->processcomboBox->addItem(QString("%1 (PID: %2)").arg(name).arg(pid), pid);
     }
     int idx = ui->processcomboBox->findText(cur);
     if (idx >= 0) ui->processcomboBox->setCurrentIndex(idx);
@@ -515,7 +542,7 @@ void MainWindow::onCharacterResourceChanged(const QModelIndex &topLeft, const QM
     int i = selectedCharacterIndex();
     if (i < 0) return;
     int col = topLeft.column();
-    int row = topLeft.row();
+    //int row = topLeft.row();
     if (col == 1) {
         writeCharacterResources(i);
     }
@@ -591,7 +618,7 @@ void MainWindow::refreshCharacterData(int ci)
             btn->setText(m_weaponNames[wid]);
         }
         else
-            btn->setText("(空)");
+            btn->setText(tr("(空)"));
         wpM->item(i, 1)->setText(QString::number(ch.weapon_stack[i]));
         wpM->item(i, 2)->setCheckState(ch.weapon_lock[i] ? Qt::Checked : Qt::Unchecked);
     }
@@ -693,7 +720,7 @@ void MainWindow::onWeaponButtonClicked(int charIndex, int slot)
             m_charCache[charIndex].weapon_id[slot] = wid;
             QStandardItemModel *m = static_cast<QStandardItemModel*>(ui->charaWeapontableView->model());
             QPushButton* btn = static_cast<QPushButton*>(ui->charaWeapontableView->indexWidget(m->index(slot, 0)));
-            btn->setText(m_weaponNames.value(wid, "(空)"));
+            btn->setText(m_weaponNames.value(wid, tr("(空)")));
         }
     }
 }
@@ -718,7 +745,7 @@ void MainWindow::onStorageWeaponClicked(int slotIndex)
                 QWidget *cell = li->widget();
                 if (cell) {
                     QPushButton *btn = cell->findChild<QPushButton*>();
-                    if (btn) btn->setText(m_weaponNames.value(wid, "(空)"));
+                    if (btn) btn->setText(m_weaponNames.value(wid, tr("(空)")));
                 }
             }
         }
@@ -797,10 +824,10 @@ void MainWindow::refreshEntityList()
     t->setRowCount(0);
 
     auto typeName = [](uint8_t ty) -> QString {
-        switch (ty) { case 1: return "人类"; case 2: return "僵尸"; case 3: return "物品"; case 4: return "抛射物"; default: return QString("类型%1").arg(ty); }
+        switch (ty) { case 1: return tr("人类"); case 2: return tr("僵尸"); case 3: return tr("物品"); case 4: return tr("抛射物"); default: return QString(tr("类型%1")).arg(ty); }
     };
     auto subName = [](uint8_t st) -> QString {
-        switch (st) { case 0: return "家具"; case 1: return "拾取物"; case 2: return "武器"; case 3: return "车辆"; case 4: return "特殊拾取"; default: return QString("子类型%1").arg(st); }
+        switch (st) { case 0: return tr("家具"); case 1: return tr("拾取物"); case 2: return tr("武器"); case 3: return tr("车辆"); case 4: return tr("特殊拾取"); default: return QString(tr("子类型%1")).arg(st); }
     };
 
     uintptr_t baseAddr = m_memMgr->moduleBaseAddress() + 0x5632E0;
@@ -832,7 +859,7 @@ void MainWindow::refreshEntityList()
         ++row;
     }
 
-    ui->entityCountLabel->setText(QString("实体: %1").arg(row));
+    ui->entityCountLabel->setText(QString(tr("实体: %1")).arg(row));
     // 恢复选择
     if (selIdx >= 0)
         for (int r = 0; r < t->rowCount(); ++r)
@@ -957,7 +984,7 @@ void MainWindow::onSetTargetEntity()
     int e = selectedEntityIndex();
     if (e >= 0) {
         m_targetEntityIndex = e;
-        statusBar()->showMessage(QString("目标: ID=%1, 索引=%2").arg(m_thingCache[e].id, e));
+        statusBar()->showMessage(QString(tr("目标: ID=%1, 索引=%2")).arg(m_thingCache[e].id, e));
         ui->setTargetpushButton->setStyleSheet("background-color:lightgreen;");
     }
 }
@@ -966,7 +993,7 @@ void MainWindow::onTeleportToTarget()
 {
     int cur = selectedEntityIndex();
     if (cur < 0 || m_targetEntityIndex < 0) {
-        QMessageBox::information(this, "提示", "请先选择实体并设置目标");
+        QMessageBox::information(this, tr("提示"), tr("请先选择实体并设置目标"));
         return;
     }
     if (!isAttached()) return;
@@ -980,7 +1007,7 @@ void MainWindow::onTeleportToTarget()
     if (m_gameData->writeThing(cur, d)) {
         m_thingCache[cur] = d;
         refreshEntityData(cur);
-        statusBar()->showMessage(QString("已传送至目标"));
+        statusBar()->showMessage(QString(tr("已传送至目标")));
     }
 }
 
@@ -988,7 +1015,7 @@ void MainWindow::onSwapEntityPositions()
 {
     int cur = selectedEntityIndex();
     if (cur < 0 || m_targetEntityIndex < 0) {
-        QMessageBox::information(this, "提示", "请先选择实体并设置目标");
+        QMessageBox::information(this, tr("提示"), tr("请先选择实体并设置目标"));
         return;
     }
     if (!isAttached()) return;
@@ -1006,7 +1033,7 @@ void MainWindow::onSwapEntityPositions()
         m_thingCache[cur] = d1;
         m_thingCache[m_targetEntityIndex] = d2;
         refreshEntityData(cur);
-        statusBar()->showMessage("已交换位置");
+        statusBar()->showMessage(tr("已交换位置"));
     }
 }
 
@@ -1090,7 +1117,7 @@ void MainWindow::onRefreshTimerMission(){
             missonCharapainTextEdits[i]->setPlainText(pName);
             
         }else{
-            missonCharapainTextEdits[i]->setPlainText("无");
+            missonCharapainTextEdits[i]->setPlainText(tr("无"));
         }
     }
 
@@ -1111,7 +1138,7 @@ void MainWindow::onRefreshTimerMission(){
             QSpinBox *sb = cell->findChild<QSpinBox*>();
             if (btn) {
                 int wid = m_missionCache.storage_id[i];
-                btn->setText(wid > 0 && wid < m_weaponNames.size() ? m_weaponNames[wid] : "(空)");
+                btn->setText(wid > 0 && wid < m_weaponNames.size() ? m_weaponNames[wid] : tr("(空)"));
             }
             if (sb) sb->setValue(m_missionCache.storage_stack[i]);
         }

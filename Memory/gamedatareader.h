@@ -78,18 +78,22 @@ public:
 
     void setModuleBase(uintptr_t moduleBase);
 
+    void SetOffset(QList<intptr_t>);
+    void SetSize(QList<uint>);
+    void SetLength(QList<ushort>);
+
     // ---- 实体 ----
     ThingData readThing(int index) const;
     QList<ThingData> readAllThings() const;
     bool writeThing(int index, const ThingData &data) const;
-    int maxThings() const { return 0x262; }
+    int maxThings() const { return THING_LENGTH; }
     uintptr_t calcThingAddress(int index) const;
 
     // ---- 角色 ----
     CharacterData readCharacter(int index) const;
     QList<CharacterData> readAllCharacters() const;
     bool writeCharacter(int index, const CharacterData &data) const;
-    int maxCharacters() const { return 0x100; }
+    int maxCharacters() const { return CHARACTER_LENGTH;}
     uintptr_t calcCharacterAddress(int index) const;
 
     // 角色单个字段写入
@@ -111,7 +115,7 @@ public:
     // ---- 武器池 ----
     QStringList readAllWeaponNames() const;
     QString readWeaponName(int index) const;
-    int maxWeapons() const { return 0x401; }
+    int maxWeapons() const { return WEAPON_LENGTH; }
     uintptr_t calcWeaponAddress(int index) const;
 
     bool isAttached() const;
@@ -122,15 +126,19 @@ signals:
 private:
     MemoryManager *m_memMgr;
 
-    uintptr_t m_thingPoolBase = 0;     // 模块基址 + 0x5632E0
-    uintptr_t m_charPoolBase = 0;      // 模块基址 + 0x5E25D8
-    uintptr_t m_weaponPoolBase = 0;    // 模块基址 + 0x4E0080
-    uintptr_t m_missionStateBase = 0;  // 模块基址 + 0x5E2238
+    uintptr_t m_thingPoolBase = 0x5632E0;
+    uintptr_t m_charPoolBase = 0x5E25D8;
+    uintptr_t m_weaponPoolBase = 0x4E0080;
+    uintptr_t m_missionStateBase = 0x5E2238;
     uintptr_t m_moduleBase = 0;
 
-    static constexpr size_t THING_SIZE = 0x304;
-    static constexpr size_t CHARACTER_SIZE = 0x2e0;
-    static constexpr size_t WEAPON_SIZE = 0x1c4;
+    uint THING_SIZE = 0x304;
+    uint CHARACTER_SIZE = 0x2e0;
+    uint WEAPON_SIZE = 0x1c4;
+
+    ushort THING_LENGTH = 610;
+    ushort CHARACTER_LENGTH = 256;
+    ushort WEAPON_LENGTH = 1024;
 };
 
 #endif // GAMEDATAREADER_H

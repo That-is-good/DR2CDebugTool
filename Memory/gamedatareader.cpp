@@ -12,28 +12,43 @@ GameDataReader::GameDataReader(MemoryManager *memMgr, QObject *parent)
 void GameDataReader::setModuleBase(uintptr_t moduleBase)
 {
     m_moduleBase = moduleBase;
-    m_thingPoolBase = moduleBase + 0x5632E0;
-    m_charPoolBase = moduleBase + 0x5E25D8;
-    m_weaponPoolBase = moduleBase + 0x4E0080;
-    m_missionStateBase = moduleBase + 0x5E2238;
+}
+
+void GameDataReader::SetOffset(QList<intptr_t> offset){
+    m_thingPoolBase = offset[0];
+    m_charPoolBase = offset[1];
+    m_weaponPoolBase = offset[2];
+    m_missionStateBase = offset[3];
+}
+
+void GameDataReader::SetSize(QList<uint> size){
+    THING_SIZE = size[0];
+    CHARACTER_SIZE = size[1];
+    WEAPON_SIZE = size[2];
+}
+
+void GameDataReader::SetLength(QList<ushort> length){
+    THING_LENGTH = length[0];
+    CHARACTER_LENGTH = length[1];
+    WEAPON_LENGTH = length[2];
 }
 
 uintptr_t GameDataReader::calcThingAddress(int index) const
 {
     if (index < 0 || index >= maxThings()) return 0;
-    return m_thingPoolBase + static_cast<uintptr_t>(index) * THING_SIZE;
+    return m_moduleBase + m_thingPoolBase + static_cast<uintptr_t>(index) * THING_SIZE;
 }
 
 uintptr_t GameDataReader::calcCharacterAddress(int index) const
 {
     if (index < 0 || index >= maxCharacters()) return 0;
-    return m_charPoolBase + static_cast<uintptr_t>(index) * CHARACTER_SIZE;
+    return m_moduleBase + m_charPoolBase + static_cast<uintptr_t>(index) * CHARACTER_SIZE;
 }
 
 uintptr_t GameDataReader::calcWeaponAddress(int index) const
 {
     if (index < 0) return 0;
-    return m_weaponPoolBase + static_cast<uintptr_t>(index) * WEAPON_SIZE;
+    return m_moduleBase + m_weaponPoolBase + static_cast<uintptr_t>(index) * WEAPON_SIZE;
 }
 
 bool GameDataReader::isAttached() const
@@ -77,13 +92,13 @@ ThingData GameDataReader::readThing(int index) const
 QList<ThingData> GameDataReader::readAllThings() const
 {
     QList<ThingData> list;
-    if (!isAttached() || !m_thingPoolBase) return list;
+    if (!isAttached() || !m_moduleBase) return list;
     list.reserve(maxThings());
 
     // 一次批量读取整个实体池（0x262 * 0x304 ≈ 460KB），然后在本地解析
     size_t poolSize = static_cast<size_t>(maxThings()) * THING_SIZE;
     QByteArray pool(poolSize, '\0');
-    if (!m_memMgr->readMemory(m_thingPoolBase, pool.data(), poolSize)) {
+    if (!m_memMgr->readMemory(m_moduleBase + m_thingPoolBase, pool.data(), poolSize)) {
         // 批量读取失败，回退到逐条读取
         for (int i = 0; i < maxThings(); ++i)
             list.append(readThing(i));
@@ -190,13 +205,13 @@ CharacterData GameDataReader::readCharacter(int index) const
 QList<CharacterData> GameDataReader::readAllCharacters() const
 {
     QList<CharacterData> list;
-    if (!isAttached() || !m_charPoolBase) return list;
+    if (!isAttached() || !m_moduleBase) return list;
     list.reserve(maxCharacters());
 
     // 一次批量读取整个角色池（0x100 * 0x2E0 ≈ 184KB），然后在本地解析
     size_t poolSize = static_cast<size_t>(maxCharacters()) * CHARACTER_SIZE;
     QByteArray pool(poolSize, '\0');
-    if (!m_memMgr->readMemory(m_charPoolBase, pool.data(), poolSize)) {
+    if (!m_memMgr->readMemory(m_moduleBase + m_charPoolBase, pool.data(), poolSize)) {
         // 批量读取失败，回退到逐条读取
         for (int i = 0; i < maxCharacters(); ++i)
             list.append(readCharacter(i));
@@ -357,9 +372,9 @@ bool GameDataReader::writeCharacterStat(int charIndex, int statIndex, int8_t bas
 MissionStateData GameDataReader::readMissionState() const
 {
     MissionStateData data;
-    if (!isAttached() || !m_missionStateBase) return data;
+    if (!isAttached() || !m_moduleBase) return data;
 
-    uintptr_t addr = m_missionStateBase;
+    uintptr_t addr = m_moduleBase + m_missionStateBase;
     m_memMgr->readBytes(addr + 0x18, data.player_char, sizeof(uint32_t) * 4);
     m_memMgr->readBytes(addr + 0x28, data.resource, sizeof(int32_t) * 7);
 
@@ -375,8 +390,8 @@ MissionStateData GameDataReader::readMissionState() const
 bool GameDataReader::writeMissionResource(int slot, int32_t value)
 {
     if (slot < 0 || slot >= 7) return false;
-    if (!isAttached() || !m_missionStateBase) return false;
-    return m_memMgr->write<int32_t>(m_missionStateBase + 0x28 + slot * 4, value);
+    if (!isAttached() || !m_moduleBase) return false;
+    return m_memMgr->write<int32_t>(m_moduleBase + m_missionStateBase + 0x28 + slot * 4, value);
 }
 
 // ==================== 武器池 ====================
@@ -390,14 +405,14 @@ QString GameDataReader::readWeaponName(int index) const
 QStringList GameDataReader::readAllWeaponNames() const
 {
     QStringList names;
-    if (!isAttached() || !m_weaponPoolBase) return names;
+    if (!isAttached() || !m_moduleBase) return names;
     names.reserve(maxWeapons());
 
     // 一次批量读取整个武器池（0x401 * 0x1C4 ≈ 452KB），然后在本地解析
     // 只读取每个 weapon 结构体的 name[40] 部分，但这里批量读整个池再解析
     size_t poolSize = static_cast<size_t>(maxWeapons()) * WEAPON_SIZE;
     QByteArray pool(poolSize, '\0');
-    if (!m_memMgr->readMemory(m_weaponPoolBase, pool.data(), poolSize)) {
+    if (!m_memMgr->readMemory(m_moduleBase + m_weaponPoolBase, pool.data(), poolSize)) {
         // 批量失败，回退逐条
         for (int i = 0; i < maxWeapons(); ++i) {
             QString name = readWeaponName(i);

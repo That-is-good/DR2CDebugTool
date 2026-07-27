@@ -42,6 +42,9 @@ struct thing {
     uint8_t  typeid;             // 0x02: 类型 (THING_HUMAN=1, ZOMBIE=2, ITEM=3, PROJECTILE=4)
     uint8_t  subtypeid;          // 0x03: 子类型 (ITEM专用: 0=拾取,1=特殊,2=武器,3=弹药,4=家具)
     uint8_t  mapid;              // 0x04: 区域ID
+    
+    uint8_t  _pad_0x05[3];       // 0x05-0x07: 填充
+
     uint8_t  flip;               // 0x08: 翻转
     uint8_t  walkover;           // 0x09: 可走过
     uint8_t  low_profile;        // 0x0a: 低轮廓
@@ -55,9 +58,17 @@ struct thing {
     uint8_t  unseen;             // 0x12: 不渲染
     uint8_t  invisible;          // 0x13: 不绘制
     uint8_t  noshadow;           // 0x14: 无阴影
+
+    uint8_t  _pad_0x15[1];       // 0x15: 填充
+    
     uint8_t  nodust;             // 0x16: 无灰尘
+
+    uint8_t  _pad_0x17[1];       // 0x17: 填充
+
     float    wind;               // 0x18: 风力影响
     uint8_t  flies;              // 0x1c: 苍蝇 
+
+    uint8_t  _pad_0x1d[3];       // 0x1d-0x1f: 填充
 
     // -------- 0x20-0x2b: 旧位置 --------
     union
@@ -67,6 +78,7 @@ struct thing {
        {
             float oldpos_x; // 0x20
             float oldpos_y; // 0x24
+            float oldpos_z; // 0x24
        }OldPos;
        
     };
@@ -112,12 +124,18 @@ struct thing {
         } Phy;
     };
     uint8_t  fade;               // 0x64
+
+    uint8_t  _pad_0x65[3];       // 0x65-0x67: 填充
+
     uint32_t burning;            // 0x68: 燃烧状态
     uint8_t  flammability;       // 0x6c
     uint8_t  spreadability;      // 0x6d
     uint8_t  reburn;             // 0x6e
     uint8_t  no_lighting;        // 0x6f
     uint8_t  glow;               // 0x70: 发光开关
+
+    uint8_t  _pad_0x71[7];       // 0x71-0x77: 填充
+
     uint32_t activity_timer;     // 0x78: 活动计时器 (递减)
     uint16_t thingseed;          // 0x7c
     uint16_t timer;              // 0x7e
@@ -126,8 +144,14 @@ struct thing {
 
     // -------- 0x84-0xa3: 浮点计时器与UI --------
     float    timer_float;        // 0x84
+
+    uint8_t  _pad_0x88[4];       // 0x88-0x8b: 填充
+
     uint32_t field_0x8c;         // 0x8c (handler)
     uint8_t  leaveok;            // 0x90
+
+    uint8_t  _pad_0x91[3];       // 0x91-0x93: 填充
+
     uint16_t cyoa;               // 0x94
     uint16_t events;             // 0x98
     uint16_t action;             // 0x9c
@@ -155,11 +179,20 @@ struct thing {
 
     // -------- 0xe0-0xf7: 物品状态与命中检测模式 --------
     uint8_t  item_locked;        // 0xe0
+
+    uint8_t  _pad_0xe1[3];       // 0xe1-0xe3: 填充
+
     int32_t  amount;             // 0xe4
     uint8_t  loot;               // 0xe8
     uint8_t  item_status;        // 0xe9
+
+    uint8_t  _pad_0xea[2];       // 0xea-0xeb: 填充
+
     uint32_t item_hint;          // 0xec
     uint32_t item_charges;       // 0xf0
+    
+    uint8_t  _pad_0xf4[4];       // 0xf4-0xf7: 填充
+
     float    hitcheck_mode;      // 0xf8
 
     // -------- 0xfc-0x147: 命中检测 --------
@@ -167,9 +200,15 @@ struct thing {
     uint32_t hitcheck_hits_allowed;  // 0x100
     uint32_t hitcheck_closest_dist;  // 0x104
     uint32_t hitcheck_blast;         // 0x108
+
+    uint8_t  _pad_0x10c[8];          // 0x10c-0x113: 填充
+
     uint16_t hitcheck_source_id;     // 0x114
     uint16_t hitcheck_lasthit_id;    // 0x116
     uint16_t hitcheck_closest_id;    // 0x118
+
+    uint8_t  _pad_0x11a[2];          // 0x11a-0x11b: 填充
+
     float    hitcheck_rad;           // 0x11c
     float    hitcheck_power;         // 0x120
     float    hitcheck_power_max;     // 0x124
@@ -179,6 +218,9 @@ struct thing {
     float    hitcheck_dir_y;         // 0x134
     float    hitcheck_pos_x;         // 0x138
     float    hitcheck_pos_y;         // 0x13c
+
+    uint8_t  _pad_0x140[4];          // 0x140-0x143: 填充
+
     uint32_t charid;                 // 0x148
     uint32_t zombietype;             // 0x14c
     uint16_t shooterid;              // 0x150
@@ -186,31 +228,58 @@ struct thing {
     uint8_t  turnframe;              // 0x153
     uint8_t  faceframe;              // 0x154
     uint8_t  aiming_mode;            // 0x155
+
+    uint8_t  _pad_0x156[2];          // 0x156-0x157: 填充
+
     float    move_angle;             // 0x158
     float    swing_angle;            // 0x15c
+
+    uint8_t  _pad_0x160[4];          // 0x160-0x163: 填充
+
     float    aim_angle;              // 0x164
     float    lock_angle;             // 0x168
     float    move_dir_x;             // 0x16c
     float    move_dir_y;             // 0x170
+
+    uint8_t  _pad_0x174[0x18];       // 0x174-0x18b: 填充
+
     uint32_t offscreen_counter;      // 0x18c
     uint8_t  shudder;                // 0x190
+
+    uint8_t  _pad_0x191[3];          // 0x191-0x193: 填充
+
     float    shudderpuff_x;          // 0x194
     float    shudderpuff_y;          // 0x198
+
+    uint8_t  _pad_0x19c[3];          // 0x19c-0x19e: 填充
+
     uint8_t  weapon_switch;          // 0x19f
     uint8_t  weapon_slot_using;      // 0x1a0
     uint8_t  weapon_swap_select;     // 0x1a1
+
+    uint8_t  _pad_0x1a2[3];          // 0x1a2-0x1a4: 填充
+
     uint8_t  weapon_no_hit_human;    // 0x1a5
     uint16_t nearest_enemy_id;       // 0x1a6
     uint32_t nearest_enemy_dist2;    // 0x1a8
+
+    uint8_t  _pad_0x1ac[0x20];       // 0x1ac-0x1cb: 填充
+    
     uint16_t nearest_interact_id;    // 0x1cc
     uint32_t nearest_interact_dist2; // 0x1d0
     uint16_t nearest_pickup_id;      // 0x1d4
+
+    uint8_t  _pad_0x1d6[2];          // 0x1d6-0x1d7: 填充
+
     float    threat_level;           // 0x1d8
     float    threat_dist2;           // 0x1dc
     uint32_t threat_count;           // 0x1e0
     float    threat_pos_x;           // 0x1e4
     float    threat_pos_y;           // 0x1e8
     uint16_t targetid;               // 0x1ec
+
+    uint8_t  _pad_0x1ee[2];          // 0x1ee-0x1ef: 填充
+
     float    targetpos_x;            // 0x1f0
     float    targetpos_y;            // 0x1f4
     float    destpos_x;              // 0x1f8
@@ -218,6 +287,8 @@ struct thing {
     uint16_t carryid;                // 0x200
     uint16_t carrierid;              // 0x202
     uint16_t throwerid;              // 0x204
+
+    uint8_t  _pad_0x206[2];          // 0x206-0x207: 填充
 
     // -------- 0x208-0x227: 武器状态/车辆属性 (共用) --------
     uint8_t  chassis;                // 0x208 (与 weapon_state.hint 共用)
@@ -229,6 +300,9 @@ struct thing {
     uint8_t  carspeed;               // 0x20e
     uint8_t  carspeed_max;           // 0x20f
     uint8_t  repair;                 // 0x210 (与 weapon_state.scale 共用)
+
+    uint8_t  _pad_0x211[3];          // 0x211-0x213: 填充
+
     float    vehicle_state_mpg;      // 0x214 (与 weapon_state.user 共用)
     float    weapon_state_angle_add; // 0x218
     float    weapon_state_reach;     // 0x21c
@@ -246,6 +320,9 @@ struct thing {
     uint8_t  anim_substate;          // 0x23b
     uint8_t  anim_info;              // 0x23c
     uint8_t  anim_extra;             // 0x23d
+
+    uint8_t  _pad_0x23e[6];          // 0x23e-0x243: 填充
+
     float    anim_floatheight;       // 0x244
     float    anim_floatval;          // 0x248
     float    anim_off_x;             // 0x24c
@@ -259,6 +336,9 @@ struct thing {
     uint16_t stun;                   // 0x25e
     uint32_t actioncmd;              // 0x260
     uint32_t actioncmd_old;          // 0x264
+
+    uint8_t  _pad_0x268[0x10];       // 0x268-0x277: 填充
+
     uint8_t  fatigue;                // 0x278
     uint8_t  invincible_counter;     // 0x279 (受伤标志)
     uint8_t  no_hit;                 // 0x27a (无敌)
@@ -276,20 +356,35 @@ struct thing {
     uint32_t ai_move;                // 0x298
     uint32_t ai_action;              // 0x29c
     uint32_t ai_assess;              // 0x2a0
+
+    uint8_t  _pad_0x2a4[4];          // 0x2a4-0x2a7: 填充
+
     uint32_t ai_wait;                // 0x2a8
+
+    uint8_t  _pad_0x2ac[4];          // 0x2ac-0x2af: 填充
+
     uint32_t ai_countup;             // 0x2b0
     uint32_t ai_counter;             // 0x2b4
     uint32_t ai_weapon_wanted;       // 0x2b8
     uint32_t ai_threat_mode;         // 0x2bc
     uint32_t ai_threat_time;         // 0x2c0
     uint32_t ai_safety_time;         // 0x2c4
+
+    uint8_t  _pad_0x2c8[4];          // 0x2c8-0x2cb: 填充
+
     uint32_t ai_wander_mode;         // 0x2cc
+
+    uint8_t  _pad_0x2d0[4];          // 0x2d0-0x2d3: 填充
+
     uint16_t ai_followid;            // 0x2d4
     uint16_t ai_moveid;              // 0x2d6
     uint16_t ai_fleeid;              // 0x2d8
     uint16_t ai_actionid;            // 0x2da
     float    ai_followpos_x;         // 0x2dc
     float    ai_followpos_y;         // 0x2e0
+
+    uint8_t  _pad_0x2e4[0x18];       // 0x2e4-0x2fb: 填充
+
     float    ai_threat_avg_dist;     // 0x2fc
     float    ai_score;               // 0x300
     // 大小到 0x304
@@ -345,17 +440,28 @@ struct CharacterStat
     int8_t vitality;
 };
 struct character_data {
+    
+    uint8_t  _pad_0x00[4];           // 0x00-0x03
+
     // -------- 0x04-0x07: 当前 Thing ID --------
     uint16_t cur_thingid;            // 0x04 该角色对应的Thing ID
+    
+    uint8_t  _pad_0x06[2];           // 0x06-0x07
 
     // -------- 0x08-0x0b: 种子 --------
     uint32_t seed;                   // 0x08
 
     // -------- 0x0c-0x0f: 队伍状态 --------
+
+    uint8_t  _pad_0x0c[3];           // 0x0c-0x0e
+
     uint8_t  team_status;            // 0x0f
 
     // -------- 0x10-0x1b: 位置与临时数据 --------
     uint8_t  location;               // 0x10
+
+    uint8_t  _pad_0x11[3];           // 0x11-0x13
+
     uint32_t party;                  // 0x14
     uint32_t temp;                   // 0x18
 
@@ -367,6 +473,8 @@ struct character_data {
     // -------- 0x94-0x97: 性别 --------
     uint16_t female;                 // 0x94
 
+    uint8_t  _pad_0x96[2];           // 0x96-0x97
+
     // -------- 0x98-0xbb: 声音参数 --------
     float    voice_ex;               // 0x98
     float    voice_q;                // 0x9c
@@ -376,6 +484,8 @@ struct character_data {
     float    voice_flo;              // 0xac
     float    voice_fhi;              // 0xb0
     float    voice_vol;              // 0xb4
+
+    uint8_t  _pad_0xb8[4];           // 0xb8-0xbb
 
     // -------- 0xbc-0xcf: 外观 --------
     uint16_t bodytype;               // 0xbc
@@ -427,6 +537,9 @@ struct character_data {
     float    floatheight;            // 0x130
     float    floatval;               // 0x134
     uint16_t floattoggle;            // 0x138
+
+    uint8_t  _pad_0x13a[2];          // 0x13a-0x13b
+
     float    breathescale;           // 0x13c
 
     // -------- 0x140-0x143: 生命值 --------
@@ -449,6 +562,12 @@ struct character_data {
         CharacterStat baseStat;
     };
 
+    union
+    {
+        int8_t temp_stats[13]; // 0x1d6 临时属性
+        CharacterStat tempStat;
+    };
+
     // -------- 0x1e3-0x1ef: 属性加值 (13 字节) --------
     union
     {
@@ -459,23 +578,37 @@ struct character_data {
     // -------- 0x1f0-0x1f3: 速度加成 --------
     float    speed_bonus;            // 0x1f0
 
+    uint8_t  _pad_0x1f4[4];          // 0x1f4-0x1f7
+
     // -------- 0x1f8-0x203: 修改标志 --------
     uint8_t status0;              // 0x1f8 状态 00000000,依次为SICK, INJURED, TIRED, SUPERDOG, DOGMALUS, COFFEE, DOGPAL, EXPLORER
-    uint8_t status3;              // 0x1fa 状态 大于等于127则为PETMALUS
-    uint8_t status4;              // 0x1fb 状态 00000000,依次为PETMALUS_CAT, HAGGLER, PATHFINDER, SOUNDSLEEP,FIREPROOF, ZEALOUS, GWM 
+
+    uint8_t _pad_0x1f9[1];        // 0x1f9
+
+    uint8_t status2;              // 0x1fa 状态 大于等于127则为PETMALUS
+    uint8_t status3;              // 0x1fb 状态 00000000,依次为PETMALUS_CAT, HAGGLER, PATHFINDER, SOUNDSLEEP,FIREPROOF, ZEALOUS, GWM 
     uint32_t mod_flags2;             // 0x1fc
     uint32_t use_filter;             // 0x200
 
     // -------- 0x208-0x27f: AI 参数 (0x208-0x20f 字节, 0x210+ dword) --------
+    
+    uint8_t  _pad_0x204[5];          // 0x204-0x208
+
     uint8_t  ai_pickup_gun_max;      // 0x209
     uint8_t  ai_pickup_melee_max;    // 0x20a
     uint8_t  ai_attack_level;        // 0x20b
     uint8_t  ai_attack_mode;         // 0x20c
     uint8_t  ai_prefer_weapon_slot;  // 0x20d
+
+    uint8_t  _pad_0x20e[2];          // 0x20e-0x20f
+
     uint32_t ai_react_min;           // 0x210
     uint32_t ai_react_max;           // 0x214
     uint32_t ai_assess_min;          // 0x218
     uint32_t ai_assess_max;          // 0x21c
+
+    uint8_t  _pad_0x220[8];          // 0x220-0x227
+
     float    ai_rush_chance;         // 0x228
     float    ai_attack_chance;       // 0x22c
     float    ai_wander_chance;       // 0x230
@@ -511,6 +644,8 @@ struct character_data {
     // -------- 0x2a8-0x2b3: 默认武器 --------
     uint32_t weapon_default;         // 0x2a8
 
+    uint8_t  _pad_0x2ac[4];          // 0x2ac-0x2af
+
     // -------- 0x2b4-0x2d3: 武器槽 --------
     struct
     {
@@ -528,6 +663,8 @@ struct character_data {
 
     // -------- 0x2dc-0x2df: 主事件 --------
     uint16_t main_events;            // 0x2dc
+
+    uint8_t  _pad_0x2de[2];          // 0x2de-0x2df    // 大小到 0x2e0
 };
 // 武器 结构体
 // 大小: 0x1c4
@@ -537,7 +674,7 @@ struct weapon_data {
     // -------- 0x00-0x28: 武器名称 (字符数组) --------
     char     name[40];              // 0x00: 名字
 
-    // -------- 0x29-0x5f: 未知/保留 --------
+    uint8_t  _pad_0x28[0x34];       // 0x28-0x5b: 填充
 
     // -------- 0x5c-0x5f: 精灵 ID (用于 thing 的 spriteid) --------
     uint32_t sprite_id;               // 0x5c: 武器精灵 ID (实际是 word，但对齐为 dword)
@@ -564,11 +701,15 @@ struct weapon_data {
     // -------- 0x80-0x87: 状态标志 --------
     uint8_t  no_discard;              // 0x80
     uint8_t  unbreakable;             // 0x81
-    uint8_t  field_0x82;              // 0x82
+
+    uint8_t  _pad_0x82[2];            // 0x82
+
     float    cooldown;                // 0x84
 
     // -------- 0x88-0x8f: 长度 --------
     float    length;                  // 0x88
+
+    uint8_t  _pad_0x8c[4];            // 0x8c-0x8f
 
     // -------- 0x90-0xaf: 近战角度与范围 --------
     float    melee_start_angle;       // 0x90
@@ -588,6 +729,8 @@ struct weapon_data {
     float    melee_range_min_hint;    // 0xc8
     uint8_t  melee_range_cooldown_hint; // 0xcc
 
+    uint8_t  _pad_0xcd[3];            // 0xcd-0xcf
+
     // -------- 0xd0-0xe3: 近战疲劳与得分 --------
     float    melee_fatigue_scale;     // 0xd0
     float    melee_fatigue_cooldown_scale; // 0xd4
@@ -604,6 +747,8 @@ struct weapon_data {
     uint32_t wielder_handler;         // 0xf8
     uint8_t  melee_extra_hits;        // 0xfc
 
+    uint8_t  _pad_0xfd[3];            // 0xfd-0xff
+
     // -------- 0x100-0x113: 近战偏移 --------
     float    melee_off_x;             // 0x100
     float    melee_off_y;             // 0x104
@@ -612,6 +757,9 @@ struct weapon_data {
     float    gun_angle;               // 0x110
 
     // -------- 0x114-0x11b: 穿透 --------
+
+    uint8_t  _pad_0x114[4];           // 0x114-0x117
+
     float    shoot_thru;              // 0x118
 
     // -------- 0x11c-0x12b: 威力 --------
@@ -624,6 +772,9 @@ struct weapon_data {
     // -------- 0x130-0x13f: 近战技能 --------
     uint8_t  melee_skill;             // 0x130
     uint8_t  melee_thrown;            // 0x131
+
+    uint8_t  _pad_0x132[2];           // 0x132-0x133
+
     float    melee_break_scale;       // 0x134
     float    melee_jam_scale;         // 0x138
     float    thrown_lift;             // 0x13c
@@ -641,9 +792,14 @@ struct weapon_data {
     int32_t  ammo_max;                // 0x150
     int32_t  fuel_max;                // 0x154
     int32_t  stack_max;               // 0x158
-    int32_t  stack_as_charges;        // 0x160
-    int32_t  stack_no_show;           // 0x161
-    int32_t  no_ai_use;               // 0x162
+
+    uint8_t  _pad_0x15c[4];           // 0x15c-0x15f
+
+    uint8_t  stack_as_charges;        // 0x160
+    uint8_t  stack_no_show;           // 0x161
+    uint8_t  no_ai_use;               // 0x162
+
+    uint8_t  _pad_0x163[1];           // 0x163
 
     // -------- 0x163-0x16f: 武器属性 --------
     uint8_t  flammability;            // 0x163
@@ -662,6 +818,8 @@ struct weapon_data {
     int32_t  gun_muzzle_height;       // 0x17c
 
     // -------- 0x180-0x18b: 激光与燃烧 --------
+    uint8_t  _pad_0x180[8];           // 0x180-0x187
+
     int32_t  laser_type;              // 0x188
     float    burn_scale;              // 0x18c
 
@@ -669,6 +827,9 @@ struct weapon_data {
     float    range_guess;             // 0x190
     float    range_cone;              // 0x194
     float    range_aim_scale;         // 0x198
+
+    uint8_t  _pad_0x19c[4];           // 0x19c-0x19f
+
     float    skill_angle_range;       // 0x1a0
     float    skill_shoot_thru_scale;  // 0x1a4
     int32_t  point_blank_dist;        // 0x1a8
@@ -676,6 +837,7 @@ struct weapon_data {
     float    spread_factor;           // 0x1b0
     float    custom_retract;          // 0x1b4
 
+    uint8_t  _pad_0x1b8[0xc];         // 0x1b8-0x1c3
 };
 
 // MISSION STATE STRUCTURE (本局游戏状态)

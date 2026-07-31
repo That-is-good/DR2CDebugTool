@@ -1,5 +1,7 @@
 # Death Road to Canada Debug Tool
 
+## The CSharpProject won't update(maybe), If you want to get latest version please go to the cpp branch
+
 A memory editing utility for the game **Death Road to Canada**, designed to help players inspect and modify in‑game data such as character stats, entities, weapons, and resources.  
 Built with C# and a multi‑language UI.
 

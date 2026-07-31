@@ -1,35 +1,4 @@
 #include "mainwindow.h"
-#include "ui_mainwindow.h"
-#include "Memory/memorymanager.h"
-#include "Memory/spinboxdelegate.h"
-#include "Memory/weapondialog.h"
-
-#include <QTableWidget>
-#include <QTableView>
-#include <QStandardItemModel>
-#include <QHeaderView>
-#include <QPlainTextEdit>
-#include <QSpinBox>
-#include <QDoubleSpinBox>
-#include <QCheckBox>
-#include <QComboBox>
-#include <QLabel>
-#include <QPushButton>
-#include <QLineEdit>
-#include <QApplication>
-#include <QMessageBox>
-#include <QHBoxLayout>
-#include <QWidget>
-#include <QScrollBar>
-#include <QCoreApplication>
-#include <QDir>
-
-// 状态位
-enum StatusBits {
-    STATUS_SICK     = 1, STATUS_INJURED  = 2, STATUS_TIRED   = 4,
-    STATUS_SUPERDOG = 8, STATUS_DOGMALUS = 16, STATUS_COFFEE = 32,
-    STATUS_DOGPAL   = 64, STATUS_EXPLORER = 128
-};
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -40,9 +9,8 @@ MainWindow::MainWindow(QWidget *parent)
     , m_refreshTimer(new QTimer(this))
 {
     resourceNames = {
-        tr("资源0"), tr("食物"), tr("汽油"), tr("医疗"), tr("手枪"), tr("步枪"), tr("霰弹")
+        tr("无"), tr("食物"), tr("汽油"), tr("医疗"), tr("手枪"), tr("步枪"), tr("霰弹"), tr("垃圾")
     };
-
     statNames = {
         tr("士气"), tr("态度"), tr("镇静"), tr("魅力"), tr("智慧"), tr("忠诚"), tr("医疗"),
         tr("机械"), tr("射击"), tr("力量"), tr("灵巧"), tr("体能"), tr("活力")
@@ -51,19 +19,15 @@ MainWindow::MainWindow(QWidget *parent)
     setupUI();
     setupConnections();
     setWindowTitle(tr("加拿大的死亡之路调试工具"));
-    // 启动时读取配置文件
     QString configPath = QCoreApplication::applicationDirPath() + "/config.json";
     setting->loadFromFile(configPath);
-    setBase(); // 应用配置
+    setBase();
 }
 
 MainWindow::~MainWindow()
 {
-    // 必须在delete ui之前主动断开，避免m_memMgr析构时emit signal访问已销毁的ui
-    // 保存配置到文件
     QString configPath = QCoreApplication::applicationDirPath() + "/config.json";
     setting->saveToFile(configPath);
-
     m_memMgr->detachProcess();
     disconnect(m_memMgr, &MemoryManager::processDetached, 0, 0);
     setControlsEnabled(false);
@@ -88,33 +52,12 @@ int MainWindow::selectedEntityIndex() const
 
 bool MainWindow::hasEditingFocus() const
 {
-    // 检查当前焦点控件是否是可编辑的输入控件
     QWidget *w = QApplication::focusWidget();
     if (!w) return false;
-    if (qobject_cast<QPlainTextEdit*>(w)){
-        return true;
-    }
-    if (qobject_cast<QLineEdit*>(w)){
-        return true;
-    }
-    if (qobject_cast<QSpinBox*>(w)){
-        return true;
-    }
-    if (qobject_cast<QDoubleSpinBox*>(w)){
-        return true;
-    }
-    // 向上遍历祖先链，检查是否属于某个 QComboBox（包括下拉列表 popup）
-    // QComboBox 弹出下拉列表后，焦点转移到 popup 内部的 QComboBoxListView，
-    // 此时 qobject_cast<QComboBox*>(w) 会失败，需要通过祖先链检测
+    if (qobject_cast<QLineEdit*>(w)) return true;
     QWidget *p = w;
     while (p) {
-        // QComboBox 自身或其下拉 popup 内的控件
-        if (qobject_cast<QComboBox*>(p))
-            return true;
-        // 检查焦点是否在 QTableView / QTableWidget 的编辑器内部
-        if (p == ui->charaStattableView || p == ui->charaResourcetableView || p == ui->charaWeapontableView
-            || p == ui->missionResourcetableWidget || p == ui->missionWeapon)
-            return true;
+        if (qobject_cast<QComboBox*>(p)) return true;
         p = p->parentWidget();
     }
     return false;
@@ -130,8 +73,6 @@ void MainWindow::setupUI()
     setupCharacterWeaponTable();
     setupMissionResourceTable();
     setupMissionWeaponTable();
-    // 不要在 setupUI 中读取武器名，此时还未附加进程，m_moduleBase=0
-    // 改为在 refreshAll() 中附加进程后读取
 
     ui->entityTypecomboBox->addItem(tr("全部"), -1);
     ui->entityTypecomboBox->addItem(tr("人类"), 1);
@@ -147,6 +88,16 @@ void MainWindow::setupUI()
     for (int i = 0; i < 16; ++i)
         ui->entityAreacomboBox->addItem(QString(tr("区域%1")).arg(i), i);
 
+    ui->spawnEntitycomboBox->addItem(tr("人类"), 1);
+    ui->spawnEntitycomboBox->addItem(tr("僵尸"), 2);
+    ui->spawnEntitycomboBox->addItem(tr("物品"), 3);
+    ui->spawnEntitycomboBox->addItem(tr("抛射物"), 4);
+    // ui->spawnEntitycomboBox->addItem(tr("家具"), 5);
+    // ui->spawnEntitycomboBox->addItem(tr("拾取物"), 6);
+    // ui->spawnEntitycomboBox->addItem(tr("武器"), 7);
+    // ui->spawnEntitycomboBox->addItem(tr("车辆"), 8);
+    // ui->spawnEntitycomboBox->addItem(tr("特殊拾取"), 9);
+    
     setControlsEnabled(false);
     m_refreshTimer->setInterval(500);
 }
@@ -164,62 +115,50 @@ void MainWindow::setControlsEnabled(bool enabled)
 
 void MainWindow::setupConnections()
 {
-    //设置
+    // 设置 / 进程
     connect(ui->settingBtn, &QPushButton::clicked, this, &MainWindow::onSetting);
-    // 进程
     connect(ui->refreshProcessBtn, &QPushButton::clicked, this, &MainWindow::onRefreshProcess);
     connect(ui->attachProceesBtn, &QPushButton::clicked, this, &MainWindow::onAttachProcess);
-    connect(ui->filterProcessText, &QPlainTextEdit::textChanged, this, [this]() {
-        onFilterProcessChanged(ui->filterProcessText->toPlainText());
+    connect(ui->filterProcessText, &QLineEdit::returnPressed, this, [this]() {
+        onFilterProcessChanged(ui->filterProcessText->text());
     });
 
-    // 角色
+    // ---- 角色 - 合并槽 ----
     connect(ui->charaSelcomboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &MainWindow::onCharacterSelected);
-    connect(ui->charaNameplainTextEdit, &QPlainTextEdit::textChanged, this, [this]() {
-        if (!m_updatingUI) onCharacterNameChanged();
-    });
-    connect(ui->charaPerkplainTextEdit, &QPlainTextEdit::textChanged, this, [this]() {
-        if (!m_updatingUI) onCharacterPerkChanged();
-    });
-    connect(ui->charaTraitplainTextEdit, &QPlainTextEdit::textChanged, this, [this]() {
-        if (!m_updatingUI) onCharacterTraitChanged();
-    });
-    connect(ui->charaDescplainTextEdit, &QPlainTextEdit::textChanged, this, [this]() {
-        if (!m_updatingUI) onCharacterDescriptionChanged();
-    });
+
+    // 所有 QLineEdit → 同一个 slot
+    for (auto *edit : {ui->charaNameplainTextEdit, ui->charaPerkplainTextEdit,
+                        ui->charaTraitplainTextEdit, ui->charaDescplainTextEdit})
+        connect(edit, &QLineEdit::returnPressed, this, [this]() {
+            if (!m_updatingUI) onCharacterEditChanged();
+        });
+
+    // 所有角色 SpinBox/DoubleSpinBox → 同一个 slot
     connect(ui->charaHpspinBox, QOverload<int>::of(&QSpinBox::valueChanged),
-            this, &MainWindow::onCharacterHpChanged);
+            this, [this](int) { if (!m_updatingUI) onCharacterSpinBoxChanged(); });
     connect(ui->charaSpeeddoubleSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &MainWindow::onCharacterSpeedChanged);
+            this, [this](double) { if (!m_updatingUI) onCharacterSpinBoxChanged(); });
+    connect(ui->charaStatus1spinBox, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, [this](int) { if (!m_updatingUI) onCharacterSpinBoxChanged(); });
+    connect(ui->charaStatus2spinBox, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, [this](int) { if (!m_updatingUI) onCharacterSpinBoxChanged(); });
 
-    // 属性表变化 - 监听 dataChanged 信号
-    {
-        QStandardItemModel *sm = static_cast<QStandardItemModel*>(ui->charaStattableView->model());
-        connect(sm, &QStandardItemModel::dataChanged, this, &MainWindow::onCharacterStatChanged);
-    }
-    // 资源表变化
-    {
-        QStandardItemModel *rm = static_cast<QStandardItemModel*>(ui->charaResourcetableView->model());
-        connect(rm, &QStandardItemModel::dataChanged, this, &MainWindow::onCharacterResourceChanged);
-    }
-    // 武器表锁定列变化
-    {
-        QStandardItemModel *wm = static_cast<QStandardItemModel*>(ui->charaWeapontableView->model());
-        connect(wm, &QStandardItemModel::dataChanged, this, &MainWindow::onCharacterWeaponChanged);
-    }
+    // 角色所有 QCheckBox → 同一个 slot
+    for (auto *cb : {ui->charaFemalecheckBox, ui->charaPetcheckBox})
+        connect(cb, &QCheckBox::toggled, this, [this]() {
+            if (!m_updatingUI) onCharacterCheckBoxToggled();
+        });
 
-    // 状态复选框
-    QList<QCheckBox*> statusBoxes = {
-        ui->charaStatuscheckBox128, ui->charaStatuscheckBox064,
-        ui->charaStatuscheckBox032, ui->charaStatuscheckBox016,
-        ui->charaStatuscheckBox008, ui->charaStatuscheckBox004,
-        ui->charaStatuscheckBox002, ui->charaStatuscheckBox001
-    };
-    for (auto *cb : statusBoxes)
-        connect(cb, &QCheckBox::toggled, this, &MainWindow::onCharacterStatusToggled);
+    // 属性/资源/武器 表
+    connect(static_cast<QStandardItemModel*>(ui->charaStattableView->model()),
+            &QStandardItemModel::dataChanged, this, &MainWindow::onCharacterStatChanged);
+    connect(static_cast<QStandardItemModel*>(ui->charaResourcetableView->model()),
+            &QStandardItemModel::dataChanged, this, &MainWindow::onCharacterResourceChanged);
+    connect(static_cast<QStandardItemModel*>(ui->charaWeapontableView->model()),
+            &QStandardItemModel::dataChanged, this, &MainWindow::onCharacterWeaponChanged);
 
-    // 实体过滤
+    // ---- 实体 - 合并槽 ----
     connect(ui->entityTypecomboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &MainWindow::onEntityTypeFilterChanged);
     connect(ui->entityAreacomboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
@@ -227,39 +166,58 @@ void MainWindow::setupConnections()
     connect(ui->entitytableWidget, &QTableWidget::itemSelectionChanged,
             this, &MainWindow::onEntityTableSelectionChanged);
 
-    // 实体标志
-    QList<QCheckBox*> ef = {ui->noCollidecheckBox, ui->unSeencheckBox, ui->inVisiblecheckBox,
-        ui->fadecheckBox, ui->noLightingcheckBox, ui->glowcheckBox,
-        ui->noHitcheckBox, ui->noDamagecheckBox, ui->pausecheckBox};
-    for (auto *cb : ef)
-        connect(cb, &QCheckBox::toggled, this, &MainWindow::onEntityFlagToggled);
+    // 实体所有 QCheckBox → 同一个 slot
+    QList<QCheckBox*> entityCBs = {
+        ui->noCollidecheckBox, ui->unSeencheckBox, ui->inVisiblecheckBox,
+        ui->noHitcheckBox, ui->noDamagecheckBox, ui->glowcheckBox
+    };
+    for (auto *cb : entityCBs)
+        connect(cb, &QCheckBox::toggled, this, [this]() {
+            if (!m_updatingUI) onEntityCheckBoxToggled();
+        });
 
-    // 实体坐标/速度/物理
-    for (auto *sb : {ui->posXdoubleSpinBox, ui->posYdoubleSpinBox, ui->posZdoubleSpinBox})
-        connect(sb, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &MainWindow::onEntityPosChanged);
-    for (auto *sb : {ui->velXdoubleSpinBox, ui->velYdoubleSpinBox, ui->velZdoubleSpinBox})
-        connect(sb, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &MainWindow::onEntityVelChanged);
-    for (auto *sb : {ui->massdoubleSpinBox, ui->frictiondoubleSpinBox, ui->bounceFrictiondoubleSpinBox})
-        connect(sb, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &MainWindow::onEntityPhysicsChanged);
+    // 实体所有 QDoubleSpinBox → 同一个 slot
+    QList<QDoubleSpinBox*> entityDSBs = {
+        ui->posXdoubleSpinBox, ui->posYdoubleSpinBox, ui->posZdoubleSpinBox,
+        ui->velXdoubleSpinBox, ui->velYdoubleSpinBox, ui->velZdoubleSpinBox,
+        ui->massdoubleSpinBox, ui->frictiondoubleSpinBox, ui->bounceFrictiondoubleSpinBox
+    };
+    for (auto *sb : entityDSBs)
+        connect(sb, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [this](double) {
+            if (!m_updatingUI) onEntityDoubleSpinBoxChanged();
+        });
 
-    connect(ui->hitpointsspinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &MainWindow::onEntityHitpointsChanged);
-    connect(ui->aiStatespinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &MainWindow::onEntityAiStateChanged);
-    connect(ui->aiWaitspinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &MainWindow::onEntityAiWaitChanged);
+    // 实体其他 QSpinBox → 同一个 slot
+    connect(ui->hitpointsspinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int) {
+        if (!m_updatingUI) onEntitySpinBoxChanged();
+    });
+    connect(ui->aiStatespinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int) {
+        if (!m_updatingUI) onEntitySpinBoxChanged();
+    });
+    connect(ui->aiWaitspinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int) {
+        if (!m_updatingUI) onEntitySpinBoxChanged();
+    });
 
     // 实体操作按钮
     connect(ui->setTargetpushButton, &QPushButton::clicked, this, &MainWindow::onSetTargetEntity);
     connect(ui->teleportTargetpushButton, &QPushButton::clicked, this, &MainWindow::onTeleportToTarget);
     connect(ui->swapTargetpushButton, &QPushButton::clicked, this, &MainWindow::onSwapEntityPositions);
+    connect(ui->destoryEntitypushButton, &QPushButton::clicked, this, &MainWindow::onDestoryEntity);
+    connect(ui->spawnEntitypushButton, &QPushButton::clicked, this, &MainWindow::onSpawnEntity);
 
-    // 全局资源
-    connect(ui->missionResourcetableWidget, &QTableWidget::cellChanged, this, &MainWindow::onMissionResourceChanged);
+    // ---- 全局 ----
+    connect(ui->missionResourcetableWidget, &QTableWidget::cellChanged, this, [this](int, int) {
+        if (!m_updatingUI) onMissionChanged();
+    });
 
-    // 定时刷新
+    connect(ui->cmdplainTextEdit, &QLineEdit::returnPressed, this, &MainWindow::onCmdSend);
+
+    // ---- 定时刷新 ----
     connect(m_refreshTimer, &QTimer::timeout, this, &MainWindow::onRefreshTimer);
 
-    // 附加/分离
+    // ---- 附加/分离 ----
     connect(m_memMgr, &MemoryManager::processAttached, this, [this]() {
-        uintptr_t base = m_memMgr->moduleBaseAddress();
+        quint64 base = m_memMgr->moduleBaseAddress();
         m_gameData->setModuleBase(base);
         statusBar()->showMessage(QString(tr("已附加: %1 (PID: %2) 模块基址: 0x%3"))
             .arg(m_memMgr->attachedProcessName())
@@ -294,29 +252,25 @@ void MainWindow::setupEntityTable()
 
 void MainWindow::setupCharacterStatTable()
 {
-    // QTableView: 6列: 属性名, 基础值, 临时值, 附加值, 有效值, 是否已知
     QStandardItemModel *m = new QStandardItemModel(13, 6, this);
     m->setHorizontalHeaderLabels({tr("属性"), tr("基础值"), tr("临时值"), tr("附加值"), tr("有效值"), tr("是否已知")});
-
     for (int i = 0; i < 13; ++i) {
         QStandardItem *nameItem = new QStandardItem(statNames[i]);
         nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEditable);
-        m->setItem(i, 0, nameItem);                  // 属性名 Label
-        m->setItem(i, 1, new QStandardItem("0"));     // 基础值 SpinBox
-        m->setItem(i, 2, new QStandardItem("0"));     // 临时值 SpinBox
-        m->setItem(i, 3, new QStandardItem("0"));     // 附加值 SpinBox
+        m->setItem(i, 0, nameItem);
+        m->setItem(i, 1, new QStandardItem("0"));
+        m->setItem(i, 2, new QStandardItem("0"));
+        m->setItem(i, 3, new QStandardItem("0"));
         QStandardItem *effItem = new QStandardItem("0");
         effItem->setFlags(effItem->flags() & ~Qt::ItemIsEditable);
-        m->setItem(i, 4, effItem);                    // 有效值 Label
+        m->setItem(i, 4, effItem);
         QStandardItem *dispItem = new QStandardItem();
         dispItem->setFlags(dispItem->flags() | Qt::ItemIsUserCheckable);
         dispItem->setCheckable(true);
-        m->setItem(i, 5, dispItem);                   // 是否已知 CheckBox
+        m->setItem(i, 5, dispItem);
     }
-
     ui->charaStattableView->setModel(m);
     ui->charaStattableView->horizontalHeader()->setStretchLastSection(true);
-    // 设置 SpinBox 委托
     ui->charaStattableView->setItemDelegateForColumn(1, new SpinBoxDelegate(-128, 127, this));
     ui->charaStattableView->setItemDelegateForColumn(2, new SpinBoxDelegate(-128, 127, this));
     ui->charaStattableView->setItemDelegateForColumn(3, new SpinBoxDelegate(-128, 127, this));
@@ -324,10 +278,9 @@ void MainWindow::setupCharacterStatTable()
 
 void MainWindow::setupCharacterResourceTable()
 {
-    // QTableView: 2列: 资源名(Label), 数量(SpinBox)
-    QStandardItemModel *m = new QStandardItemModel(7, 2, this);
+    QStandardItemModel *m = new QStandardItemModel(resourceNames.length(), 2, this);
     m->setHorizontalHeaderLabels({tr("资源"), tr("数量")});
-    for (int i = 0; i < 7; ++i) {
+    for (int i = 0; i < resourceNames.length(); ++i) {
         QStandardItem *nameItem = new QStandardItem(resourceNames[i]);
         nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEditable);
         m->setItem(i, 0, nameItem);
@@ -340,29 +293,24 @@ void MainWindow::setupCharacterResourceTable()
 
 void MainWindow::setupCharacterWeaponTable()
 {
-    // QTableView: 3列: 武器名(Button), 数量(SpinBox), 锁定(CheckBox)
     QStandardItemModel *m = new QStandardItemModel(3, 3, this);
     m->setHorizontalHeaderLabels({tr("武器"), tr("数量"), tr("锁定")});
     ui->charaWeapontableView->setModel(m);
     for (int i = 0; i < 3; ++i) {
-        // 武器名 - Button
-        //m->setItem(i, 0, new QStandardItem(tr("(空)"))); //onWeaponButtonClicked(-1, i);
         QPushButton *btn = new QPushButton(tr("(空)"), this);
-        int slotIndex = i; // 按值拷贝，避免引用已销毁的循环变量
-        connect(btn, &QPushButton::clicked, this, [this, slotIndex](){
+        int slotIndex = i;
+        connect(btn, &QPushButton::clicked, this, [this, slotIndex]() {
             onWeaponButtonClicked(-1, slotIndex);
         });
         ui->charaWeapontableView->setIndexWidget(m->index(i, 0), btn);
-        // 数量 - SpinBox
         m->setItem(i, 1, new QStandardItem("0"));
-        // 锁定 - CheckBox
         QStandardItem *lockItem = new QStandardItem();
         lockItem->setFlags(lockItem->flags() | Qt::ItemIsUserCheckable);
         lockItem->setCheckable(true);
         m->setItem(i, 2, lockItem);
     }
     ui->charaWeapontableView->horizontalHeader()->setStretchLastSection(true);
-    ui->charaWeapontableView->setItemDelegateForColumn(1, new SpinBoxDelegate(0, 999, this));
+    ui->charaWeapontableView->setItemDelegateForColumn(1, new SpinBoxDelegate(-999, 999, this));
 }
 
 void MainWindow::setupMissionResourceTable()
@@ -370,8 +318,8 @@ void MainWindow::setupMissionResourceTable()
     QTableWidget *t = ui->missionResourcetableWidget;
     t->setColumnCount(2);
     t->setHorizontalHeaderLabels({tr("资源"), tr("数量")});
-    t->setRowCount(7);
-    for (int i = 0; i < 7; ++i) {
+    t->setRowCount(resourceNames.length());
+    for (int i = 0; i < resourceNames.length(); ++i) {
         t->setItem(i, 0, new QTableWidgetItem(resourceNames[i]));
         QTableWidgetItem *v = new QTableWidgetItem("0");
         v->setData(Qt::UserRole, i);
@@ -382,13 +330,11 @@ void MainWindow::setupMissionResourceTable()
 
 void MainWindow::setupMissionWeaponTable()
 {
-    // Storage_slots[15]: 3行5列, 每列 武器名(Button)+数量(SpinBox)
     QGridLayout *grid = qobject_cast<QGridLayout*>(ui->missionWeapon->layout());
     if (!grid) {
         grid = new QGridLayout(ui->missionWeapon);
         ui->missionWeapon->setLayout(grid);
     }
-
     for (int row = 0; row < 3; ++row) {
         for (int col = 0; col < 5; ++col) {
             int idx = row * 5 + col;
@@ -397,7 +343,6 @@ void MainWindow::setupMissionWeaponTable()
             hbox->setContentsMargins(1, 1, 1, 1);
 
             QPushButton *btn = new QPushButton(tr("(空)"), this);
-            btn->setProperty("slotIndex", idx);
             connect(btn, &QPushButton::clicked, this, [this, idx]() {
                 onStorageWeaponClicked(idx);
             });
@@ -405,11 +350,8 @@ void MainWindow::setupMissionWeaponTable()
 
             QSpinBox *sb = new QSpinBox(this);
             sb->setRange(0, 999);
-            sb->setProperty("slotIndex", idx);
-            // 连接 storage stack 变化
-            connect(sb, QOverload<int>::of(&QSpinBox::valueChanged), this, [this, idx](int) {
-                if (!m_updatingUI)
-                    writeMissionStorageStack(idx);
+            connect(sb, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int) {
+                if (!m_updatingUI) onMissionChanged();
             });
             hbox->addWidget(sb);
 
@@ -417,22 +359,24 @@ void MainWindow::setupMissionWeaponTable()
         }
     }
 }
-// ==================== 设置 ====================
-void MainWindow::setBase(){
+
+// ==================== 设置 / 进程 ====================
+void MainWindow::setBase()
+{
     m_gameData->SetOffset(setting->GetOffset());
     m_gameData->SetSize(setting->GetSize());
     m_gameData->SetLength(setting->GetLength());
-
     m_refreshTimer->setInterval(setting->GetUpdateFrequency());
 }
 
-void MainWindow::onSetting(){
-    if (setting->isHidden()){
+void MainWindow::onSetting()
+{
+    if (setting->isHidden()) {
         setting->exec();
         setBase();
     }
 }
-// ==================== 进程 ====================
+
 void MainWindow::onRefreshProcess() { refreshProcessList(); }
 
 void MainWindow::onFilterProcessChanged(const QString &text)
@@ -448,118 +392,119 @@ void MainWindow::onAttachProcess()
         QMessageBox::information(this, tr("提示"), tr("请选择进程"));
         return;
     }
-    uint32_t pid = ui->processcomboBox->currentData().toUInt();
+    quint32 pid = ui->processcomboBox->currentData().toUInt();
     m_memMgr->attachProcessById(pid);
 }
 
 void MainWindow::refreshProcessList()
 {
-    QString filter = ui->filterProcessText->toPlainText().trimmed();
+    QString filter = ui->filterProcessText->text();
     QString cur = ui->processcomboBox->currentText();
     ui->processcomboBox->clear();
     for (const auto &p : m_memMgr->enumerateProcesses()) {
         QString name = p["name"].toString();
-        uint32_t pid = p["pid"].toUInt();
+        quint32 pid = p["pid"].toUInt();
         if (!filter.isEmpty() && !name.contains(filter, Qt::CaseInsensitive)
             && !QString::number(pid).contains(filter))
             continue;
-    ui->processcomboBox->addItem(QString("%1 (PID: %2)").arg(name).arg(pid), pid);
+        ui->processcomboBox->addItem(QString("%1 (PID: %2)").arg(name).arg(pid), pid);
     }
     int idx = ui->processcomboBox->findText(cur);
     if (idx >= 0) ui->processcomboBox->setCurrentIndex(idx);
 }
 
-// ==================== 角色 ====================
+// ==================== 角色 - 使用 modifyCharacter（读内存→修改→写回→返回最新数据） ====================
 void MainWindow::onCharacterSelected(int)
 {
     int idx = selectedCharacterIndex();
-    if (idx >= 0 && isAttached()) {
+    if (idx >= 0 && isAttached())
         refreshCharacterData(idx);
-    }
 }
 
-void MainWindow::onCharacterNameChanged()
-{ int i = selectedCharacterIndex(); if (i >= 0 && !m_updatingUI) writeCharacterName(i); }
+void MainWindow::onCharacterEditChanged()
+{
+    int i = selectedCharacterIndex();
+    if (i < 0 || m_updatingUI) return;
+    QString name  = ui->charaNameplainTextEdit->text();
+    QString perk  = ui->charaPerkplainTextEdit->text();
+    QString trait = ui->charaTraitplainTextEdit->text();
+    QString desc  = ui->charaDescplainTextEdit->text();
+    m_charCache[i] = m_gameData->modifyCharacter(i, [&](CharacterData &ch) {
+        ch.name = name;
+        ch.perk = perk;
+        ch.trait = trait;
+        ch.description = desc;
+    });
+}
 
-void MainWindow::onCharacterPerkChanged()
-{ int i = selectedCharacterIndex(); if (i >= 0 && !m_updatingUI) writeCharacterPerk(i); }
+void MainWindow::onCharacterSpinBoxChanged()
+{
+    int i = selectedCharacterIndex();
+    if (i < 0 || m_updatingUI) return;
+    int hp = ui->charaHpspinBox->value();
+    float spd = static_cast<float>(ui->charaSpeeddoubleSpinBox->value());
+    int mf0 = ui->charaStatus1spinBox->value();
+    int mf1 = ui->charaStatus2spinBox->value();
+    m_charCache[i] = m_gameData->modifyCharacter(i, [&](CharacterData &ch) {
+        ch.health = hp;
+        ch.speed_bonus = spd;
+        ch.mod_flags[0] = mf0;
+        ch.mod_flags[1] = mf1;
+    });
+}
 
-void MainWindow::onCharacterTraitChanged()
-{ int i = selectedCharacterIndex(); if (i >= 0 && !m_updatingUI) writeCharacterTrait(i); }
-
-void MainWindow::onCharacterDescriptionChanged()
-{ int i = selectedCharacterIndex(); if (i >= 0 && !m_updatingUI) writeCharacterDescription(i); }
-
-void MainWindow::onCharacterHpChanged(int)
-{ int i = selectedCharacterIndex(); if (i >= 0 && !m_updatingUI) writeCharacterHp(i); }
-
-void MainWindow::onCharacterSpeedChanged(double)
-{ int i = selectedCharacterIndex(); if (i >= 0 && !m_updatingUI) writeCharacterSpeed(i); }
-
-void MainWindow::onCharacterStatusToggled()
-{ int i = selectedCharacterIndex(); if (i >= 0 && !m_updatingUI) writeCharacterStatus(i); }
+void MainWindow::onCharacterCheckBoxToggled()
+{
+    int i = selectedCharacterIndex();
+    if (i < 0 || m_updatingUI) return;
+    quint16 female = ui->charaFemalecheckBox->isChecked() ? 1 : 0;
+    quint16 pet = ui->charaPetcheckBox->isChecked() ? 1 : 0;
+    m_charCache[i] = m_gameData->modifyCharacter(i, [&](CharacterData &ch) {
+        ch.femalePet[0] = female;
+        ch.femalePet[1] = pet;
+    });
+}
 
 void MainWindow::onCharacterStatChanged(const QModelIndex &topLeft, const QModelIndex &)
 {
     if (m_updatingUI) return;
     int i = selectedCharacterIndex();
     if (i < 0) return;
-    // col: 0=属性名, 1=基础值, 2=临时值, 3=附加值, 4=有效值(只读), 5=是否已知
+
     int col = topLeft.column();
     int row = topLeft.row();
     QStandardItemModel *sm = static_cast<QStandardItemModel*>(ui->charaStattableView->model());
 
-    if (col == 1) {
-        // 基础值变化
+    // UI col: 0=属性名, 1=基础值, 2=临时值, 3=附加值, 4=有效值, 5=是否已知
+    // stats[0]=已知, stats[1]=基础, stats[2]=临时, stats[3]=附加
+    if (col >= 1 && col <= 3) {
+        // 从 UI 读取全部行
         bool ok;
-        int8_t baseVal = static_cast<int8_t>(sm->item(row, 1)->text().toInt(&ok));
-        if (!ok) return;
-        int8_t tempVal = m_charCache[i].temp_stats[row];
-        int8_t bonusVal = m_charCache[i].bonus_stats[row];
-        if (m_gameData->writeCharacterStat(i, row, baseVal, bonusVal)) {
-            m_charCache[i].base_stats[row] = baseVal;
-            // 更新有效值 = 基础值 + 临时值 + 附加值
-            int effective = baseVal + tempVal + bonusVal;
-            m_updatingUI = true;
-            sm->item(row, 4)->setText(QString::number(effective));
-            m_updatingUI = false;
+        qint8 uiBase[13], uiTemp[13], uiBonus[13];
+        for (int k = 0; k < 13; ++k) {
+            uiBase[k]  = static_cast<qint8>(sm->item(k, 1)->text().toInt(&ok)); if (!ok) return;
+            uiTemp[k]  = static_cast<qint8>(sm->item(k, 2)->text().toInt(&ok)); if (!ok) return;
+            uiBonus[k] = static_cast<qint8>(sm->item(k, 3)->text().toInt(&ok)); if (!ok) return;
         }
-    } else if (col == 2) {
-        // 临时值变化
-        bool ok;
-        int8_t tempVal = static_cast<int8_t>(sm->item(row, 2)->text().toInt(&ok));
-        if (!ok) return;
-        if (m_gameData->writeCharacterTempStat(i, row, tempVal)) {
-            m_charCache[i].temp_stats[row] = tempVal;
-            int8_t baseVal = m_charCache[i].base_stats[row];
-            int8_t bonusVal = m_charCache[i].bonus_stats[row];
-            int effective = baseVal + tempVal + bonusVal;
-            m_updatingUI = true;
-            sm->item(row, 4)->setText(QString::number(effective));
-            m_updatingUI = false;
+        m_charCache[i] = m_gameData->modifyCharacter(i, [&](CharacterData &ch) {
+            for (int k = 0; k < 13; ++k) {
+                ch.stats[1][k] = uiBase[k];
+                ch.stats[2][k] = uiTemp[k];
+                ch.stats[3][k] = uiBonus[k];
+            }
+        });
+        // 更新有效值显示
+        m_updatingUI = true;
+        for (int k = 0; k < 13; ++k) {
+            int effective = uiBase[k] + uiTemp[k] + uiBonus[k];
+            sm->item(k, 4)->setText(QString::number(effective));
         }
-    } else if (col == 3) {
-        // 附加值变化
-        bool ok;
-        int8_t baseVal = m_charCache[i].base_stats[row];
-        int8_t tempVal = m_charCache[i].temp_stats[row];
-        int8_t bonusVal = static_cast<int8_t>(sm->item(row, 3)->text().toInt(&ok));
-        if (!ok) return;
-        if (m_gameData->writeCharacterStat(i, row, baseVal, bonusVal)) {
-            m_charCache[i].bonus_stats[row] = bonusVal;
-            int effective = baseVal + tempVal + bonusVal;
-            m_updatingUI = true;
-            sm->item(row, 4)->setText(QString::number(effective));
-            m_updatingUI = false;
-        }
+        m_updatingUI = false;
     } else if (col == 5) {
-        // 是否已知列
-        bool checked = sm->item(row, 5)->checkState() == Qt::Checked;
-        m_charCache[i].display_stat[row] = checked ? 1 : 0;
-        uintptr_t addr = m_gameData->calcCharacterAddress(i);
-        if (addr && m_memMgr->isAttached()) {
-            m_memMgr->write<int8_t>(addr + 0x1BC + row, checked ? 1 : 0);
-        }
+        bool known = sm->item(row, 5)->checkState() == Qt::Checked;
+        m_charCache[i] = m_gameData->modifyCharacter(i, [&](CharacterData &ch) {
+            ch.stats[0][row] = known ? 1 : 0;
+        });
     }
 }
 
@@ -567,12 +512,20 @@ void MainWindow::onCharacterResourceChanged(const QModelIndex &topLeft, const QM
 {
     if (m_updatingUI) return;
     int i = selectedCharacterIndex();
-    if (i < 0) return;
-    int col = topLeft.column();
-    //int row = topLeft.row();
-    if (col == 1) {
-        writeCharacterResources(i);
+    if (i < 0 || topLeft.column() != 1) return;
+
+    QStandardItemModel *rm = static_cast<QStandardItemModel*>(ui->charaResourcetableView->model());
+    int newRes[8];
+    int cnt = resourceNames.length();
+    for (int r = 0; r < cnt; ++r) {
+        bool ok;
+        newRes[r] = rm->item(r, 1)->text().toInt(&ok);
+        if (!ok) newRes[r] = m_charCache[i].resource[r];
     }
+    m_charCache[i] = m_gameData->modifyCharacter(i, [&](CharacterData &ch) {
+        for (int r = 0; r < cnt; ++r)
+            ch.resource[r] = newRes[r];
+    });
 }
 
 void MainWindow::onCharacterWeaponChanged(const QModelIndex &topLeft, const QModelIndex &)
@@ -581,188 +534,91 @@ void MainWindow::onCharacterWeaponChanged(const QModelIndex &topLeft, const QMod
     int i = selectedCharacterIndex();
     if (i < 0) return;
     int col = topLeft.column();
-    int row = topLeft.row();
-    switch (col)
-    {
-        case 1:
-        case 2:
-        writeCharacterWeaponSlot(i, row);
-            break;
-        
-        default:
-            break;
+    int slot = topLeft.row();
+    // weaponslots[槽位][内容]
+    // 内容：武器数量, 武器ID, 武器锁;
+    // 界面：武器按钮 武器数量 武器锁
+    if (col == 1 || col == 2) {
+        QStandardItemModel *wm = static_cast<QStandardItemModel*>(ui->charaWeapontableView->model());
+        bool ok;
+        int stack = wm->item(slot, 1)->text().toInt(&ok);
+        int lock = (wm->item(slot, 2)->checkState() == Qt::Checked) ? 1 : 0;
+        m_charCache[i] = m_gameData->modifyCharacter(i, [&](CharacterData &ch) {
+            ch.weaponslots[slot][0] = stack;
+            ch.weaponslots[slot][2] = lock;
+        });
     }
 }
 
 void MainWindow::refreshCharacterData(int ci)
 {
     if (!isAttached() || ci < 0 || ci >= m_charCache.size()) return;
-    // 如果用户正在编辑输入控件，跳过刷新
-    if (hasEditingFocus()) return;
 
     const auto &ch = m_charCache[ci];
     m_updatingUI = true;
 
-    ui->charaThingplainTextEdit->setPlainText(QString::number(ch.cur_thingid));
-    ui->charaNameplainTextEdit->setPlainText(ch.name);
-    ui->charaPerkplainTextEdit->setPlainText(ch.perk);
-    ui->charaTraitplainTextEdit->setPlainText(ch.trait);
-    ui->charaDescplainTextEdit->setPlainText(ch.description);
+    ui->charaThingplainTextEdit->setText(QString::number(ch.id[1]));
+    ui->charaNameplainTextEdit->setText(ch.name);
+    ui->charaPerkplainTextEdit->setText(ch.perk);
+    ui->charaTraitplainTextEdit->setText(ch.trait);
+    ui->charaDescplainTextEdit->setText(ch.description);
     ui->charaHpspinBox->setValue(ch.health);
     ui->charaSpeeddoubleSpinBox->setValue(ch.speed_bonus);
+    ui->charaFemalecheckBox->setChecked(ch.femalePet[0] != 0);
+    ui->charaPetcheckBox->setChecked(ch.femalePet[1] != 0);
+    ui->charaStatus1spinBox->setValue(ch.mod_flags[0]);
+    ui->charaStatus2spinBox->setValue(ch.mod_flags[1]);
 
-    // 状态
-    ui->charaStatuscheckBox128->setChecked(ch.status & STATUS_EXPLORER);
-    ui->charaStatuscheckBox064->setChecked(ch.status & STATUS_DOGPAL);
-    ui->charaStatuscheckBox032->setChecked(ch.status & STATUS_COFFEE);
-    ui->charaStatuscheckBox016->setChecked(ch.status & STATUS_DOGMALUS);
-    ui->charaStatuscheckBox008->setChecked(ch.status & STATUS_SUPERDOG);
-    ui->charaStatuscheckBox004->setChecked(ch.status & STATUS_TIRED);
-    ui->charaStatuscheckBox002->setChecked(ch.status & STATUS_INJURED);
-    ui->charaStatuscheckBox001->setChecked(ch.status & STATUS_SICK);
-
-    // 属性表: col 0=属性名, 1=基础值, 2=临时值, 3=附加值, 4=有效值, 5=是否已知
+    // 属性表: stats[0]=已知, stats[1]=基础, stats[2]=临时, stats[3]=附加
     QStandardItemModel *statM = static_cast<QStandardItemModel*>(ui->charaStattableView->model());
     for (int i = 0; i < 13; ++i) {
-        statM->item(i, 1)->setText(QString::number(ch.base_stats[i]));
-        statM->item(i, 2)->setText(QString::number(ch.temp_stats[i]));
-        statM->item(i, 3)->setText(QString::number(ch.bonus_stats[i]));
-        int effective = ch.base_stats[i] + ch.temp_stats[i] + ch.bonus_stats[i];
+        statM->item(i, 1)->setText(QString::number(ch.stats[1][i]));
+        statM->item(i, 2)->setText(QString::number(ch.stats[2][i]));
+        statM->item(i, 3)->setText(QString::number(ch.stats[3][i]));
+        int effective = ch.stats[1][i] + ch.stats[2][i] + ch.stats[3][i];
         statM->item(i, 4)->setText(QString::number(effective));
-        statM->item(i, 5)->setCheckState(ch.display_stat[i] ? Qt::Checked : Qt::Unchecked);
+        statM->item(i, 5)->setCheckState(ch.stats[0][i] ? Qt::Checked : Qt::Unchecked);
     }
 
     // 资源表
     QStandardItemModel *resM = static_cast<QStandardItemModel*>(ui->charaResourcetableView->model());
-    for (int i = 0; i < 7; ++i)
+    for (int i = 0; i < resourceNames.length(); ++i)
         resM->item(i, 1)->setText(QString::number(ch.resource[i]));
 
-    // 武器表
+    // weaponslots[槽位][内容]
+    // 内容：武器数量, 武器ID, 武器锁;
+    // 界面：武器按钮 武器数量 武器锁
     QStandardItemModel *wpM = static_cast<QStandardItemModel*>(ui->charaWeapontableView->model());
     for (int i = 0; i < 3; ++i) {
-        int wid = ch.weapon_id[i];
+        int wid = ch.weaponslots[i][1];
         QPushButton *btn = qobject_cast<QPushButton*>(ui->charaWeapontableView->indexWidget(wpM->index(i, 0)));
-        if (wid > 0 && wid < m_weaponNames.size()){
-            btn->setText(m_weaponNames[wid]);
-        }
-        else
-            btn->setText(tr("(空)"));
-        wpM->item(i, 1)->setText(QString::number(ch.weapon_stack[i]));
-        wpM->item(i, 2)->setCheckState(ch.weapon_lock[i] ? Qt::Checked : Qt::Unchecked);
+        btn->setText((wid > 0 && wid < m_weaponNames.size()) ? m_weaponNames[wid] : tr("(空)"));
+        wpM->item(i, 1)->setText(QString::number(ch.weaponslots[i][0]));
+        wpM->item(i, 2)->setCheckState(ch.weaponslots[i][2] ? Qt::Checked : Qt::Unchecked);
     }
 
     m_updatingUI = false;
-}
-
-// ==================== 写入角色 ====================
-void MainWindow::writeCharacterName(int i)
-{ QString s = ui->charaNameplainTextEdit->toPlainText().trimmed(); if (m_gameData->writeCharacterName(i, s)) m_charCache[i].name = s; }
-
-void MainWindow::writeCharacterPerk(int i)
-{ QString s = ui->charaPerkplainTextEdit->toPlainText().trimmed(); if (m_gameData->writeCharacterPerk(i, s)) m_charCache[i].perk = s; }
-
-void MainWindow::writeCharacterTrait(int i)
-{ QString s = ui->charaTraitplainTextEdit->toPlainText().trimmed(); if (m_gameData->writeCharacterTrait(i, s)) m_charCache[i].trait = s; }
-
-void MainWindow::writeCharacterDescription(int i)
-{ QString s = ui->charaDescplainTextEdit->toPlainText().trimmed(); if (m_gameData->writeCharacterDescription(i, s)) m_charCache[i].description = s; }
-
-void MainWindow::writeCharacterHp(int i)
-{ int32_t v = ui->charaHpspinBox->value(); if (m_gameData->writeCharacterHealth(i, v)) m_charCache[i].health = v; }
-
-void MainWindow::writeCharacterSpeed(int i)
-{ float v = static_cast<float>(ui->charaSpeeddoubleSpinBox->value()); if (m_gameData->writeCharacterSpeedBonus(i, v)) m_charCache[i].speed_bonus = v; }
-
-void MainWindow::writeCharacterStatus(int i)
-{
-    uint8_t s = 0;
-    if (ui->charaStatuscheckBox001->isChecked()) s |= STATUS_SICK;
-    if (ui->charaStatuscheckBox002->isChecked()) s |= STATUS_INJURED;
-    if (ui->charaStatuscheckBox004->isChecked()) s |= STATUS_TIRED;
-    if (ui->charaStatuscheckBox008->isChecked()) s |= STATUS_SUPERDOG;
-    if (ui->charaStatuscheckBox016->isChecked()) s |= STATUS_DOGMALUS;
-    if (ui->charaStatuscheckBox032->isChecked()) s |= STATUS_COFFEE;
-    if (ui->charaStatuscheckBox064->isChecked()) s |= STATUS_DOGPAL;
-    if (ui->charaStatuscheckBox128->isChecked()) s |= STATUS_EXPLORER;
-    if (m_gameData->writeCharacterStatus(i, s)) m_charCache[i].status = s;
-}
-
-void MainWindow::writeCharacterStats(int i)
-{
-    if (i < 0) return;
-    QStandardItemModel *sm = static_cast<QStandardItemModel*>(ui->charaStattableView->model());
-    for (int row = 0; row < 13; ++row) {
-        bool ok;
-        int8_t baseVal = static_cast<int8_t>(sm->item(row, 1)->text().toInt(&ok));
-        if (!ok) baseVal = m_charCache[i].base_stats[row];
-        int8_t bonusVal = static_cast<int8_t>(sm->item(row, 3)->text().toInt(&ok));
-        if (!ok) bonusVal = m_charCache[i].bonus_stats[row];
-        m_gameData->writeCharacterStat(i, row, baseVal, bonusVal);
-        m_charCache[i].base_stats[row] = baseVal;
-        m_charCache[i].bonus_stats[row] = bonusVal;
-    }
-}
-
-void MainWindow::writeCharacterTempStats(int i)
-{
-    if (i < 0) return;
-    QStandardItemModel *sm = static_cast<QStandardItemModel*>(ui->charaStattableView->model());
-    for (int row = 0; row < 13; ++row) {
-        bool ok;
-        int8_t tempVal = static_cast<int8_t>(sm->item(row, 2)->text().toInt(&ok));
-        if (!ok) tempVal = m_charCache[i].temp_stats[row];
-        if (m_gameData->writeCharacterTempStat(i, row, tempVal))
-            m_charCache[i].temp_stats[row] = tempVal;
-    }
-}
-
-void MainWindow::writeCharacterResources(int i)
-{
-    if (i < 0) return;
-    QStandardItemModel *rm = static_cast<QStandardItemModel*>(ui->charaResourcetableView->model());
-    for (int row = 0; row < 7; ++row) {
-        bool ok;
-        int32_t val = rm->item(row, 1)->text().toInt(&ok);
-        if (ok && m_gameData->writeCharacterResource(i, row, val))
-            m_charCache[i].resource[row] = val;
-    }
-}
-
-void MainWindow::writeCharacterWeaponSlot(int charIndex, int slot)
-{
-    if (charIndex < 0 || slot < 0 || slot >= 3) return;
-    QStandardItemModel *wm = static_cast<QStandardItemModel*>(ui->charaWeapontableView->model());
-    bool ok;
-    int32_t stack = wm->item(slot, 1)->text().toInt(&ok);
-    if (!ok) stack = m_charCache[charIndex].weapon_stack[slot];
-    int32_t id = m_charCache[charIndex].weapon_id[slot];
-    int32_t lock = (wm->item(slot, 2)->checkState() == Qt::Checked) ? 1 : 0;
-
-    if (m_gameData->writeCharacterWeapon(charIndex, slot, id, stack, lock)) {
-        m_charCache[charIndex].weapon_stack[slot] = stack;
-        m_charCache[charIndex].weapon_lock[slot] = lock;
-    }
 }
 
 // ==================== 武器按钮 ====================
 void MainWindow::onWeaponButtonClicked(int charIndex, int slot)
 {
     if (!isAttached()) return;
-    if (charIndex == -1){
-        charIndex = selectedCharacterIndex();
-    }
+    if (charIndex == -1) charIndex = selectedCharacterIndex();
+
     WeaponDialog dlg(m_weaponNames, this);
     if (dlg.exec() == QDialog::Accepted) {
         int wid = dlg.selectedWeaponIndex();
-        if (wid >= 0) {
-            int32_t stack = m_charCache[charIndex].weapon_stack[slot];
-            int32_t lock = m_charCache[charIndex].weapon_lock[slot];
-            m_gameData->writeCharacterWeapon(charIndex, slot, wid, stack, lock);
-            m_charCache[charIndex].weapon_id[slot] = wid;
-            QStandardItemModel *m = static_cast<QStandardItemModel*>(ui->charaWeapontableView->model());
-            QPushButton* btn = static_cast<QPushButton*>(ui->charaWeapontableView->indexWidget(m->index(slot, 0)));
-            btn->setText(m_weaponNames.value(wid, tr("(空)")));
-        }
+        if (wid < 0) return;
+        // weaponslots[槽位][内容]
+        // 内容：武器数量, 武器ID, 武器锁;
+        // 界面：武器按钮 武器数量 武器锁
+        m_charCache[charIndex] = m_gameData->modifyCharacter(charIndex, [&](CharacterData &ch) {
+            ch.weaponslots[slot][1] = wid;
+        });
+        QStandardItemModel *m = static_cast<QStandardItemModel*>(ui->charaWeapontableView->model());
+        QPushButton *btn = static_cast<QPushButton*>(ui->charaWeapontableView->indexWidget(m->index(slot, 0)));
+        btn->setText(m_weaponNames.value(wid, tr("(空)")));
     }
 }
 
@@ -772,12 +628,9 @@ void MainWindow::onStorageWeaponClicked(int slotIndex)
     WeaponDialog dlg(m_weaponNames, this);
     if (dlg.exec() == QDialog::Accepted) {
         int wid = dlg.selectedWeaponIndex();
-        writeMissionStorageWeapon(slotIndex);
-        // 更新id
-        uintptr_t addr = m_memMgr->moduleBaseAddress() + 0x5E2238 + 0x48 + slotIndex * 8;
-        m_memMgr->write<int32_t>(addr, wid);
-        m_missionCache.storage_id[slotIndex] = wid;
-        // 更新按钮文字
+        if (wid < 0) return;
+        m_missionCache.storage_slots[slotIndex][0] = wid;
+        // 读取当前 stack
         QGridLayout *grid = qobject_cast<QGridLayout*>(ui->missionWeapon->layout());
         if (grid) {
             int r = slotIndex / 5, c = slotIndex % 5;
@@ -785,42 +638,18 @@ void MainWindow::onStorageWeaponClicked(int slotIndex)
             if (li) {
                 QWidget *cell = li->widget();
                 if (cell) {
+                    QSpinBox *sb = cell->findChild<QSpinBox*>();
+                    if (sb) m_missionCache.storage_slots[slotIndex][1] = sb->value();
                     QPushButton *btn = cell->findChild<QPushButton*>();
                     if (btn) btn->setText(m_weaponNames.value(wid, tr("(空)")));
                 }
             }
         }
+        m_gameData->writeMission(m_missionCache);
     }
 }
 
-void MainWindow::writeMissionStorageWeapon(int slotIndex)
-{
-    if (!isAttached()) return;
-    // 先写入当前的 stack
-    writeMissionStorageStack(slotIndex);
-}
-
-void MainWindow::writeMissionStorageStack(int slotIndex)
-{
-    if (!isAttached()) return;
-    QGridLayout *grid = qobject_cast<QGridLayout*>(ui->missionWeapon->layout());
-    if (!grid) return;
-    int r = slotIndex / 5, c = slotIndex % 5;
-    QLayoutItem *li = grid->itemAtPosition(r, c);
-    if (!li) return;
-    QWidget *cell = li->widget();
-    if (!cell) return;
-    QSpinBox *sb = cell->findChild<QSpinBox*>();
-    if (!sb) return;
-
-    uintptr_t addr = m_memMgr->moduleBaseAddress() + 0x5E2238 + 0x48 + slotIndex * 8;
-    // 写入 stack
-    int32_t stackVal = sb->value();
-    m_memMgr->write<int32_t>(addr + 0x04, stackVal);
-    m_missionCache.storage_stack[slotIndex] = stackVal;
-}
-
-// ==================== 实体 ====================
+// ==================== 实体 - 使用 modifyThing ====================
 void MainWindow::onEntityTypeFilterChanged(int idx)
 { m_entityTypeFilter = ui->entityTypecomboBox->itemData(idx).toInt(); refreshEntityList(); }
 
@@ -830,32 +659,65 @@ void MainWindow::onEntityAreaFilterChanged(int idx)
 void MainWindow::onEntityTableSelectionChanged()
 { int e = selectedEntityIndex(); if (e >= 0) refreshEntityData(e); }
 
-void MainWindow::onEntityFlagToggled()
-{ int e = selectedEntityIndex(); if (e >= 0 && !m_updatingUI) writeEntityFlag(); }
+void MainWindow::onEntityCheckBoxToggled()
+{
+    int e = selectedEntityIndex();
+    if (e < 0 || m_updatingUI) return;
+    // vision[0]=unseen, vision[1]=invisible, hit[0]=no_hit, hit[1]=no_do_damage
+    quint8 nocollide = ui->noCollidecheckBox->isChecked() ? 1 : 0;
+    quint8 unseen   = ui->unSeencheckBox->isChecked()    ? 1 : 0;
+    quint8 invisible = ui->inVisiblecheckBox->isChecked() ? 1 : 0;
+    quint8 glow     = ui->glowcheckBox->isChecked()       ? 1 : 0;
+    quint8 nohit    = ui->noHitcheckBox->isChecked()      ? 1 : 0;
+    quint8 nodamage = ui->noDamagecheckBox->isChecked()   ? 1 : 0;
+    m_thingCache[e] = m_gameData->modifyThing(e, [&](ThingData &th) {
+        th.nocollide = nocollide;
+        th.vision[0] = unseen;
+        th.vision[1] = invisible;
+        th.glow = glow;
+        th.hit[0] = nohit;
+        th.hit[1] = nodamage;
+    });
+}
 
-void MainWindow::onEntityPosChanged()
-{ int e = selectedEntityIndex(); if (e >= 0 && !m_updatingUI) writeEntityPos(); }
+void MainWindow::onEntityDoubleSpinBoxChanged()
+{
+    int e = selectedEntityIndex();
+    if (e < 0 || m_updatingUI) return;
+    float px = static_cast<float>(ui->posXdoubleSpinBox->value());
+    float py = static_cast<float>(ui->posYdoubleSpinBox->value());
+    float pz = static_cast<float>(ui->posZdoubleSpinBox->value());
+    float vx = static_cast<float>(ui->velXdoubleSpinBox->value());
+    float vy = static_cast<float>(ui->velYdoubleSpinBox->value());
+    float vz = static_cast<float>(ui->velZdoubleSpinBox->value());
+    float mass = static_cast<float>(ui->massdoubleSpinBox->value());
+    float fric = static_cast<float>(ui->frictiondoubleSpinBox->value());
+    float boun = static_cast<float>(ui->bounceFrictiondoubleSpinBox->value());
+    m_thingCache[e] = m_gameData->modifyThing(e, [&](ThingData &th) {
+        th.vec3d[0][0] = px; th.vec3d[0][1] = py; th.vec3d[0][2] = pz;
+        th.vec3d[1][0] = vx; th.vec3d[1][1] = vy; th.vec3d[1][2] = vz;
+        th.phy[0] = mass; th.phy[1] = fric; th.phy[2] = boun;
+    });
+}
 
-void MainWindow::onEntityVelChanged()
-{ int e = selectedEntityIndex(); if (e >= 0 && !m_updatingUI) writeEntityVel(); }
-
-void MainWindow::onEntityPhysicsChanged()
-{ int e = selectedEntityIndex(); if (e >= 0 && !m_updatingUI) writeEntityPhysics(); }
-
-void MainWindow::onEntityHitpointsChanged(int)
-{ int e = selectedEntityIndex(); if (e >= 0 && !m_updatingUI) writeEntityHitpoints(); }
-
-void MainWindow::onEntityAiStateChanged(int)
-{ int e = selectedEntityIndex(); if (e >= 0 && !m_updatingUI) writeEntityAiState(); }
-
-void MainWindow::onEntityAiWaitChanged(int)
-{ int e = selectedEntityIndex(); if (e >= 0 && !m_updatingUI) writeEntityAiWait(); }
+void MainWindow::onEntitySpinBoxChanged()
+{
+    int e = selectedEntityIndex();
+    if (e < 0 || m_updatingUI) return;
+    int hp = ui->hitpointsspinBox->value();
+    quint32 aistate = static_cast<quint32>(ui->aiStatespinBox->value());
+    qint32 aiwait = static_cast<qint32>(ui->aiWaitspinBox->value());
+    m_thingCache[e] = m_gameData->modifyThing(e, [&](ThingData &th) {
+        th.hitpoints = hp;
+        th.ai_state = aistate;
+        th.ai_wait = aiwait;
+    });
+}
 
 void MainWindow::refreshEntityList()
 {
     if (!isAttached()) return;
     int selIdx = selectedEntityIndex();
-    // 保存滚动条位置
     int scrollPos = 0;
     QTableWidget *t = ui->entitytableWidget;
     if (t->verticalScrollBar())
@@ -864,49 +726,54 @@ void MainWindow::refreshEntityList()
     m_thingCache = m_gameData->readAllThings();
     t->setRowCount(0);
 
-    auto typeName = [](uint8_t ty) -> QString {
-        switch (ty) { case 1: return tr("人类"); case 2: return tr("僵尸"); case 3: return tr("物品"); case 4: return tr("抛射物"); default: return QString(tr("类型%1")).arg(ty); }
+    auto typeName = [](qint8 ty) -> QString {
+        switch (ty) {
+        case 1: return tr("人类");
+        case 2: return tr("僵尸");
+        case 3: return tr("物品");
+        case 4: return tr("抛射物");
+        default: return QString(tr("类型%1")).arg(ty);
+        }
     };
-    auto subName = [](uint8_t st) -> QString {
-        switch (st) { case 0: return tr("家具"); case 1: return tr("拾取物"); case 2: return tr("武器"); case 3: return tr("车辆"); case 4: return tr("特殊拾取"); default: return QString(tr("子类型%1")).arg(st); }
+    auto subName = [](qint8 st) -> QString {
+        switch (st) {
+        case 0: return tr("家具");
+        case 1: return tr("拾取物");
+        case 2: return tr("武器");
+        case 3: return tr("车辆");
+        case 4: return tr("特殊拾取");
+        default: return QString(tr("子类型%1")).arg(st);
+        }
     };
-
-    uintptr_t baseAddr = m_memMgr->moduleBaseAddress() + 0x5632E0;
 
     int row = 0;
     for (int i = 0; i < m_thingCache.size(); ++i) {
         const auto &th = m_thingCache[i];
         if (th.id == 0) continue;
-        else if (m_entityAreaFilter >= 0 && th.mapid != m_entityAreaFilter) continue;
-        else if ((m_entityTypeFilter >= 0 && m_entityTypeFilter <= 4 && th.type != m_entityTypeFilter) ||
-                    (m_entityTypeFilter >= 5 && (th.type != 3 || th.subtype + 5 != m_entityTypeFilter))) continue;
-        
+        if (m_entityAreaFilter >= 0 && th.mapid != m_entityAreaFilter) continue;
+        qint8 ty = th.type[0];
+        qint8 sub = th.type[1];
+        if (m_entityTypeFilter >= 0 && m_entityTypeFilter <= 4 && ty != m_entityTypeFilter) continue;
+        if (m_entityTypeFilter >= 5 && (ty != 3 || sub + 5 != m_entityTypeFilter)) continue;
 
         t->insertRow(row);
         QTableWidgetItem *idItem = new QTableWidgetItem(QString::number(th.id));
         idItem->setData(Qt::UserRole, i);
         t->setItem(row, 0, idItem);
-        t->setItem(row, 1, new QTableWidgetItem(typeName(th.type)));
-        if (th.type == 3)
-        {
-            t->setItem(row, 2, new QTableWidgetItem(subName(th.subtype)));
-        }else{
-            t->setItem(row, 2, new QTableWidgetItem(typeName(th.type)));
-        }
+        t->setItem(row, 1, new QTableWidgetItem(typeName(ty)));
+        t->setItem(row, 2, new QTableWidgetItem(ty == 3 ? subName(sub) : typeName(ty)));
         t->setItem(row, 3, new QTableWidgetItem(QString::number(th.mapid)));
-        // 实体地址 = 主模块基址 + 0x5632E0 + 索引 * 0x304
-        uintptr_t addr = baseAddr + i * 0x304;
-        t->setItem(row, 4, new QTableWidgetItem("0x" + QString::number(addr, 16).toUpper()));
+        t->setItem(row, 4, new QTableWidgetItem("0x" + QString::number(th.addr, 16).toUpper()));
         ++row;
     }
 
     ui->entityCountLabel->setText(QString(tr("实体: %1")).arg(row));
-    // 恢复选择
     if (selIdx >= 0)
         for (int r = 0; r < t->rowCount(); ++r)
-            if (t->item(r, 0)->data(Qt::UserRole).toInt() == selIdx)
-            { t->selectRow(r); break; }
-    // 恢复滚动条位置
+            if (t->item(r, 0)->data(Qt::UserRole).toInt() == selIdx) {
+                t->selectRow(r);
+                break;
+            }
     if (t->verticalScrollBar())
         t->verticalScrollBar()->setValue(scrollPos);
 }
@@ -916,194 +783,153 @@ void MainWindow::refreshEntityData(int ei)
     if (ei < 0 || ei >= m_thingCache.size()) return;
     const auto &th = m_thingCache[ei];
     m_updatingUI = true;
+
     ui->noCollidecheckBox->setChecked(th.nocollide);
-    ui->unSeencheckBox->setChecked(th.unseen);
-    ui->inVisiblecheckBox->setChecked(th.invisible);
-    ui->fadecheckBox->setChecked(th.fade);
-    ui->noLightingcheckBox->setChecked(th.no_lighting);
+    ui->unSeencheckBox->setChecked(th.vision[0]);
+    ui->inVisiblecheckBox->setChecked(th.vision[1]);
     ui->glowcheckBox->setChecked(th.glow);
-    ui->noHitcheckBox->setChecked(th.no_hit);
-    ui->noDamagecheckBox->setChecked(th.no_do_damage);
-    ui->pausecheckBox->setChecked(th.pause);
-
-    ui->posXdoubleSpinBox->setValue(th.pos[0]);
-    ui->posYdoubleSpinBox->setValue(th.pos[1]);
-    ui->posZdoubleSpinBox->setValue(th.pos[2]);
-    ui->velXdoubleSpinBox->setValue(th.vel[0]);
-    ui->velYdoubleSpinBox->setValue(th.vel[1]);
-    ui->velZdoubleSpinBox->setValue(th.vel[2]);
-    ui->massdoubleSpinBox->setValue(th.phy[0]);
-    ui->frictiondoubleSpinBox->setValue(th.phy[1]);
-    ui->bounceFrictiondoubleSpinBox->setValue(th.phy[2]);
+    ui->noHitcheckBox->setChecked(th.hit[0]);
+    ui->noDamagecheckBox->setChecked(th.hit[1]);
+    ui->posXdoubleSpinBox->setValue(static_cast<double>(th.vec3d[0][0]));
+    ui->posYdoubleSpinBox->setValue(static_cast<double>(th.vec3d[0][1]));
+    ui->posZdoubleSpinBox->setValue(static_cast<double>(th.vec3d[0][2]));
+    ui->velXdoubleSpinBox->setValue(static_cast<double>(th.vec3d[1][0]));
+    ui->velYdoubleSpinBox->setValue(static_cast<double>(th.vec3d[1][1]));
+    ui->velZdoubleSpinBox->setValue(static_cast<double>(th.vec3d[1][2]));
+    ui->massdoubleSpinBox->setValue(static_cast<double>(th.phy[0]));
+    ui->frictiondoubleSpinBox->setValue(static_cast<double>(th.phy[1]));
+    ui->bounceFrictiondoubleSpinBox->setValue(static_cast<double>(th.phy[2]));
     ui->hitpointsspinBox->setValue(th.hitpoints);
-    ui->aiStatespinBox->setValue(th.ai_state);
-    ui->aiWaitspinBox->setValue(th.ai_wait);
+    ui->aiStatespinBox->setValue(static_cast<int>(th.ai_state));
+    ui->aiWaitspinBox->setValue(static_cast<int>(th.ai_wait));
     m_updatingUI = false;
-}
-
-// ==================== 写入实体 ====================
-void MainWindow::writeEntityFlag()
-{
-    int idx = selectedEntityIndex(); if (idx < 0) return;
-    ThingData d = m_thingCache[idx];
-    d.nocollide = ui->noCollidecheckBox->isChecked() ? 1 : 0;
-    d.unseen = ui->unSeencheckBox->isChecked() ? 1 : 0;
-    d.invisible = ui->inVisiblecheckBox->isChecked() ? 1 : 0;
-    d.fade = ui->fadecheckBox->isChecked() ? 1 : 0;
-    d.no_lighting = ui->noLightingcheckBox->isChecked() ? 1 : 0;
-    d.glow = ui->glowcheckBox->isChecked() ? 1 : 0;
-    d.no_hit = ui->noHitcheckBox->isChecked() ? 1 : 0;
-    d.no_do_damage = ui->noDamagecheckBox->isChecked() ? 1 : 0;
-    d.pause = ui->pausecheckBox->isChecked() ? 1 : 0;
-    if (m_gameData->writeThing(idx, d)) m_thingCache[idx] = d;
-}
-
-void MainWindow::writeEntityPos()
-{
-    int idx = selectedEntityIndex(); if (idx < 0) return;
-    ThingData d = m_thingCache[idx];
-    d.pos[0] = static_cast<float>(ui->posXdoubleSpinBox->value());
-    d.pos[1] = static_cast<float>(ui->posYdoubleSpinBox->value());
-    d.pos[2] = static_cast<float>(ui->posZdoubleSpinBox->value());
-    if (m_gameData->writeThing(idx, d)) {
-        m_thingCache[idx].pos[0] = d.pos[0];
-        m_thingCache[idx].pos[1] = d.pos[1];
-        m_thingCache[idx].pos[2] = d.pos[2];
-    }
-}
-
-void MainWindow::writeEntityVel()
-{
-    int idx = selectedEntityIndex(); if (idx < 0) return;
-    ThingData d = m_thingCache[idx];
-    d.vel[0] = static_cast<float>(ui->velXdoubleSpinBox->value());
-    d.vel[1] = static_cast<float>(ui->velYdoubleSpinBox->value());
-    d.vel[2] = static_cast<float>(ui->velZdoubleSpinBox->value());
-    if (m_gameData->writeThing(idx, d)) { m_thingCache[idx].vel[0] = d.vel[0]; m_thingCache[idx].vel[1] = d.vel[1]; m_thingCache[idx].vel[2] = d.vel[2]; }
-}
-
-void MainWindow::writeEntityPhysics()
-{
-    int idx = selectedEntityIndex(); if (idx < 0) return;
-    ThingData d = m_thingCache[idx];
-    d.phy[0] = static_cast<float>(ui->massdoubleSpinBox->value());
-    d.phy[1] = static_cast<float>(ui->frictiondoubleSpinBox->value());
-    d.phy[2] = static_cast<float>(ui->bounceFrictiondoubleSpinBox->value());
-    if (m_gameData->writeThing(idx, d)) { m_thingCache[idx].phy[0] = d.phy[0]; m_thingCache[idx].phy[1] = d.phy[1]; m_thingCache[idx].phy[2] = d.phy[2]; }
-}
-
-void MainWindow::writeEntityHitpoints()
-{
-    int idx = selectedEntityIndex(); if (idx < 0) return;
-    int32_t hp = ui->hitpointsspinBox->value();
-    uintptr_t addr = m_gameData->calcThingAddress(idx);
-    if (addr && m_memMgr->write<int32_t>(addr + 0x254, hp))
-        m_thingCache[idx].hitpoints = hp;
-}
-
-void MainWindow::writeEntityAiState()
-{
-    int idx = selectedEntityIndex(); if (idx < 0) return;
-    uint32_t v = ui->aiStatespinBox->value();
-    uintptr_t addr = m_gameData->calcThingAddress(idx);
-    if (addr && m_memMgr->write<uint32_t>(addr + 0x288, v))
-        m_thingCache[idx].ai_state = v;
-}
-
-void MainWindow::writeEntityAiWait()
-{
-    int idx = selectedEntityIndex(); if (idx < 0) return;
-    uint32_t v = ui->aiWaitspinBox->value();
-    uintptr_t addr = m_gameData->calcThingAddress(idx);
-    if (addr && m_memMgr->write<uint32_t>(addr + 0x2A8, v))
-        m_thingCache[idx].ai_wait = v;
 }
 
 // ==================== 实体操作 ====================
 void MainWindow::onSetTargetEntity()
 {
     int e = selectedEntityIndex();
-    if (e >= 0) {
+    if (e >= 0 && m_targetEntityIndex != e) {
         m_targetEntityIndex = e;
-        statusBar()->showMessage(QString(tr("目标: ID=%1, 索引=%2")).arg(m_thingCache[e].id, e));
+        statusBar()->showMessage(QString(tr("目标: ID=%1, 索引=%2")).arg(m_thingCache[e].id).arg(e));
         ui->setTargetpushButton->setStyleSheet("background-color:lightgreen;");
+    } else {
+        ui->setTargetpushButton->setStyleSheet("background-color:transparent;");
+        m_targetEntityIndex = -1;
     }
 }
 
 void MainWindow::onTeleportToTarget()
 {
     int cur = selectedEntityIndex();
-    if (cur < 0 || m_targetEntityIndex < 0) {
+    if (cur < 0 || m_targetEntityIndex < 0 || !isAttached()) {
         QMessageBox::information(this, tr("提示"), tr("请先选择实体并设置目标"));
         return;
     }
-    if (!isAttached()) return;
-
     const auto &target = m_thingCache[m_targetEntityIndex];
-    ThingData d = m_thingCache[cur];
-    // 复制坐标和mapid
-    d.pos[0] = target.pos[0]; d.pos[1] = target.pos[1]; d.pos[2] = target.pos[2];
-    d.mapid = target.mapid;
-
-    if (m_gameData->writeThing(cur, d)) {
-        m_thingCache[cur] = d;
-        refreshEntityData(cur);
-        statusBar()->showMessage(QString(tr("已传送至目标")));
-    }
+    m_thingCache[cur] = m_gameData->modifyThing(cur, [&](ThingData &d) {
+        d.vec3d[0][0] = target.vec3d[0][0];
+        d.vec3d[0][1] = target.vec3d[0][1];
+        d.vec3d[0][2] = target.vec3d[0][2];
+        d.mapid = target.mapid;
+    });
+    refreshEntityData(cur);
+    statusBar()->showMessage(tr("已传送至目标"));
 }
 
 void MainWindow::onSwapEntityPositions()
 {
     int cur = selectedEntityIndex();
-    if (cur < 0 || m_targetEntityIndex < 0) {
+    if (cur < 0 || m_targetEntityIndex < 0 || !isAttached()) {
         QMessageBox::information(this, tr("提示"), tr("请先选择实体并设置目标"));
         return;
     }
-    if (!isAttached()) return;
+    int target = m_targetEntityIndex;
+    // 暂存坐标
+    float posCur[3] = { m_thingCache[cur].vec3d[0][0], m_thingCache[cur].vec3d[0][1], m_thingCache[cur].vec3d[0][2] };
+    quint8 mapCur = m_thingCache[cur].mapid;
+    float posTgt[3] = { m_thingCache[target].vec3d[0][0], m_thingCache[target].vec3d[0][1], m_thingCache[target].vec3d[0][2] };
+    quint8 mapTgt = m_thingCache[target].mapid;
 
-    ThingData d1 = m_thingCache[cur];
-    ThingData d2 = m_thingCache[m_targetEntityIndex];
+    m_thingCache[cur] = m_gameData->modifyThing(cur, [&](ThingData &d) {
+        d.vec3d[0][0] = posTgt[0]; d.vec3d[0][1] = posTgt[1]; d.vec3d[0][2] = posTgt[2];
+        d.mapid = mapTgt;
+    });
+    m_thingCache[target] = m_gameData->modifyThing(target, [&](ThingData &d) {
+        d.vec3d[0][0] = posCur[0]; d.vec3d[0][1] = posCur[1]; d.vec3d[0][2] = posCur[2];
+        d.mapid = mapCur;
+    });
+    refreshEntityData(cur);
+    statusBar()->showMessage(tr("已交换位置"));
+}
 
-    // 交换坐标+mapid
-    for (int i = 0; i < 3; ++i) std::swap(d1.pos[i], d2.pos[i]);
-    std::swap(d1.mapid, d2.mapid);
-
-    bool ok1 = m_gameData->writeThing(cur, d1);
-    bool ok2 = m_gameData->writeThing(m_targetEntityIndex, d2);
-    if (ok1 && ok2) {
-        m_thingCache[cur] = d1;
-        m_thingCache[m_targetEntityIndex] = d2;
-        refreshEntityData(cur);
-        statusBar()->showMessage(tr("已交换位置"));
+void MainWindow::onDestoryEntity()
+{
+    int idx = selectedEntityIndex();
+    if (idx < 0 || !isAttached() || idx >= m_thingCache.size()) return;
+    ThingData &th = m_thingCache[idx];
+    if (th.id == 0) return;
+    if (m_memMgr->FreeThing(th.addr)) {
+        th.id = 0;
+        refreshEntityList();
+        statusBar()->showMessage(tr("已销毁实体"));
+    } else {
+        statusBar()->showMessage(tr("销毁实体失败"));
     }
 }
 
-// ==================== 全局 ====================
-void MainWindow::onMissionResourceChanged(int, int)
-{ if (!m_updatingUI) writeMissionResource(); }
+void MainWindow::onSpawnEntity(){
+    int type = ui->spawnEntitycomboBox->currentData().toInt();
+    if (type < 1 || type > 4 || !isAttached()) return;
 
-void MainWindow::onMissionStorageStackChanged(int row, int col)
-{
-    Q_UNUSED(row);
-    Q_UNUSED(col);
-    // 这个由 setupMissionWeaponTable 中的 connect 直接调用 writeMissionStorageStack
-    // 这里不做额外处理
+    bool ok = m_memMgr->AllocateEntity(type);
+    if (ok)
+    {
+        statusBar()->showMessage(tr("已生成实体"));
+    }else{
+        statusBar()->showMessage(tr("生成实体失败"));
+    }
+    
 }
-
-void MainWindow::writeMissionResource()
+// ==================== 全局 ====================
+void MainWindow::onMissionChanged()
 {
-    for (int i = 0; i < 7; ++i) {
+    if (m_updatingUI || !isAttached()) return;
+
+    for (int i = 0; i < resourceNames.length(); ++i) {
         auto *item = ui->missionResourcetableWidget->item(i, 1);
         if (!item) continue;
-        bool ok; int32_t v = item->text().toInt(&ok);
-        if (ok && m_gameData->writeMissionResource(i, v))
-            m_missionCache.resource[i] = v;
+        bool ok;
+        int v = item->text().toInt(&ok);
+        if (ok) m_missionCache.resource[i] = v;
     }
+
+    QGridLayout *grid = qobject_cast<QGridLayout*>(ui->missionWeapon->layout());
+    if (grid) {
+        for (int i = 0; i < 15; ++i) {
+            int r = i / 5, c = i % 5;
+            QLayoutItem *li = grid->itemAtPosition(r, c);
+            if (!li) continue;
+            QWidget *cell = li->widget();
+            if (!cell) continue;
+            QSpinBox *sb = cell->findChild<QSpinBox*>();
+            if (sb) m_missionCache.storage_slots[i][1] = sb->value();
+        }
+    }
+
+    m_gameData->writeMission(m_missionCache);
 }
 
+void MainWindow::onCmdSend(){
+    if (m_memMgr->ScriptEvaluateStringSafe(ui->cmdplainTextEdit->text())) {
+        statusBar()->showMessage(tr("已发送命令"));
+    } else {
+        statusBar()->showMessage(tr("发送命令失败"));
+    }
+}
 // ==================== 定时刷新 ====================
-void MainWindow::onRefreshTimerChara(){
-    // 如果用户正在编辑控件，完全跳过角色页刷新
+void MainWindow::onRefreshTimerChara()
+{
     if (hasEditingFocus()) return;
 
     m_charCache = m_gameData->readAllCharacters();
@@ -1111,14 +937,15 @@ void MainWindow::onRefreshTimerChara(){
     int curCharIdx = selectedCharacterIndex();
     ui->charaSelcomboBox->blockSignals(true);
     ui->charaSelcomboBox->clear();
-    for (int i = 0; i < m_charCache.size(); ++i){
-        if (!m_charCache[i].name.isEmpty()){
+    for (int i = 0; i < m_charCache.size(); ++i) {
+        if (!m_charCache[i].name.isEmpty())
             ui->charaSelcomboBox->addItem(m_charCache[i].name, i);
-        }
     }
     for (int i = 0; i < ui->charaSelcomboBox->count(); ++i)
-        if (ui->charaSelcomboBox->itemData(i).toInt() == curCharIdx)
-        { ui->charaSelcomboBox->setCurrentIndex(i); break; }
+        if (ui->charaSelcomboBox->itemData(i).toInt() == curCharIdx) {
+            ui->charaSelcomboBox->setCurrentIndex(i);
+            break;
+        }
     ui->charaSelcomboBox->blockSignals(false);
     m_updatingUI = false;
 
@@ -1126,39 +953,37 @@ void MainWindow::onRefreshTimerChara(){
         refreshCharacterData(curCharIdx);
 }
 
-void MainWindow::onRefreshTimerEntity(){
-    m_thingCache = m_gameData->readAllThings();
+void MainWindow::onRefreshTimerEntity()
+{
     int selEntity = selectedEntityIndex();
     refreshEntityList();
     if (selEntity >= 0) {
         QTableWidget *t = ui->entitytableWidget;
         for (int r = 0; r < t->rowCount(); ++r)
-            if (t->item(r, 0)->data(Qt::UserRole).toInt() == selEntity)
-            { t->selectRow(r); refreshEntityData(selEntity); break; }
+            if (t->item(r, 0)->data(Qt::UserRole).toInt() == selEntity) {
+                t->selectRow(r);
+                refreshEntityData(selEntity);
+                break;
+            }
     }
 }
 
-void MainWindow::onRefreshTimerMission(){
-    // 如果用户正在编辑，跳过刷新
+void MainWindow::onRefreshTimerMission()
+{
     if (hasEditingFocus()) return;
 
     m_missionCache = m_gameData->readMissionState();
     m_updatingUI = true;
 
-    QList<QPlainTextEdit*> missonCharapainTextEdits = ui->missionChara->findChildren<QPlainTextEdit*>();
-    for (size_t i = 0; i < missonCharapainTextEdits.length(); ++i)
-    {
-        if (m_missionCache.player_char[i])
-        {
+    QList<QLineEdit*> missonCharapainTextEdits = ui->missionChara->findChildren<QLineEdit*>();
+    for (int i = 0; i < missonCharapainTextEdits.length(); ++i) {
+        if (m_missionCache.player_char[i]) {
             QString pName(QString::number(m_missionCache.player_char[i] - 1));
             if (i <= ui->charaSelcomboBox->count())
-            {
                 pName = QString("[#%1]%2").arg(pName, ui->charaSelcomboBox->itemText(m_missionCache.player_char[i] - 1));
-            }
-            missonCharapainTextEdits[i]->setPlainText(pName);
-            
-        }else{
-            missonCharapainTextEdits[i]->setPlainText(tr("无"));
+            missonCharapainTextEdits[i]->setText(pName);
+        } else {
+            missonCharapainTextEdits[i]->setText(tr("无"));
         }
     }
 
@@ -1166,7 +991,6 @@ void MainWindow::onRefreshTimerMission(){
         if (ui->missionResourcetableWidget->item(i, 1))
             ui->missionResourcetableWidget->item(i, 1)->setText(QString::number(m_missionCache.resource[i]));
 
-    // 刷新仓库武器
     QGridLayout *grid = qobject_cast<QGridLayout*>(ui->missionWeapon->layout());
     if (grid) {
         for (int i = 0; i < 15; ++i) {
@@ -1178,10 +1002,10 @@ void MainWindow::onRefreshTimerMission(){
             QPushButton *btn = cell->findChild<QPushButton*>();
             QSpinBox *sb = cell->findChild<QSpinBox*>();
             if (btn) {
-                int wid = m_missionCache.storage_id[i];
+                int wid = m_missionCache.storage_slots[i][0];
                 btn->setText(wid > 0 && wid < m_weaponNames.size() ? m_weaponNames[wid] : tr("(空)"));
             }
-            if (sb) sb->setValue(m_missionCache.storage_stack[i]);
+            if (sb) sb->setValue(m_missionCache.storage_slots[i][1]);
         }
     }
     m_updatingUI = false;
@@ -1190,23 +1014,14 @@ void MainWindow::onRefreshTimerMission(){
 void MainWindow::onRefreshTimer()
 {
     if (!isAttached()) return;
-    switch (ui->tabWidget->currentIndex())
-    {
-    case 0:
-    onRefreshTimerChara();
-        break;
-    case 1:
-    onRefreshTimerEntity();
-        break;
-    case 2:
-    onRefreshTimerMission();
-        break;
-    default:
-        break;
+    switch (ui->tabWidget->currentIndex()) {
+    case 0: onRefreshTimerChara(); break;
+    case 1: onRefreshTimerEntity(); break;
+    case 2: onRefreshTimerMission(); break;
+    default: break;
     }
 }
 
-// ==================== 全部刷新 ====================
 void MainWindow::refreshAll()
 {
     if (!isAttached()) return;

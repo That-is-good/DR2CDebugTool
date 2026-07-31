@@ -11,16 +11,17 @@ qt_add_executable(DR2CDebugTool
     mainwindow.cpp
     mainwindow.h
     mainwindow.ui
-    Struct/struct.cpp
     Memory/memorymanager.h
     Memory/memorymanager.cpp
     Memory/gamedatareader.h
     Memory/gamedatareader.cpp
-    Memory/spinboxdelegate.h
-    Memory/spinboxdelegate.cpp
-    Memory/weapondialog.h
-    Memory/weapondialog.cpp
-    addrsetting.h addrsetting.cpp addrsetting.ui
+    Delegates/spinboxdelegate.h
+    Delegates/spinboxdelegate.cpp
+    WeaponDialog/weapondialog.h
+    WeaponDialog/weapondialog.cpp
+    Setting/addrsetting.h
+    Setting/addrsetting.cpp
+    Setting/addrsetting.ui
 )
 
 qt_add_translations(

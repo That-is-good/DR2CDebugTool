@@ -38,23 +38,14 @@
         </widget>
        </item>
        <item>
-        <widget class="QPlainTextEdit" name="filterProcessText">
+        <widget class="QLineEdit" name="filterProcessText">
          <property name="sizePolicy">
-          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
            <horstretch>0</horstretch>
            <verstretch>0</verstretch>
           </sizepolicy>
          </property>
-         <property name="maximumSize">
-          <size>
-           <width>16777215</width>
-           <height>31</height>
-          </size>
-         </property>
-         <property name="layoutDirection">
-          <enum>Qt::LayoutDirection::LeftToRight</enum>
-         </property>
-         <property name="plainText">
+         <property name="text">
           <string>prog</string>
          </property>
         </widget>
@@ -127,62 +118,10 @@
            <string>基本信息</string>
           </property>
           <layout class="QGridLayout" name="gridLayout_2">
-           <item row="1" column="1">
-            <widget class="QPlainTextEdit" name="charaThingplainTextEdit">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="maximumSize">
-              <size>
-               <width>16777215</width>
-               <height>31</height>
-              </size>
-             </property>
-             <property name="readOnly">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="2">
-            <widget class="QLabel" name="charaPerkLabel">
-             <property name="text">
-              <string>角色特性</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="1">
-            <widget class="QComboBox" name="charaSelcomboBox"/>
-           </item>
-           <item row="0" column="3">
-            <widget class="QPlainTextEdit" name="charaNameplainTextEdit">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="maximumSize">
-              <size>
-               <width>16777215</width>
-               <height>31</height>
-              </size>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="2">
-            <widget class="QLabel" name="charaNameLabel">
-             <property name="text">
-              <string>角色名</string>
-             </property>
-            </widget>
-           </item>
            <item row="0" column="5">
-            <widget class="QSpinBox" name="charaHpspinBox">
-             <property name="maximum">
-              <number>65535</number>
+            <widget class="QLabel" name="charaHpLabel">
+             <property name="text">
+              <string>角色血量</string>
              </property>
             </widget>
            </item>
@@ -193,26 +132,27 @@
              </property>
             </widget>
            </item>
-           <item row="0" column="4">
-            <widget class="QLabel" name="charaHpLabel">
-             <property name="text">
-              <string>角色血量</string>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="3">
-            <widget class="QPlainTextEdit" name="charaPerkplainTextEdit">
+           <item row="1" column="4">
+            <widget class="QLineEdit" name="charaPerkplainTextEdit">
              <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
                <horstretch>0</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
              </property>
-             <property name="maximumSize">
-              <size>
-               <width>16777215</width>
-               <height>31</height>
-              </size>
+            </widget>
+           </item>
+           <item row="1" column="5">
+            <widget class="QLabel" name="charaTraitLabel">
+             <property name="text">
+              <string>角色特长</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="3">
+            <widget class="QLabel" name="charaNameLabel">
+             <property name="text">
+              <string>角色名</string>
              </property>
             </widget>
            </item>
@@ -223,60 +163,84 @@
              </property>
             </widget>
            </item>
-           <item row="0" column="6">
-            <widget class="QLabel" name="charaSpeedLabel">
-             <property name="text">
-              <string>额外速度</string>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="5">
-            <widget class="QPlainTextEdit" name="charaTraitplainTextEdit">
+           <item row="0" column="4">
+            <widget class="QLineEdit" name="charaNameplainTextEdit">
              <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
                <horstretch>0</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
              </property>
-             <property name="maximumSize">
-              <size>
-               <width>16777215</width>
-               <height>31</height>
-              </size>
-             </property>
             </widget>
            </item>
-           <item row="1" column="4">
-            <widget class="QLabel" name="charaTraitLabel">
-             <property name="text">
-              <string>角色特长</string>
+           <item row="1" column="1">
+            <widget class="QLineEdit" name="charaThingplainTextEdit">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="readOnly">
+              <bool>true</bool>
              </property>
             </widget>
            </item>
            <item row="1" column="6">
+            <widget class="QLineEdit" name="charaTraitplainTextEdit">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="8">
             <widget class="QLabel" name="charaDescLabel">
              <property name="text">
               <string>角色描述</string>
              </property>
             </widget>
            </item>
-           <item row="1" column="7">
-            <widget class="QPlainTextEdit" name="charaDescplainTextEdit">
+           <item row="1" column="3">
+            <widget class="QLabel" name="charaPerkLabel">
+             <property name="text">
+              <string>角色特性</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="8">
+            <widget class="QLabel" name="charaSpeedLabel">
+             <property name="text">
+              <string>额外速度</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="9">
+            <widget class="QLineEdit" name="charaDescplainTextEdit">
              <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
                <horstretch>0</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
              </property>
-             <property name="maximumSize">
-              <size>
-               <width>16777215</width>
-               <height>31</height>
-              </size>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QComboBox" name="charaSelcomboBox"/>
+           </item>
+           <item row="0" column="6">
+            <widget class="QSpinBox" name="charaHpspinBox">
+             <property name="minimum">
+              <number>-2147483648</number>
+             </property>
+             <property name="maximum">
+              <number>65535</number>
              </property>
             </widget>
            </item>
-           <item row="0" column="7">
+           <item row="0" column="9">
             <widget class="QDoubleSpinBox" name="charaSpeeddoubleSpinBox">
              <property name="minimum">
               <double>-65535.000000000000000</double>
@@ -296,58 +260,80 @@
           </property>
           <layout class="QHBoxLayout" name="horizontalLayout_4">
            <item>
-            <widget class="QCheckBox" name="charaStatuscheckBox128">
+            <widget class="QLabel" name="charaStatus1Label">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
              <property name="text">
-              <string>属性8</string>
+              <string>属性1</string>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QCheckBox" name="charaStatuscheckBox064">
-             <property name="text">
-              <string>属性7</string>
+            <widget class="QSpinBox" name="charaStatus1spinBox">
+             <property name="minimum">
+              <number>-2147483648</number>
+             </property>
+             <property name="maximum">
+              <number>2147483647</number>
+             </property>
+             <property name="singleStep">
+              <number>2</number>
+             </property>
+             <property name="stepType">
+              <enum>QAbstractSpinBox::StepType::DefaultStepType</enum>
+             </property>
+             <property name="value">
+              <number>0</number>
+             </property>
+             <property name="displayIntegerBase">
+              <number>2</number>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QCheckBox" name="charaStatuscheckBox032">
-             <property name="text">
-              <string>属性6</string>
+            <widget class="QLabel" name="charaStatus2Label">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
              </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QCheckBox" name="charaStatuscheckBox016">
-             <property name="text">
-              <string>属性5</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QCheckBox" name="charaStatuscheckBox008">
-             <property name="text">
-              <string>属性4</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QCheckBox" name="charaStatuscheckBox004">
-             <property name="text">
-              <string>属性3</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QCheckBox" name="charaStatuscheckBox002">
              <property name="text">
               <string>属性2</string>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QCheckBox" name="charaStatuscheckBox001">
+            <widget class="QSpinBox" name="charaStatus2spinBox">
+             <property name="minimum">
+              <number>-2147483648</number>
+             </property>
+             <property name="maximum">
+              <number>2147483647</number>
+             </property>
+             <property name="singleStep">
+              <number>2</number>
+             </property>
+             <property name="displayIntegerBase">
+              <number>2</number>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="charaFemalecheckBox">
              <property name="text">
-              <string>属性1</string>
+              <string>是否是女性</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="charaPetcheckBox">
+             <property name="text">
+              <string>是否是宠物</string>
              </property>
             </widget>
            </item>
@@ -464,38 +450,10 @@
               <string/>
              </property>
              <layout class="QGridLayout" name="gridLayout_3">
-              <item row="3" column="1">
-               <widget class="QCheckBox" name="noLightingcheckBox">
-                <property name="text">
-                 <string>不发光</string>
-                </property>
-               </widget>
-              </item>
-              <item row="4" column="0">
-               <widget class="QCheckBox" name="noHitcheckBox">
-                <property name="text">
-                 <string>不可被击中</string>
-                </property>
-               </widget>
-              </item>
               <item row="2" column="1">
                <widget class="QCheckBox" name="unSeencheckBox">
                 <property name="text">
                  <string>不可见</string>
-                </property>
-               </widget>
-              </item>
-              <item row="4" column="1">
-               <widget class="QCheckBox" name="noDamagecheckBox">
-                <property name="text">
-                 <string>不受伤害</string>
-                </property>
-               </widget>
-              </item>
-              <item row="3" column="0">
-               <widget class="QCheckBox" name="fadecheckBox">
-                <property name="text">
-                 <string>淡去</string>
                 </property>
                </widget>
               </item>
@@ -520,10 +478,17 @@
                 </property>
                </widget>
               </item>
-              <item row="4" column="2">
-               <widget class="QCheckBox" name="pausecheckBox">
+              <item row="3" column="1">
+               <widget class="QCheckBox" name="noDamagecheckBox">
                 <property name="text">
-                 <string>暂停</string>
+                 <string>不受伤害</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="0">
+               <widget class="QCheckBox" name="noHitcheckBox">
+                <property name="text">
+                 <string>不可被击中</string>
                 </property>
                </widget>
               </item>
@@ -762,34 +727,45 @@
             </widget>
            </item>
            <item>
-            <widget class="QFrame" name="frame">
-             <property name="frameShape">
-              <enum>QFrame::Shape::StyledPanel</enum>
-             </property>
-             <property name="frameShadow">
-              <enum>QFrame::Shadow::Raised</enum>
-             </property>
-             <layout class="QHBoxLayout" name="horizontalLayout_6">
-              <item>
-               <widget class="QPushButton" name="setTargetpushButton">
+            <widget class="QGroupBox" name="groupBox">
+             <layout class="QGridLayout" name="gridLayout">
+              <item row="0" column="3">
+               <widget class="QPushButton" name="swapTargetpushButton">
                 <property name="text">
-                 <string>设置目标实体</string>
+                 <string>交换实体位置</string>
                 </property>
                </widget>
               </item>
-              <item>
+              <item row="0" column="2">
                <widget class="QPushButton" name="teleportTargetpushButton">
                 <property name="text">
                  <string>传送至目标实体</string>
                 </property>
                </widget>
               </item>
-              <item>
-               <widget class="QPushButton" name="swapTargetpushButton">
+              <item row="0" column="1">
+               <widget class="QPushButton" name="setTargetpushButton">
                 <property name="text">
-                 <string>交换实体位置</string>
+                 <string>设置目标实体</string>
                 </property>
                </widget>
+              </item>
+              <item row="1" column="2">
+               <widget class="QPushButton" name="spawnEntitypushButton">
+                <property name="text">
+                 <string>生成实体</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QPushButton" name="destoryEntitypushButton">
+                <property name="text">
+                 <string>销毁实体</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="3">
+               <widget class="QComboBox" name="spawnEntitycomboBox"/>
               </item>
              </layout>
             </widget>
@@ -805,113 +781,138 @@
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_10">
         <item>
-         <widget class="QGroupBox" name="missionChara">
-          <property name="title">
-           <string>角色ID</string>
+         <widget class="QFrame" name="frame">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
           </property>
-          <layout class="QHBoxLayout" name="horizontalLayout_7">
+          <property name="frameShape">
+           <enum>QFrame::Shape::StyledPanel</enum>
+          </property>
+          <property name="frameShadow">
+           <enum>QFrame::Shadow::Raised</enum>
+          </property>
+          <layout class="QHBoxLayout" name="horizontalLayout">
            <item>
-            <widget class="QLabel" name="missionChara0Label">
-             <property name="text">
-              <string>角色1</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPlainTextEdit" name="missionChara0plainTextEdit">
+            <widget class="QGroupBox" name="cmdenter">
              <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-               <horstretch>0</horstretch>
+              <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+               <horstretch>3</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
              </property>
-             <property name="maximumSize">
-              <size>
-               <width>16777215</width>
-               <height>31</height>
-              </size>
+             <property name="title">
+              <string>命令</string>
              </property>
-             <property name="readOnly">
-              <bool>true</bool>
-             </property>
+             <layout class="QVBoxLayout" name="verticalLayout">
+              <item>
+               <widget class="QLineEdit" name="cmdplainTextEdit">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
+              </item>
+             </layout>
             </widget>
            </item>
            <item>
-            <widget class="QLabel" name="missionChara1Label">
-             <property name="text">
-              <string>角色2</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPlainTextEdit" name="missionChara1plainTextEdit">
+            <widget class="QGroupBox" name="missionChara">
              <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-               <horstretch>0</horstretch>
+              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+               <horstretch>3</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
              </property>
-             <property name="maximumSize">
-              <size>
-               <width>16777215</width>
-               <height>31</height>
-              </size>
+             <property name="title">
+              <string>角色ID</string>
              </property>
-             <property name="readOnly">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLabel" name="missionChara2Label">
-             <property name="text">
-              <string>角色3</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPlainTextEdit" name="missionChara2plainTextEdit">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="maximumSize">
-              <size>
-               <width>16777215</width>
-               <height>31</height>
-              </size>
-             </property>
-             <property name="readOnly">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLabel" name="missionChara3Label">
-             <property name="text">
-              <string>角色4</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPlainTextEdit" name="missionChara3plainTextEdit">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="maximumSize">
-              <size>
-               <width>16777215</width>
-               <height>31</height>
-              </size>
-             </property>
-             <property name="readOnly">
-              <bool>true</bool>
-             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_7">
+              <item>
+               <widget class="QLabel" name="missionChara0Label">
+                <property name="text">
+                 <string>角色1</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLineEdit" name="missionChara0plainTextEdit">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="readOnly">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="missionChara1Label">
+                <property name="text">
+                 <string>角色2</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLineEdit" name="missionChara1plainTextEdit">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="readOnly">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="missionChara2Label">
+                <property name="text">
+                 <string>角色3</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLineEdit" name="missionChara2plainTextEdit">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="readOnly">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="missionChara3Label">
+                <property name="text">
+                 <string>角色4</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLineEdit" name="missionChara3plainTextEdit">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="readOnly">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
             </widget>
            </item>
           </layout>
@@ -931,6 +932,12 @@
         </item>
         <item>
          <widget class="QGroupBox" name="missionWeapon">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
           <property name="title">
            <string>武器</string>
           </property>
@@ -949,7 +956,7 @@
      <x>0</x>
      <y>0</y>
      <width>1400</width>
-     <height>21</height>
+     <height>33</height>
     </rect>
    </property>
   </widget>

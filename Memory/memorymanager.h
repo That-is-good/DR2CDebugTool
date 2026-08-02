@@ -48,12 +48,19 @@ public:
     QString readString(quint64, quint64 maxLen = 40) const;
     bool writeString(quint64, const QString&, quint64 maxLen = 40) const;
 
+    // 远程内存分配/释放
+    bool AllocateRemoteString(const QString&, quint64 *remoteAddr) const;
+    bool FreeRemoteMemory(quint64 remoteAddr) const;
+
     // 调用函数
-    bool CallFunction(quint64, const QVector<quint64>&) const;
+    bool CallFunction(quint64, const QVector<quint64>&, quint64 *retValue = nullptr) const;
 
     bool ScriptEvaluateStringSafe(const QString&) const;
     bool FreeThing(quint64) const;
     bool AllocateEntity(qint8) const;
+    bool AllocateThing(qint8) const;
+    quint32 AllocateCharacterSlot() const;
+    bool Assigncharactertothing(quint64, quint32) const;
 
 signals:
     void processAttached();

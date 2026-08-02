@@ -453,7 +453,7 @@
               <item row="2" column="1">
                <widget class="QCheckBox" name="unSeencheckBox">
                 <property name="text">
-                 <string>不可见</string>
+                 <string>隐身</string>
                 </property>
                </widget>
               </item>
@@ -479,9 +479,9 @@
                </widget>
               </item>
               <item row="3" column="1">
-               <widget class="QCheckBox" name="noDamagecheckBox">
+               <widget class="QCheckBox" name="noPickupcheckBox">
                 <property name="text">
-                 <string>不受伤害</string>
+                 <string>不可拾取</string>
                 </property>
                </widget>
               </item>
@@ -501,13 +501,6 @@
               <string/>
              </property>
              <layout class="QGridLayout" name="gridLayout_4">
-              <item row="1" column="0">
-               <widget class="QLabel" name="velXLabel">
-                <property name="text">
-                 <string>速度X</string>
-                </property>
-               </widget>
-              </item>
               <item row="2" column="3">
                <widget class="QDoubleSpinBox" name="frictiondoubleSpinBox">
                 <property name="minimum">
@@ -518,8 +511,21 @@
                 </property>
                </widget>
               </item>
-              <item row="0" column="3">
-               <widget class="QDoubleSpinBox" name="posYdoubleSpinBox">
+              <item row="2" column="5">
+               <widget class="QDoubleSpinBox" name="bounceFrictiondoubleSpinBox">
+                <property name="minimum">
+                 <double>-65535.000000000000000</double>
+                </property>
+                <property name="maximum">
+                 <double>65535.000000000000000</double>
+                </property>
+                <property name="value">
+                 <double>0.000000000000000</double>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="5">
+               <widget class="QDoubleSpinBox" name="posZdoubleSpinBox">
                 <property name="decimals">
                  <number>3</number>
                 </property>
@@ -531,13 +537,27 @@
                 </property>
                </widget>
               </item>
-              <item row="1" column="1">
-               <widget class="QDoubleSpinBox" name="velXdoubleSpinBox">
+              <item row="2" column="1">
+               <widget class="QDoubleSpinBox" name="massdoubleSpinBox">
                 <property name="minimum">
                  <double>-65535.000000000000000</double>
                 </property>
                 <property name="maximum">
                  <double>65535.000000000000000</double>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="2">
+               <widget class="QLabel" name="frictionLabel">
+                <property name="text">
+                 <string>摩擦力</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="4">
+               <widget class="QLabel" name="velZLabel">
+                <property name="text">
+                 <string>速度Z</string>
                 </property>
                </widget>
               </item>
@@ -561,40 +581,6 @@
                 </property>
                </widget>
               </item>
-              <item row="2" column="2">
-               <widget class="QLabel" name="frictionLabel">
-                <property name="text">
-                 <string>摩擦力</string>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="4">
-               <widget class="QLabel" name="velZLabel">
-                <property name="text">
-                 <string>速度Z</string>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="0">
-               <widget class="QLabel" name="posXLabel">
-                <property name="text">
-                 <string>坐标X</string>
-                </property>
-               </widget>
-              </item>
-              <item row="2" column="5">
-               <widget class="QDoubleSpinBox" name="bounceFrictiondoubleSpinBox">
-                <property name="minimum">
-                 <double>-65535.000000000000000</double>
-                </property>
-                <property name="maximum">
-                 <double>65535.000000000000000</double>
-                </property>
-                <property name="value">
-                 <double>0.000000000000000</double>
-                </property>
-               </widget>
-              </item>
               <item row="2" column="4">
                <widget class="QLabel" name="bounceFrictionLabel">
                 <property name="text">
@@ -602,20 +588,13 @@
                 </property>
                </widget>
               </item>
-              <item row="2" column="1">
-               <widget class="QDoubleSpinBox" name="massdoubleSpinBox">
+              <item row="1" column="1">
+               <widget class="QDoubleSpinBox" name="velXdoubleSpinBox">
                 <property name="minimum">
                  <double>-65535.000000000000000</double>
                 </property>
                 <property name="maximum">
                  <double>65535.000000000000000</double>
-                </property>
-               </widget>
-              </item>
-              <item row="2" column="0">
-               <widget class="QLabel" name="massLabel">
-                <property name="text">
-                 <string>质量</string>
                 </property>
                </widget>
               </item>
@@ -632,6 +611,13 @@
                 </property>
                </widget>
               </item>
+              <item row="0" column="0">
+               <widget class="QLabel" name="posXLabel">
+                <property name="text">
+                 <string>坐标X</string>
+                </property>
+               </widget>
+              </item>
               <item row="0" column="2">
                <widget class="QLabel" name="posYLabel">
                 <property name="text">
@@ -639,15 +625,15 @@
                 </property>
                </widget>
               </item>
-              <item row="0" column="4">
-               <widget class="QLabel" name="posZLabel">
+              <item row="2" column="0">
+               <widget class="QLabel" name="massLabel">
                 <property name="text">
-                 <string>坐标Z</string>
+                 <string>质量</string>
                 </property>
                </widget>
               </item>
-              <item row="0" column="5">
-               <widget class="QDoubleSpinBox" name="posZdoubleSpinBox">
+              <item row="0" column="3">
+               <widget class="QDoubleSpinBox" name="posYdoubleSpinBox">
                 <property name="decimals">
                  <number>3</number>
                 </property>
@@ -666,6 +652,20 @@
                 </property>
                </widget>
               </item>
+              <item row="0" column="4">
+               <widget class="QLabel" name="posZLabel">
+                <property name="text">
+                 <string>坐标Z</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="0">
+               <widget class="QLabel" name="velXLabel">
+                <property name="text">
+                 <string>速度X</string>
+                </property>
+               </widget>
+              </item>
              </layout>
             </widget>
            </item>
@@ -675,6 +675,20 @@
               <string/>
              </property>
              <layout class="QGridLayout" name="gridLayout_5">
+              <item row="0" column="4">
+               <widget class="QSpinBox" name="aiStatespinBox">
+                <property name="maximum">
+                 <number>65535</number>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="3">
+               <widget class="QLabel" name="aiStateLabel">
+                <property name="text">
+                 <string>AI状态</string>
+                </property>
+               </widget>
+              </item>
               <item row="0" column="2">
                <widget class="QSpinBox" name="hitpointsspinBox">
                 <property name="minimum">
@@ -695,28 +709,28 @@
                 </property>
                </widget>
               </item>
-              <item row="0" column="5">
+              <item row="1" column="2">
+               <widget class="QSpinBox" name="spriteIdspinBox">
+                <property name="maximum">
+                 <number>65535</number>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QLabel" name="spriteIdLabel">
+                <property name="text">
+                 <string>精灵图ID</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="3">
                <widget class="QLabel" name="aiWaitLabel">
                 <property name="text">
                  <string>AI发呆</string>
                 </property>
                </widget>
               </item>
-              <item row="0" column="3">
-               <widget class="QLabel" name="aiStateLabel">
-                <property name="text">
-                 <string>AI状态</string>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="4">
-               <widget class="QSpinBox" name="aiStatespinBox">
-                <property name="maximum">
-                 <number>65535</number>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="6">
+              <item row="1" column="4">
                <widget class="QSpinBox" name="aiWaitspinBox">
                 <property name="maximum">
                  <number>65535</number>

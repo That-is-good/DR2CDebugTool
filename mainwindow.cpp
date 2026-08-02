@@ -92,11 +92,11 @@ void MainWindow::setupUI()
     ui->spawnEntitycomboBox->addItem(tr("僵尸"), 2);
     ui->spawnEntitycomboBox->addItem(tr("物品"), 3);
     ui->spawnEntitycomboBox->addItem(tr("抛射物"), 4);
-    // ui->spawnEntitycomboBox->addItem(tr("家具"), 5);
-    // ui->spawnEntitycomboBox->addItem(tr("拾取物"), 6);
-    // ui->spawnEntitycomboBox->addItem(tr("武器"), 7);
-    // ui->spawnEntitycomboBox->addItem(tr("车辆"), 8);
-    // ui->spawnEntitycomboBox->addItem(tr("特殊拾取"), 9);
+    ui->spawnEntitycomboBox->addItem(tr("家具"), 5);
+    ui->spawnEntitycomboBox->addItem(tr("拾取物"), 6);
+    ui->spawnEntitycomboBox->addItem(tr("武器"), 7);
+    ui->spawnEntitycomboBox->addItem(tr("车辆"), 8);
+    ui->spawnEntitycomboBox->addItem(tr("特殊拾取"), 9);
     
     setControlsEnabled(false);
     m_refreshTimer->setInterval(500);
@@ -169,7 +169,7 @@ void MainWindow::setupConnections()
     // 实体所有 QCheckBox → 同一个 slot
     QList<QCheckBox*> entityCBs = {
         ui->noCollidecheckBox, ui->unSeencheckBox, ui->inVisiblecheckBox,
-        ui->noHitcheckBox, ui->noDamagecheckBox, ui->glowcheckBox
+        ui->noHitcheckBox, ui->noPickupcheckBox, ui->glowcheckBox
     };
     for (auto *cb : entityCBs)
         connect(cb, &QCheckBox::toggled, this, [this]() {
@@ -187,16 +187,14 @@ void MainWindow::setupConnections()
             if (!m_updatingUI) onEntityDoubleSpinBoxChanged();
         });
 
-    // 实体其他 QSpinBox → 同一个 slot
-    connect(ui->hitpointsspinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int) {
-        if (!m_updatingUI) onEntitySpinBoxChanged();
-    });
-    connect(ui->aiStatespinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int) {
-        if (!m_updatingUI) onEntitySpinBoxChanged();
-    });
-    connect(ui->aiWaitspinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int) {
-        if (!m_updatingUI) onEntitySpinBoxChanged();
-    });
+    QList<QSpinBox*> entitySBs = {
+        ui->hitpointsspinBox, ui->aiStatespinBox,
+        ui->spriteIdspinBox, ui->aiWaitspinBox
+    };
+    for (auto *sb : entitySBs)
+        connect(sb, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int) {
+            if (!m_updatingUI) onEntitySpinBoxChanged();
+        });
 
     // 实体操作按钮
     connect(ui->setTargetpushButton, &QPushButton::clicked, this, &MainWindow::onSetTargetEntity);
@@ -669,14 +667,14 @@ void MainWindow::onEntityCheckBoxToggled()
     quint8 invisible = ui->inVisiblecheckBox->isChecked() ? 1 : 0;
     quint8 glow     = ui->glowcheckBox->isChecked()       ? 1 : 0;
     quint8 nohit    = ui->noHitcheckBox->isChecked()      ? 1 : 0;
-    quint8 nodamage = ui->noDamagecheckBox->isChecked()   ? 1 : 0;
+    quint8 nopick = ui->noPickupcheckBox->isChecked()   ? 1 : 0;
     m_thingCache[e] = m_gameData->modifyThing(e, [&](ThingData &th) {
         th.nocollide = nocollide;
         th.vision[0] = unseen;
         th.vision[1] = invisible;
         th.glow = glow;
-        th.hit[0] = nohit;
-        th.hit[1] = nodamage;
+        th.no_hit = nohit;
+        th.nopick = nopick;
     });
 }
 
@@ -707,10 +705,12 @@ void MainWindow::onEntitySpinBoxChanged()
     int hp = ui->hitpointsspinBox->value();
     quint32 aistate = static_cast<quint32>(ui->aiStatespinBox->value());
     qint32 aiwait = static_cast<qint32>(ui->aiWaitspinBox->value());
+    quint16 spriteid = static_cast<quint16>(ui->spriteIdspinBox->value());
     m_thingCache[e] = m_gameData->modifyThing(e, [&](ThingData &th) {
         th.hitpoints = hp;
         th.ai_state = aistate;
         th.ai_wait = aiwait;
+        th.spriteid = spriteid;
     });
 }
 
@@ -788,8 +788,8 @@ void MainWindow::refreshEntityData(int ei)
     ui->unSeencheckBox->setChecked(th.vision[0]);
     ui->inVisiblecheckBox->setChecked(th.vision[1]);
     ui->glowcheckBox->setChecked(th.glow);
-    ui->noHitcheckBox->setChecked(th.hit[0]);
-    ui->noDamagecheckBox->setChecked(th.hit[1]);
+    ui->noHitcheckBox->setChecked(th.no_hit);
+    ui->noPickupcheckBox->setChecked(th.nopick);
     ui->posXdoubleSpinBox->setValue(static_cast<double>(th.vec3d[0][0]));
     ui->posYdoubleSpinBox->setValue(static_cast<double>(th.vec3d[0][1]));
     ui->posZdoubleSpinBox->setValue(static_cast<double>(th.vec3d[0][2]));
@@ -800,6 +800,7 @@ void MainWindow::refreshEntityData(int ei)
     ui->frictiondoubleSpinBox->setValue(static_cast<double>(th.phy[1]));
     ui->bounceFrictiondoubleSpinBox->setValue(static_cast<double>(th.phy[2]));
     ui->hitpointsspinBox->setValue(th.hitpoints);
+    ui->spriteIdspinBox->setValue(th.spriteid);
     ui->aiStatespinBox->setValue(static_cast<int>(th.ai_state));
     ui->aiWaitspinBox->setValue(static_cast<int>(th.ai_wait));
     m_updatingUI = false;
@@ -808,25 +809,25 @@ void MainWindow::refreshEntityData(int ei)
 // ==================== 实体操作 ====================
 void MainWindow::onSetTargetEntity()
 {
-    int e = selectedEntityIndex();
-    if (e >= 0 && m_targetEntityIndex != e) {
-        m_targetEntityIndex = e;
+    int e = m_thingCache[selectedEntityIndex()].id;
+    if (e >= 0 && m_targetEntityId != e) {
+        m_targetEntityId = e;
         statusBar()->showMessage(QString(tr("目标: ID=%1, 索引=%2")).arg(m_thingCache[e].id).arg(e));
         ui->setTargetpushButton->setStyleSheet("background-color:lightgreen;");
     } else {
         ui->setTargetpushButton->setStyleSheet("background-color:transparent;");
-        m_targetEntityIndex = -1;
+        m_targetEntityId = -1;
     }
 }
 
 void MainWindow::onTeleportToTarget()
 {
     int cur = selectedEntityIndex();
-    if (cur < 0 || m_targetEntityIndex < 0 || !isAttached()) {
+    if (cur < 0 || m_targetEntityId < 0 || !isAttached()) {
         QMessageBox::information(this, tr("提示"), tr("请先选择实体并设置目标"));
         return;
     }
-    const auto &target = m_thingCache[m_targetEntityIndex];
+    const auto &target = m_thingCache[m_targetEntityId];
     m_thingCache[cur] = m_gameData->modifyThing(cur, [&](ThingData &d) {
         d.vec3d[0][0] = target.vec3d[0][0];
         d.vec3d[0][1] = target.vec3d[0][1];
@@ -840,11 +841,11 @@ void MainWindow::onTeleportToTarget()
 void MainWindow::onSwapEntityPositions()
 {
     int cur = selectedEntityIndex();
-    if (cur < 0 || m_targetEntityIndex < 0 || !isAttached()) {
+    if (cur < 0 || m_targetEntityId < 0 || !isAttached()) {
         QMessageBox::information(this, tr("提示"), tr("请先选择实体并设置目标"));
         return;
     }
-    int target = m_targetEntityIndex;
+    int target = m_targetEntityId;
     // 暂存坐标
     float posCur[3] = { m_thingCache[cur].vec3d[0][0], m_thingCache[cur].vec3d[0][1], m_thingCache[cur].vec3d[0][2] };
     quint8 mapCur = m_thingCache[cur].mapid;
@@ -880,16 +881,25 @@ void MainWindow::onDestoryEntity()
 
 void MainWindow::onSpawnEntity(){
     int type = ui->spawnEntitycomboBox->currentData().toInt();
-    if (type < 1 || type > 4 || !isAttached()) return;
+    if (type < 1 || type > 9 || !isAttached()) return;
 
-    bool ok = m_memMgr->AllocateEntity(type);
+    bool ok;
+    if (type == 1){
+        ok = m_memMgr->AllocateEntity(1);
+        quint32 lastID = m_gameData->GetLastEntityID() - 1;
+        m_memMgr->Assigncharactertothing(m_gameData->calcThingAddress(lastID), m_memMgr->AllocateCharacterSlot());
+    }
+    else if (type < 5){
+        ok = m_memMgr->AllocateEntity(type > 4 ? 3 : type);
+    }else{
+        ok = m_memMgr->AllocateThing(type - 5);
+    }
     if (ok)
     {
         statusBar()->showMessage(tr("已生成实体"));
     }else{
         statusBar()->showMessage(tr("生成实体失败"));
     }
-    
 }
 // ==================== 全局 ====================
 void MainWindow::onMissionChanged()
@@ -979,7 +989,7 @@ void MainWindow::onRefreshTimerMission()
     for (int i = 0; i < missonCharapainTextEdits.length(); ++i) {
         if (m_missionCache.player_char[i]) {
             QString pName(QString::number(m_missionCache.player_char[i] - 1));
-            if (i <= ui->charaSelcomboBox->count())
+            if (m_missionCache.player_char[i] - 1 < ui->charaSelcomboBox->count())
                 pName = QString("[#%1]%2").arg(pName, ui->charaSelcomboBox->itemText(m_missionCache.player_char[i] - 1));
             missonCharapainTextEdits[i]->setText(pName);
         } else {

@@ -11,6 +11,7 @@ struct ThingData {
 
     quint8 nocollide = 0; // 0x0d 无碰撞
 
+    quint8 nopick = 0; // 0x11 不可拾取
     // 0x12 不可见, 不绘制
     quint8 vision[2] = {0}; 
 
@@ -22,16 +23,15 @@ struct ThingData {
 
     quint8 glow = 0; // 0x70 发光
 
-    qint32 amount; // 0xe4 数量
-    quint8 loot; // 0xe8 战利品 数值对应Resources
+    quint16 spriteid; // 0xd8 精灵图ID
+    //qint32 amount; // 0xe4 数量
+    //quint8 loot; // 0xe8 战利品 数值对应Resources
 
-    // 0x148 角色ID 僵尸类型
-    quint32 charidAndZomtype[2] = {0};
+    //quint32 charid = 0; // 0x148 角色ID
 
     qint32 hitpoints = 0; // 0x254
 
-    // 0x27a 不可被击中 不造成伤害
-    quint8 hit[2] = {0};
+    quint8 no_hit = 0; // 0x27a 不可被击中
 
     quint32 ai_state = 0; // 0x288 AI状态
     qint32 ai_wait = 0; // 0x2a8 AI等待

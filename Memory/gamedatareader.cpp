@@ -69,6 +69,15 @@ qint32 GameDataReader::GetCurrentMapID(){
     return mapid;
 }
 
+qint32 GameDataReader::GetLastEntityID(){
+    qint32 entityid;
+    if (!m_memMgr->read<qint32>(m_moduleBase + m_lastEntityIdBase, entityid))
+    {
+        entityid = -1;
+    }
+    return entityid;
+}
+
 // ==================== 实体 ====================
 ThingData GameDataReader::readThing(qint32 index) const
 {
@@ -86,11 +95,14 @@ ThingData GameDataReader::readThing(qint32 index) const
     m_memMgr->readMemory(addr + 0x58, data.phy, sizeof(float) * 3);
 
     m_memMgr->read<quint8>(addr + 0x0D, data.nocollide);
-    
-    m_memMgr->readMemory(addr + 0x12, data.vision, sizeof(quint8) * 2);
-    m_memMgr->readMemory(addr + 0x27A, data.hit, sizeof(quint8) * 2);
+    m_memMgr->read<quint8>(addr + 0x11, data.nopick);
 
+    m_memMgr->readMemory(addr + 0x12, data.vision, sizeof(quint8) * 2);
+   
+    m_memMgr->read<quint8>(addr + 0x27A, data.no_hit);
     m_memMgr->read<quint8>(addr + 0x70, data.glow);
+    //m_memMgr->read<quint32>(addr + 0x148, data.charid);
+    m_memMgr->read<quint16>(addr + 0xD8, data.spriteid);
     m_memMgr->read<qint32>(addr + 0x254, data.hitpoints);
     m_memMgr->read<quint32>(addr + 0x288, data.ai_state);
     m_memMgr->read<qint32>(addr + 0x2A8, data.ai_wait);
@@ -125,9 +137,12 @@ QList<ThingData> GameDataReader::readAllThings() const
         memcpy(data.vec3d, p + 0x2C, sizeof(float) * 6);    // pos + vel
         memcpy(data.phy, p + 0x58, sizeof(float) * 3);      // mass, friction, bounce
         data.nocollide = p[0x0D];
+        data.nopick = p[0x11];
         memcpy(data.vision, p + 0x12, sizeof(quint8) * 2);  // unseen, invisible
-        memcpy(data.hit, p + 0x27A, sizeof(quint8) * 2);    // no_hit, no_do_damage
+        data.no_hit = p[0x27A];
         data.glow = p[0x70];
+        //memcpy(&data.charid, p + 0x148, sizeof(quint32));
+        memcpy(&data.spriteid, p + 0xD8, sizeof(quint16));
         memcpy(&data.hitpoints, p + 0x254, sizeof(qint32));
         memcpy(&data.ai_state, p + 0x288, sizeof(quint32));
         memcpy(&data.ai_wait, p + 0x2A8, sizeof(qint32));
@@ -145,17 +160,21 @@ bool GameDataReader::writeThing(quint64 addr, const ThingData &data)
 
     bool ok = true;
 
+    //ok &= m_memMgr->write<quint8>(addr + 0x03, data.type[1]); // 写入subtype
     ok &= m_memMgr->write<quint8>(addr + 0x04, data.mapid);
 
     ok &= m_memMgr->writeMemory(addr + 0x2C, data.vec3d, sizeof(float) * 6);
     ok &= m_memMgr->writeMemory(addr + 0x58, data.phy, sizeof(float) * 3);
 
     ok &= m_memMgr->write<quint8>(addr + 0x0D, data.nocollide);
+    ok &= m_memMgr->write<quint8>(addr + 0x11, data.nopick);
     
     ok &= m_memMgr->writeMemory(addr + 0x12, data.vision, sizeof(quint8) * 2);
-    ok &= m_memMgr->writeMemory(addr + 0x27A, data.hit, sizeof(quint8) * 2);
 
+    ok &= m_memMgr->write<quint8>(addr + 0x27A, data.no_hit);
     ok &= m_memMgr->write<quint8>(addr + 0x70, data.glow);
+    //ok &= m_memMgr->write<quint32>(addr + 0x148, data.charid);
+    ok &= m_memMgr->write<quint16>(addr + 0xD8, data.spriteid);
     ok &= m_memMgr->write<qint32>(addr + 0x254, data.hitpoints);
     ok &= m_memMgr->write<quint32>(addr + 0x288, data.ai_state);
     ok &= m_memMgr->write<qint32>(addr + 0x2A8, data.ai_wait);

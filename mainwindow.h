@@ -129,7 +129,7 @@ private:
 
     int m_entityTypeFilter = -1;
     int m_entityAreaFilter = -1;
-    int m_targetEntityIndex = -1;
+    int m_targetEntityId = -1;
 
     QList<QString> resourceNames;
     QList<QString> statNames;

@@ -25,6 +25,7 @@ public:
 
     // ---- 辅助 ----
     qint32 GetCurrentMapID();
+    qint32 GetLastEntityID();
 
     qint32 maxThings() const { return THING_LENGTH; }
     qint32 maxCharacters() const { return CHARACTER_LENGTH;}
@@ -61,6 +62,7 @@ private:
     MemoryManager *m_memMgr;
 
     quint64 m_currentMapIdBase = 0x46DBA4;
+    quint64 m_lastEntityIdBase = 0x3CCD24;
 
     quint64 m_thingPoolBase = 0x5632E0;
     quint64 m_charPoolBase = 0x5E25D8;

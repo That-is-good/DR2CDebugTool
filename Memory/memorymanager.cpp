@@ -215,8 +215,54 @@ bool MemoryManager::writeString(quint64 address, const QString &str, quint64 max
     return writeMemory(address, data.constData(), data.size());
 }
 
+// ==================== 远程内存分配/释放 ====================
+bool MemoryManager::AllocateRemoteString(const QString &str, quint64 *remoteAddr) const
+{
+#ifdef Q_OS_WIN
+    if (!m_handle || !remoteAddr) return false;
+
+    // 将字符串转为 UTF-8 并确保以 '\0' 结尾
+    QByteArray data = str.toUtf8();
+    if (data.isEmpty()) return false;
+    if (!data.endsWith('\0'))
+        data.append('\0');
+    quint32 size = static_cast<quint32>(data.size());
+
+    // 在目标进程中分配内存用于存放字符串
+    void *remoteMem = VirtualAllocEx(m_handle, nullptr, size,
+                                     MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    if (!remoteMem) return false;
+
+    quint64 bytesWritten = 0;
+    if (!WriteProcessMemory(m_handle, remoteMem, data.constData(), size, &bytesWritten)
+            || bytesWritten != size) {
+        VirtualFreeEx(m_handle, remoteMem, 0, MEM_RELEASE);
+        return false;
+    }
+
+    *remoteAddr = reinterpret_cast<quint64>(remoteMem);
+    return true;
+#else
+    Q_UNUSED(str);
+    Q_UNUSED(remoteAddr);
+    return false;
+#endif
+}
+
+bool MemoryManager::FreeRemoteMemory(quint64 remoteAddr) const
+{
+#ifdef Q_OS_WIN
+    if (!m_handle || remoteAddr == 0) return false;
+
+    return VirtualFreeEx(m_handle, reinterpret_cast<LPVOID>(remoteAddr), 0, MEM_RELEASE) != 0;
+#else
+    Q_UNUSED(remoteAddr);
+    return false;
+#endif
+}
+
 // ==================== 通用远程函数调用 ====================
-bool MemoryManager::CallFunction(quint64 funcRva, const QVector<quint64> &args) const
+bool MemoryManager::CallFunction(quint64 funcRva, const QVector<quint64> &args, quint64 *retValue) const
 {
 #ifdef Q_OS_WIN
     if (!m_handle) return false;
@@ -233,6 +279,16 @@ bool MemoryManager::CallFunction(quint64 funcRva, const QVector<quint64> &args) 
 
     // 存储远程分配的内存，用于后续释放
     QVector<void*> remoteAllocs;
+
+    // 如果需要返回值，在目标进程中分配 8 字节内存用于保存 EAX/RAX
+    void *retStorage = nullptr;
+    if (retValue) {
+        retStorage = VirtualAllocEx(m_handle, nullptr, sizeof(quint64),
+                                    MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        if (!retStorage)
+            return false;
+        remoteAllocs.append(retStorage);
+    }
 
     QByteArray shellcode;
     if (isTarget32Bit) {
@@ -255,6 +311,16 @@ bool MemoryManager::CallFunction(quint64 funcRva, const QVector<quint64> &args) 
             shellcode.append(static_cast<char>(0x81));
             shellcode.append(static_cast<char>(0xC4));
             shellcode.append(reinterpret_cast<const char*>(&stackClean), 4);
+        }
+        // 如果请求了返回值，将 EAX 保存到远程内存 retStorage
+        if (retValue && retStorage) {
+            // mov edi, retStorage
+            shellcode.append(static_cast<char>(0xBF));
+            quint32 retStorage32 = static_cast<quint32>(reinterpret_cast<quint64>(retStorage));
+            shellcode.append(reinterpret_cast<const char*>(&retStorage32), 4);
+            // mov [edi], eax
+            shellcode.append(static_cast<char>(0x89));
+            shellcode.append(static_cast<char>(0x07));
         }
         // ret
         shellcode.append(static_cast<char>(0xC3));
@@ -355,6 +421,18 @@ bool MemoryManager::CallFunction(quint64 funcRva, const QVector<quint64> &args) 
             shellcode.append(static_cast<char>(0xC4));
             shellcode.append(static_cast<char>(allocSize & 0xFF));
         }
+        // 如果请求了返回值，将 RAX 保存到远程内存 retStorage
+        if (retValue && retStorage) {
+            // mov rdi, retStorage
+            shellcode.append(static_cast<char>(0x48));
+            shellcode.append(static_cast<char>(0xBF));
+            quint64 retStorage64 = reinterpret_cast<quint64>(retStorage);
+            shellcode.append(reinterpret_cast<const char*>(&retStorage64), 8);
+            // mov [rdi], rax
+            shellcode.append(static_cast<char>(0x48));
+            shellcode.append(static_cast<char>(0x89));
+            shellcode.append(static_cast<char>(0x07));
+        }
         // ret
         shellcode.append(static_cast<char>(0xC3));
     }
@@ -389,6 +467,19 @@ bool MemoryManager::CallFunction(quint64 funcRva, const QVector<quint64> &args) 
     // 等待线程完成
     WaitForSingleObject(hThread, INFINITE);
 
+    // 读取返回值
+    if (retValue && retStorage) {
+        quint64 ret = 0;
+        quint64 bytesRead = 0;
+        if (!ReadProcessMemory(m_handle, retStorage, &ret, sizeof(ret), &bytesRead)
+                || bytesRead != sizeof(ret)) {
+            CloseHandle(hThread);
+            for (void *p : remoteAllocs) VirtualFreeEx(m_handle, p, 0, MEM_RELEASE);
+            return false;
+        }
+        *retValue = ret;
+    }
+
     // 清理
     CloseHandle(hThread);
     for (void *p : remoteAllocs) VirtualFreeEx(m_handle, p, 0, MEM_RELEASE);
@@ -397,6 +488,7 @@ bool MemoryManager::CallFunction(quint64 funcRva, const QVector<quint64> &args) 
 #else
     Q_UNUSED(funcRva);
     Q_UNUSED(args);
+    Q_UNUSED(retValue);
     return false;
 #endif
 }
@@ -406,32 +498,18 @@ bool MemoryManager::ScriptEvaluateStringSafe(const QString &script) const
 #ifdef Q_OS_WIN
     if (!m_handle) return false;
 
-    // 将脚本字符串写入远程进程内存
-    QByteArray scriptUtf8 = script.toUtf8();
-    if (scriptUtf8.isEmpty()) return false;
-    if (!scriptUtf8.endsWith('\0'))
-        scriptUtf8.append('\0');
-    quint32 scriptSize = static_cast<quint32>(scriptUtf8.size());
-
-    // 在目标进程中分配内存用于存放脚本字符串
-    void *remoteString = VirtualAllocEx(m_handle, nullptr, scriptSize,
-                                        MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-    if (!remoteString) return false;
-
-    quint64 bytesWritten = 0;
-    if (!WriteProcessMemory(m_handle, remoteString, scriptUtf8.constData(),
-                            scriptSize, &bytesWritten) || bytesWritten != scriptSize) {
-        VirtualFreeEx(m_handle, remoteString, 0, MEM_RELEASE);
+    // 在目标进程中分配并写入脚本字符串
+    quint64 remoteString = 0;
+    if (!AllocateRemoteString(script, &remoteString))
         return false;
-    }
 
     QVector<quint64> args;
-    args.append(reinterpret_cast<quint64>(remoteString));
+    args.append(remoteString);
 
     bool result = CallFunction(0x08FB60, args);
 
     // 释放远程字符串内存
-    VirtualFreeEx(m_handle, remoteString, 0, MEM_RELEASE);
+    FreeRemoteMemory(remoteString);
 
     return result;
 #else
@@ -464,6 +542,48 @@ bool MemoryManager::AllocateEntity(qint8 type) const
     return CallFunction(0x052710, args);
 #else
     Q_UNUSED(type);
+    return false;
+#endif
+}
+
+bool MemoryManager::AllocateThing(qint8 subtype) const{
+#ifdef Q_OS_WIN
+    if (!m_handle) return false;
+    QVector<quint64> args;
+    args.append(subtype);
+    
+    return CallFunction(0x06deb0, args);
+#else
+    Q_UNUSED(subtype);
+    return false;
+#endif
+}
+
+quint32 MemoryManager::AllocateCharacterSlot() const
+{
+#ifdef Q_OS_WIN
+    if (!m_handle) return false;
+    quint64 characterPtr;
+    if (!CallFunction(0x029a10, QVector<quint64>(), &characterPtr)){
+        return -1;
+    }
+    return static_cast<quint32>(characterPtr);
+#else
+    return -1;
+#endif
+}
+
+bool MemoryManager::Assigncharactertothing(quint64 addr, quint32 charid) const{
+#ifdef Q_OS_WIN
+    if (!m_handle) return false;
+    QVector<quint64> args;
+    args.append(addr);
+    args.append(charid);
+    
+    return CallFunction(0x05c440, args);
+#else
+    Q_UNUSED(addr);
+    Q_UNUSED(charid);
     return false;
 #endif
 }

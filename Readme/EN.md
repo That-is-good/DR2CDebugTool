@@ -104,8 +104,8 @@ If a game update breaks data reading, click the **“Settings”** button to ope
 - Member names are automatically matched to character names and are read‑only.
 - Resource values are directly editable, and storage weapon slots also use a button to select weapon IDs, with a spin box for quantity.
 
-### Script Console
-- Type a game script command (e.g., `spawn_thing`) in the bottom input field and press Enter.
+#### Script Console
+- Type a game script command (e.g., `spawn`) in the bottom input field and press Enter.
 - The status bar will show whether the command was executed successfully.
 
 ---

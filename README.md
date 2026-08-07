@@ -1,4 +1,4 @@
-# Death Road to Canada 调试工具
+# 加拿大死亡之路 调试工具
 - Death Road to Canada Debug Tool
 - Death Road to Canada デバッグツール
 

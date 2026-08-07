@@ -1,6 +1,6 @@
 # Death Road to Canada 调试工具
-Death Road to Canada Debug Tool
-Death Road to Canada デバッグツール
+- Death Road to Canada Debug Tool
+- Death Road to Canada デバッグツール
 
 ## 📖 完整文档（语言版本）
 

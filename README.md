@@ -6,7 +6,7 @@
 
 - [English Version](./Readme/EN.md)  
 - [中文版本](./Readme/ZH_CN.md)  
-- [日本語版](./Readme/JA.md)
+- [日本語版](./Readme/JP.md)
 
 > 一个用于《加拿大死亡之路》（Death Road to Canada）的实时内存调试与修改工具，基于 Qt6 和 C++ 开发。
 

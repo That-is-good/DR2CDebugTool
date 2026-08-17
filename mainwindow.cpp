@@ -751,7 +751,8 @@ void MainWindow::moveEntityToScenePos(quint64 addr, const QPointF &scenePos)
     const QPointF origin = m_regionOffsets.value(region, QPointF(0, 0));
     const float x = static_cast<float>(scenePos.x() - origin.x());
     const float y = static_cast<float>(scenePos.y() - origin.y());
-
+    
+    //float delta2d[2] = {0, 0};
     m_gameData->modifyThing(addr, [&](ThingData &th) {
         th.mapid = static_cast<quint8>(region);
         th.vec3d[0][0] = x;
@@ -921,7 +922,7 @@ void MainWindow::refreshEntityView()
             QGraphicsEllipseItem *marker = m_entityScene->addEllipse(-16, -16, 32, 32,
                 QPen(QColor(255, 200, 0), 3), QBrush(QColor(255, 200, 0, 60)));
             marker->setPos(item->pos());
-            marker->setZValue(10);
+            marker->setZValue(-8);
             marker->setAcceptedMouseButtons(Qt::NoButton);
             marker->setFlag(QGraphicsItem::ItemIsSelectable, false);
         }
@@ -963,7 +964,7 @@ void MainWindow::onEntityMenu(const QPoint &pos){
             m_selectedThingAddr = clickedAddr;
             statusBar()->showMessage(QString(tr("已设置中心实体: 0x%1"))
                 .arg(QString::number(m_selectedThingAddr, 16).toUpper()));
-            refreshEntityView();
+            //refreshEntityView();
         });
 
         QMenu *flagMenu = entitytableViewMenu.addMenu(tr("标志"));

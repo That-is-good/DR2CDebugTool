@@ -23,12 +23,14 @@ void GameDataReader::SetOffset(QList<quint64> offset){
     m_missionStateBase = offset[2];
     // 角色池嵌入在 mission_state 中 (missionStateBase + 0xC0)，非独立池
     m_charPoolBase = m_missionStateBase + 0xC0;
+    m_mapLayerMetaBase = offset[3];
 }
 
 void GameDataReader::SetSize(QList<quint32> size){
     THING_SIZE = size[0];
     CHARACTER_SIZE = size[1];
     WEAPON_SIZE = size[2];
+    MAP_META_SIZE = size[3];
 }
 
 void GameDataReader::SetLength(QList<quint16> length){

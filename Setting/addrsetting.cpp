@@ -1,6 +1,7 @@
 #include "addrsetting.h"
 #include "ui_addrsetting.h"
 
+#include <QDir>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -13,13 +14,36 @@ AddrSetting::AddrSetting(QWidget *parent)
     ui->setupUi(this);
 
     ui->LanguagecomboBox->addItem("System", "sys");
-    ui->LanguagecomboBox->addItem("English", "en");
-    ui->LanguagecomboBox->addItem("中文", "zh-cn");
-    ui->LanguagecomboBox->addItem("日本語", "ja");
-
+    GetLocalLanguages();
     connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &AddrSetting::AppliedSetting);
+}
 
-    setWindowTitle("地址设置");
+void AddrSetting::GetLocalLanguages(){
+    QString translationDir = "./translations";
+    QDir dir(translationDir);
+    if (dir.exists()) {
+        QStringList filters;
+        filters << "*.qm";
+        dir.setNameFilters(filters);
+        QFileInfoList fileList = dir.entryInfoList(QDir::Files);
+        for (const QFileInfo &fileInfo : fileList) {
+            QString fileName = fileInfo.baseName(); // 如 "qt_zh_CN"
+            int lastUnderscore = fileName.indexOf('_');
+            if (lastUnderscore == -1)
+                continue;
+
+            QString langCode = fileName.mid(lastUnderscore + 1); // "zh_CN"
+
+            QLocale locale(langCode);
+            QString displayName = locale.languageToString(locale.language());
+
+            if (locale.territory() != QLocale::AnyTerritory) {
+                displayName += QString(" (%1)").arg(QLocale::territoryToString(locale.territory()));
+            }
+
+            ui->LanguagecomboBox->addItem(displayName, langCode);
+        }
+    }
 }
 
 void AddrSetting::RefreshText(){
@@ -35,6 +59,9 @@ void AddrSetting::RefreshText(){
     ui->WeaponLengthspinBox->setValue(Weaponlength);
 
     ui->MissonOffsetspinBox->setValue(Missonoffset);
+
+    ui->AreaOffsetspinBox->setValue(Areaoffset);
+    ui->AreaSizespinBox->setValue(Areasize);
 
     ui->UpdateSpinBox->setValue(UpdateFrequency);
 
@@ -61,6 +88,9 @@ void AddrSetting::AppliedSetting(){
 
     Missonoffset = ui->MissonOffsetspinBox->value();
 
+    Areaoffset = ui->AreaOffsetspinBox->value();
+    Areasize = ui->AreaSizespinBox->value();
+
     UpdateFrequency = ui->UpdateSpinBox->value();
 
     m_language = ui->LanguagecomboBox->currentData().toString();
@@ -68,11 +98,11 @@ void AddrSetting::AppliedSetting(){
 
 QList<quint64> AddrSetting::GetOffset(){
     // 角色池不独立，偏移由 MissionOffset + 0xC0 推导
-    return QList<quint64>{Entityoffset, Weaponoffset, Missonoffset};
+    return QList<quint64>{Entityoffset, Weaponoffset, Missonoffset, Areaoffset};
 }
 
 QList<quint32> AddrSetting::GetSize(){
-    return QList<quint32>{Entitysize, Charasize, Weaponsize};
+    return QList<quint32>{Entitysize, Charasize, Weaponsize, Areasize};
 }
 
 QList<quint16> AddrSetting::GetLength(){
@@ -99,6 +129,10 @@ void AddrSetting::saveToFile(const QString &filePath) const
     root["WeaponLength"]   = Weaponlength;
 
     root["MissionOffset"]  = QString("0x%1").arg(Missonoffset, 0, 16);
+
+    root["AreaOffset"]  = QString("0x%1").arg(Areaoffset, 0, 16);
+    root["AreaSize"]     = QString("0x%1").arg(Areasize, 0, 16);
+
     root["UpdateFrequency"] = UpdateFrequency;
     root["Language"]        = m_language;
 
@@ -144,6 +178,9 @@ void AddrSetting::loadFromFile(const QString &filePath)
     Weaponlength = static_cast<quint16>(root.value("WeaponLength").toInt(1024));
 
     Missonoffset = readHex("MissionOffset", 0x5E2238);
+
+    Areaoffset = readHex("AreaOffset", 0x46DBC0);
+    Areasize   = static_cast<quint32>(readHex("AreaSize", 0x34));
 
     UpdateFrequency = static_cast<quint16>(root.value("UpdateFrequency").toInt(500));
 

@@ -26,12 +26,12 @@ qt_add_executable(DR2CDebugTool
 
 )
 
-qt_add_translations(
-    TARGETS DR2CDebugTool
-    TS_FILES Languages/DR2CDebugTool_zh_CN.ts
-    TS_FILES Languages/DR2CDebugTool_ja.ts
-    TS_FILES Languages/DR2CDebugTool_en.ts
-)
+# qt_add_translations(
+#     TARGETS DR2CDebugTool
+#     TS_FILES Languages/DR2CDebugTool_zh_CN.ts
+#     TS_FILES Languages/DR2CDebugTool_ja.ts
+#     TS_FILES Languages/DR2CDebugTool_en.ts
+# )
 
 target_link_libraries(DR2CDebugTool
     PRIVATE

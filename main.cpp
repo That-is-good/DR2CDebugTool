@@ -32,16 +32,16 @@ int main(int argc, char *argv[])
     if (lang.isEmpty() || lang == "sys") {
         const QStringList uiLanguages = QLocale::system().uiLanguages();
         for (const QString &locale : uiLanguages) {
-            const QString baseName = "DR2CDebugTool_" + QLocale(locale).name();
-            if (translator.load(":/i18n/" + baseName)) {
+            const QString baseName = QString("./qt_%1.qm").arg(QLocale(locale).name());
+            if (translator.load("./translations" + baseName)){
                 a.installTranslator(&translator);
                 break;
             }
         }
     } else {
         // 使用配置中的语言
-        QString qmFile = QString(":/i18n/DR2CDebugTool_%1.qm").arg(lang);
-        if (translator.load(qmFile)) {
+        QString qmFile = QString("./qt_%1.qm").arg(lang);
+        if (translator.load("./translations" + qmFile)) {
             a.installTranslator(&translator);
         }
     }

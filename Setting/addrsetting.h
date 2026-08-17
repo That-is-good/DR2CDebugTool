@@ -3,7 +3,6 @@
 
 #include <QDialog>
 #include <QDialogButtonBox>
-#include <QMessageBox>
 #include <QList>
 #include <QString>
 
@@ -41,6 +40,8 @@ public:
     void SetLanguage(const QString &lang) { m_language = lang; }
 
 private:
+    void GetLocalLanguages();
+
     Ui::AddrSetting *ui;
 
     quint32 Charasize = 0x2E0;
@@ -55,6 +56,9 @@ private:
     quint16 Weaponlength = 1024;
 
     quint64 Missonoffset = 0x5E2238;
+
+    quint64 Areaoffset = 0x46DBC0;
+    quint32 Areasize = 0x34;
 
     quint16 UpdateFrequency = 500;
 

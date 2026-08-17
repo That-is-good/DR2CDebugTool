@@ -57,10 +57,11 @@ public:
 
     bool ScriptEvaluateStringSafe(const QString&) const;
     bool FreeThing(quint64) const;
-    bool AllocateEntity(qint8) const;
-    bool AllocateThing(qint8) const;
+    quint64 AllocateEntity(qint8) const;
+    quint64 AllocateThing(qint8) const;
     quint32 AllocateCharacterSlot() const;
     bool Assigncharactertothing(quint64, quint32) const;
+    //bool RecruitCharacter(quint32, quint8) const;
 
 signals:
     void processAttached();

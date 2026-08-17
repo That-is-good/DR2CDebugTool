@@ -23,7 +23,6 @@ AddrSetting::AddrSetting(QWidget *parent)
 }
 
 void AddrSetting::RefreshText(){
-    ui->CharaOffsetspinBox->setValue(Charaoffset);
     ui->CharaSizespinBox->setValue(Charasize);
     ui->CharaLengthspinBox->setValue(Charalength);
 
@@ -49,7 +48,6 @@ void AddrSetting::RefreshText(){
 }
 
 void AddrSetting::AppliedSetting(){
-    Charaoffset = ui->CharaOffsetspinBox->value();
     Charasize = ui->CharaSizespinBox->value();
     Charalength = ui->CharaLengthspinBox->value();
 
@@ -69,7 +67,8 @@ void AddrSetting::AppliedSetting(){
 }
 
 QList<quint64> AddrSetting::GetOffset(){
-    return QList<quint64>{Entityoffset, Charaoffset, Weaponoffset, Missonoffset};
+    // 角色池不独立，偏移由 MissionOffset + 0xC0 推导
+    return QList<quint64>{Entityoffset, Weaponoffset, Missonoffset};
 }
 
 QList<quint32> AddrSetting::GetSize(){
@@ -84,36 +83,10 @@ quint16 AddrSetting::GetUpdateFrequency(){
     return UpdateFrequency;
 }
 
-/*
-void AddrSetting::SetOffset(QList<quint64> offset){
-    Charaoffset = offset[0];
-    Entityoffset = offset[1];
-    Weaponoffset = offset[2];
-    Missonoffset = offset[3];
-}
-
-void AddrSetting::SetSize(QList<quint32> size){
-    Charasize = size[0];
-    Entitysize = size[1];
-    Weaponsize = size[2];
-}
-
-void AddrSetting::SetLength(QList<quint16> length){
-    Charalength = length[0];
-    Entitylength = length[1];
-    Weaponlength = length[2];
-}
-
-void AddrSetting::SetUpdateFrequency(quint16 freq){
-    UpdateFrequency = freq;
-}
-*/
-
 void AddrSetting::saveToFile(const QString &filePath) const
 {
     QJsonObject root;
 
-    root["CharaOffset"]    = QString("0x%1").arg(Charaoffset, 0, 16);
     root["CharaSize"]      = QString("0x%1").arg(Charasize, 0, 16);
     root["CharaLength"]    = Charalength;
 
@@ -159,9 +132,8 @@ void AddrSetting::loadFromFile(const QString &filePath)
         return s.toULongLong(nullptr, 16);
     };
 
-    Charaoffset  = readHex("CharaOffset",  0x5E25D8);
     Charasize    = static_cast<quint32>(readHex("CharaSize", 0x2E0));
-    Charalength  = static_cast<quint16>(root.value("CharaLength").toInt(256));
+    Charalength  = static_cast<quint16>(root.value("CharaLength").toInt(255));
 
     Entityoffset = readHex("EntityOffset", 0x5632E0);
     Entitysize   = static_cast<quint32>(readHex("EntitySize", 0x304));

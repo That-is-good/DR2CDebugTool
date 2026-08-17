@@ -130,7 +130,8 @@ union WeaponSlots2D
 // 实体 结构体
 // 实体池偏移0x5632E0
 // 大小: 0x304
-// 最多: 0x262个实体
+// 最多: 0x262个实体258
+// 索引0不使用，真正的在0x5635E4
 struct thing {
     ushort id;                  // 0x00 Thing ID (未注册)
     byte type;                  // 0x02 类型
@@ -152,7 +153,7 @@ struct thing {
     byte invisible;             // 0x13 不绘制
     byte noshadow;              // 0x14 无阴影
     byte nodust;                // 0x15 无灰尘
-    byte _pad_0x15;             // 0x16 填充
+    byte _pad_0x16[2];             // 0x16 填充
     float wind;                 // 0x18 风力影响
     int flies;                  // 0x1c 苍蝇数
     Vector3D old_pos;           // 0x20 旧位置
@@ -187,9 +188,9 @@ struct thing {
         byte  _pad_0x88[4];         // 0x88 填充
     void* handler;              // 0x8c 处理函数指针
     int leaveok;                // 0x90 允许离开当前区域
-    void* cyoa;                 // 0x94 “Choose Your Own Adventure”脚本指针
-    void* events;               // 0x98 事件脚本指针
-    void* action;               // 0x9c 动作脚本指针
+    void (*cyoa)(thing *);                 // 0x94 “Choose Your Own Adventure”脚本指针
+    void (*events)(thing *);               // 0x98 事件脚本指针
+    void (*action)(thing *);               // 0x9c 动作脚本指针
     uint user_word;             // 0xa0 用户自定义词
     uint action_icon;           // 0xa4 动作图标
     uint inaction_icon;         // 0xa8 非动作图标
@@ -217,18 +218,18 @@ struct thing {
     uint hitcheck_blast;        // 0x108 爆炸
     ushort hitcheck_flag;       // 0x10c 击中标志
 
-    ushort hitcheck_source_id;  // 0x10e 来源ID
-    ushort hitcheck_lasthit_id; // 0x110 最后命中ID
-    ushort hitcheck_closest_id; // 0x112 最近ID
-    ushort hitcheck_pad_0x11a;  // 0x114 填充
-    float hitcheck_rad;         // 0x118 半径
-    float hitcheck_power;       // 0x11c 威力
-    float hitcheck_power_max;   // 0x120 最大威力
-    float hitcheck_knockback;   // 0x124 击退
-    float hitcheck_shoot_thru;  // 0x128 穿透
-    Vector2D hitcheck_dir;      // 0x12c 方向
-    Vector2D hitcheck_pos;      // 0x134 位置
-    Vector2D _pad_0x140;        // 0x13c 填充
+    // ushort hitcheck_source_id;  // 0x10e 来源ID
+    // ushort hitcheck_lasthit_id; // 0x110 最后命中ID
+    // ushort hitcheck_closest_id; // 0x112 最近ID
+    // byte hitcheck_pad_0x114[2];  // 0x114 填充
+    // float hitcheck_rad;         // 0x118 半径
+    // float hitcheck_power;       // 0x11c 威力
+    // float hitcheck_power_max;   // 0x120 最大威力
+    // float hitcheck_knockback;   // 0x124 击退
+    // float hitcheck_shoot_thru;  // 0x128 穿透
+    Vector3D hitcheck_dir;      // 0x12c 方向
+    Vector2D hitcheck_pos;      // 0x138 位置
+    Vector2D hitcheck_pad_0x140;// 0x140 填充
     uint charid;                // 0x148 角色 ID
     uint zombietype;            // 0x14c 僵尸类型
     ushort shooterid;           // 0x150 射击者 ID
@@ -248,7 +249,7 @@ struct thing {
     uint offscreen_counter;     // 0x18c 偏移屏幕计数器
     sbyte shudder;              // 0x190 抖动强度
     Vector2D shudderpuff;       // 0x191 抖动偏移
-        byte _pad_0x19c[6];         // 0x199 填充
+        byte _pad_0x199[6];         // 0x199 填充
     byte weapon_switch;         // 0x19f 武器切换
     byte weapon_slot_using;     // 0x1a0 当前使用的武器槽
     byte weapon_swap_select;    // 0x1a1 武器交换选择
@@ -274,14 +275,14 @@ struct thing {
     ushort carrierid;           // 0x202 携带者的ID
     ushort throwerid;           // 0x204 投掷者的ID
         byte _pad_0x206[2];         // 0x206 填充
-    byte chassis;               // 0x208 底盘
-    byte chassis_max;           // 0x209 最大底盘
-    byte engine;                // 0x20a 引擎
-    byte engine_max;            // 0x20b 最大底盘
-    byte armour;                // 0x20c 装甲
-    byte armour_max;            // 0x20d 最大装甲
-    byte carspeed;              // 0x20e 速度
-    byte carspeed_max;          // 0x20f 最大速度
+    sbyte chassis;               // 0x208 底盘
+    sbyte chassis_max;           // 0x209 最大底盘
+    sbyte engine;                // 0x20a 引擎
+    sbyte engine_max;            // 0x20b 最大底盘
+    sbyte armour;                // 0x20c 装甲
+    sbyte armour_max;            // 0x20d 最大装甲
+    sbyte carspeed;              // 0x20e 速度
+    sbyte carspeed_max;          // 0x20f 最大速度
     int repair;                // 0x210 修理
     float mpg;                  // 0x214 油耗
     float weapon_state_angle_add;// 0x218 武器状态角度增加
@@ -462,7 +463,7 @@ struct character {
 
 // 武器 结构体
 // 大小: 0x1c4
-// 武器池偏移 0x004E0080;
+// 武器池偏移 0x4E0080;
 // 最多0x401个武器
 struct weapon {
     // -------- 0x00-0x28: 武器名称 (字符数组) --------
@@ -579,11 +580,40 @@ struct weapon {
 // 起始: 0x5E2238
 // 大小: 因为没有数组，所以无所谓
 struct mission_state {
+    uint leader_thing_id;       // 0x00 当前队长物体ID
+    uint current_player_index;  // 0x04 当前玩家索引 (n4_2)
+    uint player_thing_map[4];   // 0x08 玩家物体映射 (g_PlayerThingMap)
     uint player_char[4];        // 0x18 当前队伍角色在角色中的顺序, 从1开始
     Resources storageResource;  // 0x28 资源
     WeaponSlots2D Storage_slots[15];    // 0x48 仓库武器槽
+    character CharacterPool[256];   // 0xC0 角色池但是第一个不储存角色，而是上面提到的0x5E25D8 = CharacterPoolBase(0x5E22F8) + 0x2e0
+    int vehicle_type;           // 0xC0 + 0x2E000 载具类型
+    int vehicle_variant;        // 0xC4 + 0x2E000 载具精灵图
+    float vehicle_chassis;        // 0xC8 + 0x2E000 载具底盘 只是显示，修改无效
+    float vehicle_engine;         // 0xCC + 0x2E000 载具引擎 只是显示，修改无效
+    float vehicle_speed;          // 0xD0 + 0x2E000 载具速度 只是显示，修改无效
+    float vehicle_armour;         // 0xD4 + 0x2E000 载具装甲 只是显示，修改无效
+    int vehicle_mpg;            // 0xD8 + 0x2E000 载具油耗
 };
 
+// 地图层元数据结构体（区域ID）
+// 起始：0x46DBC0
+// 大小: 0x34
+struct MapLayerMeta {
+    uint    resource_id;        // 0x00 所有区域共享的值 (0x00627FC0)
+    byte*    cell_data;          // 0x04 格子数据指针（堆分配，每格272字节） 区域无效为空
+    int     width;              // 0x08 列数
+    int     height;             // 0x0C 行数
+    int     tile_width;         // 0x10 格子宽度（像素）
+    int     tile_height;        // 0x14 格子高度（像素）
+    float       scale_x;            // 0x18 渲染缩放X
+    float       scale_y;            // 0x1C 渲染缩放Y
+    int     pixel_width;        // 0x20 = width * tile_width
+    int     pixel_height;       // 0x24 = height * tile_height
+    int     screen_off_x;       // 0x28 屏幕偏移/裁剪（SetScreenSize设置）
+    int     screen_off_y;       // 0x2C
+    void*       render_callback;    // 0x30 渲染回调（sub_47EB10设置）
+};
 // ============================================================
 // THING 全局变量
 // ============================================================
@@ -618,96 +648,3 @@ void RecruitCharacter(uint charId, byte location); // @0x4492f0 招募角色
 void FreeThing(thing* t);                   // @0x452aa0 释放实体
 void ThingDropCarry(thing* t);              // @0x459f60 释放被携带的实体
 character* GetCharacterData(thing* t);           // @0x45c500 获取实体对应的角色数据
-// ============================================================
-// 生成 Thing 的伪代码（使用内置函数）
-// ============================================================
-
-// ---------- 1. 生成 Human ----------
-thing* CreateHuman(Vector3D lpos) {
-    // 1. 分配实体槽
-    thing* t = Allocatehumanthing();  // 内部调用 AllocateEntity(1)
-    if (!t) return nullptr;
-    
-    // 2. 分配角色槽并绑定
-    uint charSlot = AllocateCharacterSlot();
-    if (!charSlot) {
-        FreeThing(t);
-        return nullptr;
-    }
-    Assigncharactertothing(t, charSlot);
-    
-    // 3. 设置出生位置
-    t->pos = lpos;
-    // 5. 加入队伍 (可选)
-    RecruitCharacter(t->charid, 1);  // location=1 (mission)
-    
-    return t;
-}
-
-// ---------- 2. 生成 Zombie ----------
-thing* CreateZombie(Vector3D lpos) {
-    // 1. 分配实体槽
-    thing* t = CreateRandomEntity();  // 内部调用 AllocateEntity(2)
-    if (!t) return nullptr;
-    // 2.设置出生位置
-    t->pos = lpos;
-    
-    return t;
-}
-
-// ---------- 3. 生成 Item (武器) ----------
-thing* CreateWeaponItem(Vector3D lpos, uint weapon_id) {
-    // 1. 分配实体槽 + 初始化武器
-    thing* t = CreateWeaponEntity(weapon_id);  // 内部: AllocateEntity(3) + InitWeaponThing
-    if (!t) return nullptr;
-    // 2. 设置位置
-    t->pos = lpos;
-    return t;
-}
-
-// ---------- 4. 生成 Item (拾取物) ----------
-// 底层: AllocateEntity(3)
-thing* CreatePickupItem(Vector3D lpos, uint loot, uint amount) {
-    // 1. 分配实体槽
-    thing* t = AllocateThing(1);  // subtype = PICKUP
-    if (!t) return nullptr;
-    // 2. 设置位置
-    t->pos = lpos;
-    // 3. 设置物品属性
-    t->amount = amount; // 物品数量
-    t->loot = loot; // 获取战利品种类
-    t->nopick = 0; // 可拾取
-    return t;
-}
-
-// ---------- 5. 生成 Item (家具/静态物) ----------
-// 底层: AllocateEntity(3)
-thing* CreateFurniture(Vector3D lpos, float w, float h) {
-    // 1. 分配实体槽
-    thing* t = AllocateThing(0);  // subtype = FURNITURE
-    if (!t) return nullptr;
-    // 2. 设置位置
-    t->pos = lpos;
-    return t;
-}
-
-// ---------- 9. 释放 Thing ----------
-void DestroyThing(thing* t) {
-    if (!t) return;
-    
-    // 如果是人类，先解绑角色
-    if (t->type == 1 && t->charid != 0) {
-        uint charId = t->charid;
-        // 清理角色绑定
-        character* charData = GetCharacterData(t);
-        charData->cur_thingid = 0;  // cur_thingid = 0
-    }
-    
-    // 如果是载具/携带物，先释放
-    if (t->carryid != 0) {
-        ThingDropCarry(t);
-    }
-    
-    // 释放实体
-    FreeThing(t);
-}

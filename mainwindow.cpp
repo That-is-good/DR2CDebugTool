@@ -1,4 +1,20 @@
 #include "mainwindow.h"
+#include "ui_mainwindow.h"
+#include <algorithm>
+#include <random>
+#include <QSet>
+#include <QDialog>
+#include <QFormLayout>
+#include <QDialogButtonBox>
+#include <QLabel>
+#include <QWheelEvent>
+#include <QMouseEvent>
+#include <QGraphicsRectItem>
+#include <QGraphicsPixmapItem>
+#include <QGraphicsSimpleTextItem>
+#include <QGraphicsEllipseItem>
+#include <QScrollBar>
+#include <QPainter>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -35,6 +51,73 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+bool MainWindow::eventFilter(QObject *watched, QEvent *event)
+{
+    if (m_entityMode == ResizeMode
+        && watched == ui->entitygraphicsView->viewport()
+        && event->type() == QEvent::Wheel) {
+        QWheelEvent *we = static_cast<QWheelEvent*>(event);
+        const qreal factor = we->angleDelta().y() > 0 ? 1.15 : 1.0 / 1.15;
+        ui->entitygraphicsView->scale(factor, factor);
+        return true;
+    }
+
+    // SelectMode 下拖动实体图元（原地直接拖动，不写内存，松手后写回位置）
+    if (m_entityMode == SelectMode
+        && watched == ui->entitygraphicsView->viewport()) {
+        if (event->type() == QEvent::MouseButtonPress) {
+            QMouseEvent *me = static_cast<QMouseEvent*>(event);
+            if (me->button() == Qt::LeftButton) {
+                QGraphicsItem *item = ui->entitygraphicsView->itemAt(me->pos());
+                quint64 addr = item ? item->data(0).toULongLong() : 0;
+                if (addr != 0) {
+                    // 若点击未选中的实体，先选中它
+                    if (!item->isSelected()) {
+                        m_entityScene->clearSelection();
+                        item->setSelected(true);
+                    }
+                    m_draggingEntity = true;
+                    m_dragAddr = addr;
+                    m_dragItem = item;
+                    m_dragOffset = item->mapFromScene(ui->entitygraphicsView->mapToScene(me->pos()));
+                    // 拖动期间停止定时刷新，避免场景重建导致 m_dragItem 悬空
+                    m_refreshTimer->stop();
+                    return true;
+                }
+            }
+        } else if (event->type() == QEvent::MouseMove && m_draggingEntity) {
+            QMouseEvent *me = static_cast<QMouseEvent*>(event);
+            if (m_dragItem) {
+                const QPointF scenePos = ui->entitygraphicsView->mapToScene(me->pos());
+                const QPointF itemAnchor = scenePos - m_dragOffset;
+                // 仅移动当前拖拽项，其他选中项一并跟随
+                QPointF delta = itemAnchor - m_dragItem->pos();
+                for (auto *sel : m_entityScene->selectedItems()) {
+                    if (sel->data(0).toULongLong() != 0)
+                        sel->setPos(sel->pos() + delta);
+                }
+                m_dragItem->setPos(itemAnchor);
+            }
+            return true;
+        } else if (event->type() == QEvent::MouseButtonRelease && m_draggingEntity) {
+            m_draggingEntity = false;
+            if (m_dragItem) {
+                const QPointF scenePos = m_dragItem->scenePos() + m_dragOffset;
+                moveEntityToScenePos(m_dragAddr, scenePos);
+            }
+            m_dragAddr = 0;
+            m_dragItem = nullptr;
+            m_dragOffset = QPointF();
+            // 拖动结束，恢复定时刷新
+            if (isAttached())
+                m_refreshTimer->start();
+            return true;
+        }
+    }
+
+    return QMainWindow::eventFilter(watched, event);
+}
+
 // ==================== 辅助 ====================
 bool MainWindow::isAttached() const { return m_memMgr && m_memMgr->isAttached(); }
 
@@ -43,11 +126,59 @@ int MainWindow::selectedCharacterIndex() const
     return ui->charaSelcomboBox->currentData().toInt();
 }
 
-int MainWindow::selectedEntityIndex() const
+ThingData *MainWindow::thingByAddr(quint64 addr)
 {
-    auto sel = ui->entitytableWidget->selectedItems();
-    if (sel.isEmpty()) return -1;
-    return ui->entitytableWidget->item(sel.first()->row(), 0)->data(Qt::UserRole).toInt();
+    for (auto &th : m_thingCache)
+        if (th.addr == addr)
+            return &th;
+    return nullptr;
+}
+
+quint64 MainWindow::selectedEntityAddr() const
+{
+    const auto items = m_entityScene->selectedItems();
+    if (items.isEmpty()) return 0;
+    return items.first()->data(0).toULongLong();
+}
+
+QList<quint64> MainWindow::selectedEntityAddrs() const
+{
+    QList<quint64> addrs;
+    for (const auto *item : m_entityScene->selectedItems()) {
+        quint64 addr = item->data(0).toULongLong();
+        if (addr != 0)
+            addrs.append(addr);
+    }
+    return addrs;
+}
+
+int MainWindow::iconIndexForThing(const ThingData &th) const
+{
+    const quint8 ty = th.type[0];
+    const quint8 sub = th.type[1];
+    if (ty >= 1 && ty <= 4 && ty != 3)
+        return ty;
+    if (ty == 3)
+        return sub + 5; // 家具5 拾取物6 武器7 车辆8 特殊拾取9
+    return 3;
+}
+
+void MainWindow::applyEntityFlagsToAddrs(const QList<quint64> &addrs, bool set, quint8 flag)
+{
+    for (quint64 addr : addrs) {
+        m_gameData->modifyThing(addr, [&](ThingData &th) {
+            switch (flag) {
+            case 0: th.nocollide   = set ? 1 : 0; break;
+            case 1: th.vision[0]   = set ? 1 : 0; break; // 隐身(unseen)
+            case 2: th.vision[1]   = set ? 1 : 0; break; // 不绘制(invisible)
+            case 3: th.no_hit      = set ? 1 : 0; break; // 不可被击中
+            case 4: th.nopick      = set ? 1 : 0; break; // 不可拾取
+            case 5: th.glow        = set ? 1 : 0; break; // 发光
+            default: break;
+            }
+        });
+    }
+    //refreshEntityView();
 }
 
 bool MainWindow::hasEditingFocus() const
@@ -55,6 +186,8 @@ bool MainWindow::hasEditingFocus() const
     QWidget *w = QApplication::focusWidget();
     if (!w) return false;
     if (qobject_cast<QLineEdit*>(w)) return true;
+    if (qobject_cast<QSpinBox*>(w)) return true;
+    if (qobject_cast<QDoubleSpinBox*>(w)) return true;
     QWidget *p = w;
     while (p) {
         if (qobject_cast<QComboBox*>(p)) return true;
@@ -67,37 +200,16 @@ bool MainWindow::hasEditingFocus() const
 void MainWindow::setupUI()
 {
     ui->filterProcessText->setPlaceholderText(tr("输入进程名过滤..."));
-    setupEntityTable();
+    setupEntityView();
     setupCharacterStatTable();
     setupCharacterResourceTable();
     setupCharacterWeaponTable();
     setupMissionResourceTable();
     setupMissionWeaponTable();
 
-    ui->entityTypecomboBox->addItem(tr("全部"), -1);
-    ui->entityTypecomboBox->addItem(tr("人类"), 1);
-    ui->entityTypecomboBox->addItem(tr("僵尸"), 2);
-    ui->entityTypecomboBox->addItem(tr("物品"), 3);
-    ui->entityTypecomboBox->addItem(tr("抛射物"), 4);
-    ui->entityTypecomboBox->addItem(tr("家具"), 5);
-    ui->entityTypecomboBox->addItem(tr("拾取物"), 6);
-    ui->entityTypecomboBox->addItem(tr("武器"), 7);
-    ui->entityTypecomboBox->addItem(tr("车辆"), 8);
-    ui->entityTypecomboBox->addItem(tr("特殊拾取"), 9);
     ui->entityAreacomboBox->addItem(tr("全部"), -1);
-    for (int i = 0; i < 16; ++i)
-        ui->entityAreacomboBox->addItem(QString(tr("区域%1")).arg(i), i);
-
-    ui->spawnEntitycomboBox->addItem(tr("人类"), 1);
-    ui->spawnEntitycomboBox->addItem(tr("僵尸"), 2);
-    ui->spawnEntitycomboBox->addItem(tr("物品"), 3);
-    ui->spawnEntitycomboBox->addItem(tr("抛射物"), 4);
-    ui->spawnEntitycomboBox->addItem(tr("家具"), 5);
-    ui->spawnEntitycomboBox->addItem(tr("拾取物"), 6);
-    ui->spawnEntitycomboBox->addItem(tr("武器"), 7);
-    ui->spawnEntitycomboBox->addItem(tr("车辆"), 8);
-    ui->spawnEntitycomboBox->addItem(tr("特殊拾取"), 9);
-    
+    ui->selectEntityMode->setChecked(true);
+    onEntityModeChanged();
     setControlsEnabled(false);
     m_refreshTimer->setInterval(500);
 }
@@ -115,7 +227,6 @@ void MainWindow::setControlsEnabled(bool enabled)
 
 void MainWindow::setupConnections()
 {
-    // 设置 / 进程
     connect(ui->settingBtn, &QPushButton::clicked, this, &MainWindow::onSetting);
     connect(ui->refreshProcessBtn, &QPushButton::clicked, this, &MainWindow::onRefreshProcess);
     connect(ui->attachProceesBtn, &QPushButton::clicked, this, &MainWindow::onAttachProcess);
@@ -123,18 +234,15 @@ void MainWindow::setupConnections()
         onFilterProcessChanged(ui->filterProcessText->text());
     });
 
-    // ---- 角色 - 合并槽 ----
     connect(ui->charaSelcomboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &MainWindow::onCharacterSelected);
 
-    // 所有 QLineEdit → 同一个 slot
     for (auto *edit : {ui->charaNameplainTextEdit, ui->charaPerkplainTextEdit,
                         ui->charaTraitplainTextEdit, ui->charaDescplainTextEdit})
         connect(edit, &QLineEdit::returnPressed, this, [this]() {
             if (!m_updatingUI) onCharacterEditChanged();
         });
 
-    // 所有角色 SpinBox/DoubleSpinBox → 同一个 slot
     connect(ui->charaHpspinBox, QOverload<int>::of(&QSpinBox::valueChanged),
             this, [this](int) { if (!m_updatingUI) onCharacterSpinBoxChanged(); });
     connect(ui->charaSpeeddoubleSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
@@ -144,13 +252,11 @@ void MainWindow::setupConnections()
     connect(ui->charaStatus2spinBox, QOverload<int>::of(&QSpinBox::valueChanged),
             this, [this](int) { if (!m_updatingUI) onCharacterSpinBoxChanged(); });
 
-    // 角色所有 QCheckBox → 同一个 slot
     for (auto *cb : {ui->charaFemalecheckBox, ui->charaPetcheckBox})
         connect(cb, &QCheckBox::toggled, this, [this]() {
             if (!m_updatingUI) onCharacterCheckBoxToggled();
         });
 
-    // 属性/资源/武器 表
     connect(static_cast<QStandardItemModel*>(ui->charaStattableView->model()),
             &QStandardItemModel::dataChanged, this, &MainWindow::onCharacterStatChanged);
     connect(static_cast<QStandardItemModel*>(ui->charaResourcetableView->model()),
@@ -158,62 +264,23 @@ void MainWindow::setupConnections()
     connect(static_cast<QStandardItemModel*>(ui->charaWeapontableView->model()),
             &QStandardItemModel::dataChanged, this, &MainWindow::onCharacterWeaponChanged);
 
-    // ---- 实体 - 合并槽 ----
-    connect(ui->entityTypecomboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &MainWindow::onEntityTypeFilterChanged);
     connect(ui->entityAreacomboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &MainWindow::onEntityAreaFilterChanged);
-    connect(ui->entitytableWidget, &QTableWidget::itemSelectionChanged,
-            this, &MainWindow::onEntityTableSelectionChanged);
+    connect(ui->entitygraphicsView, &QGraphicsView::customContextMenuRequested,
+            this, &MainWindow::onEntityMenu);
 
-    // 实体所有 QCheckBox → 同一个 slot
-    QList<QCheckBox*> entityCBs = {
-        ui->noCollidecheckBox, ui->unSeencheckBox, ui->inVisiblecheckBox,
-        ui->noHitcheckBox, ui->noPickupcheckBox, ui->glowcheckBox
-    };
-    for (auto *cb : entityCBs)
-        connect(cb, &QCheckBox::toggled, this, [this]() {
-            if (!m_updatingUI) onEntityCheckBoxToggled();
-        });
+    connect(ui->selectEntityMode, &QRadioButton::toggled, this, &MainWindow::onEntityModeChanged);
+    connect(ui->resizeScreenMode, &QRadioButton::toggled, this, &MainWindow::onEntityModeChanged);
+    connect(ui->moveScreenMode, &QRadioButton::toggled, this, &MainWindow::onEntityModeChanged);
 
-    // 实体所有 QDoubleSpinBox → 同一个 slot
-    QList<QDoubleSpinBox*> entityDSBs = {
-        ui->posXdoubleSpinBox, ui->posYdoubleSpinBox, ui->posZdoubleSpinBox,
-        ui->velXdoubleSpinBox, ui->velYdoubleSpinBox, ui->velZdoubleSpinBox,
-        ui->massdoubleSpinBox, ui->frictiondoubleSpinBox, ui->bounceFrictiondoubleSpinBox
-    };
-    for (auto *sb : entityDSBs)
-        connect(sb, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [this](double) {
-            if (!m_updatingUI) onEntityDoubleSpinBoxChanged();
-        });
-
-    QList<QSpinBox*> entitySBs = {
-        ui->hitpointsspinBox, ui->aiStatespinBox,
-        ui->spriteIdspinBox, ui->aiWaitspinBox
-    };
-    for (auto *sb : entitySBs)
-        connect(sb, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int) {
-            if (!m_updatingUI) onEntitySpinBoxChanged();
-        });
-
-    // 实体操作按钮
-    connect(ui->setTargetpushButton, &QPushButton::clicked, this, &MainWindow::onSetTargetEntity);
-    connect(ui->teleportTargetpushButton, &QPushButton::clicked, this, &MainWindow::onTeleportToTarget);
-    connect(ui->swapTargetpushButton, &QPushButton::clicked, this, &MainWindow::onSwapEntityPositions);
-    connect(ui->destoryEntitypushButton, &QPushButton::clicked, this, &MainWindow::onDestoryEntity);
-    connect(ui->spawnEntitypushButton, &QPushButton::clicked, this, &MainWindow::onSpawnEntity);
-
-    // ---- 全局 ----
-    connect(ui->missionResourcetableWidget, &QTableWidget::cellChanged, this, [this](int, int) {
+    connect(ui->missionResourcetableView, &QTableView::clicked, this, [this](const QModelIndex &) {
         if (!m_updatingUI) onMissionChanged();
     });
 
     connect(ui->cmdplainTextEdit, &QLineEdit::returnPressed, this, &MainWindow::onCmdSend);
 
-    // ---- 定时刷新 ----
     connect(m_refreshTimer, &QTimer::timeout, this, &MainWindow::onRefreshTimer);
 
-    // ---- 附加/分离 ----
     connect(m_memMgr, &MemoryManager::processAttached, this, [this]() {
         quint64 base = m_memMgr->moduleBaseAddress();
         m_gameData->setModuleBase(base);
@@ -236,16 +303,41 @@ void MainWindow::setupConnections()
     });
 }
 
-// ==================== 表格初始化 ====================
-void MainWindow::setupEntityTable()
+// ==================== 视图初始化 ====================
+void MainWindow::setupEntityView()
 {
-    QTableWidget *t = ui->entitytableWidget;
-    t->setColumnCount(5);
-    t->setHorizontalHeaderLabels({"ID", tr("类型"), tr("子类型"), tr("区域"), tr("地址")});
-    t->setSelectionBehavior(QAbstractItemView::SelectRows);
-    t->setSelectionMode(QAbstractItemView::SingleSelection);
-    t->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    t->horizontalHeader()->setStretchLastSection(true);
+    m_entityScene = new QGraphicsScene(this);
+    ui->entitygraphicsView->setScene(m_entityScene);
+    ui->entitygraphicsView->setContextMenuPolicy(Qt::CustomContextMenu);
+    ui->entitygraphicsView->setRenderHint(QPainter::Antialiasing, true);
+    ui->entitygraphicsView->setTransformationAnchor(QGraphicsView::AnchorUnderMouse);
+    ui->entitygraphicsView->setRubberBandSelectionMode(Qt::IntersectsItemShape);
+    ui->entitygraphicsView->setMouseTracking(true);
+    ui->entitygraphicsView->viewport()->installEventFilter(this);
+}
+
+void MainWindow::onEntityModeChanged()
+{
+    if (ui->selectEntityMode->isChecked()) {
+        m_entityMode = SelectMode;
+        ui->entitygraphicsView->setDragMode(QGraphicsView::RubberBandDrag);
+    } else if (ui->resizeScreenMode->isChecked()) {
+        m_entityMode = ResizeMode;
+        ui->entitygraphicsView->setDragMode(QGraphicsView::NoDrag);
+    } else if (ui->moveScreenMode->isChecked()) {
+        m_entityMode = MoveMode;
+        ui->entitygraphicsView->setDragMode(QGraphicsView::ScrollHandDrag);
+    } else {
+        m_entityMode = SelectMode;
+        ui->entitygraphicsView->setDragMode(QGraphicsView::RubberBandDrag);
+    }
+
+    // 切换模式时更新实体图元的可选状态
+    for (auto *item : m_entityScene->items()) {
+        if (item->data(0).toULongLong() != 0) {
+            item->setFlag(QGraphicsItem::ItemIsSelectable, m_entityMode == SelectMode);
+        }
+    }
 }
 
 void MainWindow::setupCharacterStatTable()
@@ -267,11 +359,12 @@ void MainWindow::setupCharacterStatTable()
         dispItem->setCheckable(true);
         m->setItem(i, 5, dispItem);
     }
-    ui->charaStattableView->setModel(m);
-    ui->charaStattableView->horizontalHeader()->setStretchLastSection(true);
-    ui->charaStattableView->setItemDelegateForColumn(1, new SpinBoxDelegate(-128, 127, this));
-    ui->charaStattableView->setItemDelegateForColumn(2, new SpinBoxDelegate(-128, 127, this));
-    ui->charaStattableView->setItemDelegateForColumn(3, new SpinBoxDelegate(-128, 127, this));
+    QTableView *t = ui->charaStattableView;
+    t->setModel(m);
+    t->horizontalHeader()->setStretchLastSection(true);
+    t->setItemDelegateForColumn(1, new SpinBoxDelegate(-128, 127, this));
+    t->setItemDelegateForColumn(2, new SpinBoxDelegate(-128, 127, this));
+    t->setItemDelegateForColumn(3, new SpinBoxDelegate(-128, 127, this));
 }
 
 void MainWindow::setupCharacterResourceTable()
@@ -313,17 +406,18 @@ void MainWindow::setupCharacterWeaponTable()
 
 void MainWindow::setupMissionResourceTable()
 {
-    QTableWidget *t = ui->missionResourcetableWidget;
-    t->setColumnCount(2);
-    t->setHorizontalHeaderLabels({tr("资源"), tr("数量")});
-    t->setRowCount(resourceNames.length());
+    QTableView *t = ui->missionResourcetableView;
+    QStandardItemModel *m = new QStandardItemModel(resourceNames.length(), 2, this);
+    m->setHorizontalHeaderLabels({tr("资源"), tr("数量")});
     for (int i = 0; i < resourceNames.length(); ++i) {
-        t->setItem(i, 0, new QTableWidgetItem(resourceNames[i]));
-        QTableWidgetItem *v = new QTableWidgetItem("0");
-        v->setData(Qt::UserRole, i);
-        t->setItem(i, 1, v);
+        QStandardItem *nameItem = new QStandardItem(resourceNames[i]);
+        nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEditable);
+        m->setItem(i, 0, nameItem);
+        m->setItem(i, 1, new QStandardItem("0"));
     }
+    t->setModel(m);
     t->horizontalHeader()->setStretchLastSection(true);
+    t->setItemDelegateForColumn(1, new SpinBoxDelegate(-999999, 999999, this));
 }
 
 void MainWindow::setupMissionWeaponTable()
@@ -411,7 +505,7 @@ void MainWindow::refreshProcessList()
     if (idx >= 0) ui->processcomboBox->setCurrentIndex(idx);
 }
 
-// ==================== 角色 - 使用 modifyCharacter（读内存→修改→写回→返回最新数据） ====================
+// ==================== 角色 ====================
 void MainWindow::onCharacterSelected(int)
 {
     int idx = selectedCharacterIndex();
@@ -422,7 +516,7 @@ void MainWindow::onCharacterSelected(int)
 void MainWindow::onCharacterEditChanged()
 {
     int i = selectedCharacterIndex();
-    if (i < 0 || m_updatingUI) return;
+    if (i < 0 || i >= m_charCache.size() || m_updatingUI) return;
     QString name  = ui->charaNameplainTextEdit->text();
     QString perk  = ui->charaPerkplainTextEdit->text();
     QString trait = ui->charaTraitplainTextEdit->text();
@@ -438,7 +532,7 @@ void MainWindow::onCharacterEditChanged()
 void MainWindow::onCharacterSpinBoxChanged()
 {
     int i = selectedCharacterIndex();
-    if (i < 0 || m_updatingUI) return;
+    if (i < 0 || i >= m_charCache.size() || m_updatingUI) return;
     int hp = ui->charaHpspinBox->value();
     float spd = static_cast<float>(ui->charaSpeeddoubleSpinBox->value());
     int mf0 = ui->charaStatus1spinBox->value();
@@ -454,7 +548,7 @@ void MainWindow::onCharacterSpinBoxChanged()
 void MainWindow::onCharacterCheckBoxToggled()
 {
     int i = selectedCharacterIndex();
-    if (i < 0 || m_updatingUI) return;
+    if (i < 0 || i >= m_charCache.size() || m_updatingUI) return;
     quint16 female = ui->charaFemalecheckBox->isChecked() ? 1 : 0;
     quint16 pet = ui->charaPetcheckBox->isChecked() ? 1 : 0;
     m_charCache[i] = m_gameData->modifyCharacter(i, [&](CharacterData &ch) {
@@ -467,16 +561,13 @@ void MainWindow::onCharacterStatChanged(const QModelIndex &topLeft, const QModel
 {
     if (m_updatingUI) return;
     int i = selectedCharacterIndex();
-    if (i < 0) return;
+    if (i < 0 || i >= m_charCache.size()) return;
 
     int col = topLeft.column();
     int row = topLeft.row();
     QStandardItemModel *sm = static_cast<QStandardItemModel*>(ui->charaStattableView->model());
 
-    // UI col: 0=属性名, 1=基础值, 2=临时值, 3=附加值, 4=有效值, 5=是否已知
-    // stats[0]=已知, stats[1]=基础, stats[2]=临时, stats[3]=附加
     if (col >= 1 && col <= 3) {
-        // 从 UI 读取全部行
         bool ok;
         qint8 uiBase[13], uiTemp[13], uiBonus[13];
         for (int k = 0; k < 13; ++k) {
@@ -491,7 +582,6 @@ void MainWindow::onCharacterStatChanged(const QModelIndex &topLeft, const QModel
                 ch.stats[3][k] = uiBonus[k];
             }
         });
-        // 更新有效值显示
         m_updatingUI = true;
         for (int k = 0; k < 13; ++k) {
             int effective = uiBase[k] + uiTemp[k] + uiBonus[k];
@@ -510,7 +600,7 @@ void MainWindow::onCharacterResourceChanged(const QModelIndex &topLeft, const QM
 {
     if (m_updatingUI) return;
     int i = selectedCharacterIndex();
-    if (i < 0 || topLeft.column() != 1) return;
+    if (i < 0 || i >= m_charCache.size() || topLeft.column() != 1) return;
 
     QStandardItemModel *rm = static_cast<QStandardItemModel*>(ui->charaResourcetableView->model());
     int newRes[8];
@@ -530,12 +620,9 @@ void MainWindow::onCharacterWeaponChanged(const QModelIndex &topLeft, const QMod
 {
     if (m_updatingUI) return;
     int i = selectedCharacterIndex();
-    if (i < 0) return;
+    if (i < 0 || i >= m_charCache.size()) return;
     int col = topLeft.column();
     int slot = topLeft.row();
-    // weaponslots[槽位][内容]
-    // 内容：武器数量, 武器ID, 武器锁;
-    // 界面：武器按钮 武器数量 武器锁
     if (col == 1 || col == 2) {
         QStandardItemModel *wm = static_cast<QStandardItemModel*>(ui->charaWeapontableView->model());
         bool ok;
@@ -567,7 +654,6 @@ void MainWindow::refreshCharacterData(int ci)
     ui->charaStatus1spinBox->setValue(ch.mod_flags[0]);
     ui->charaStatus2spinBox->setValue(ch.mod_flags[1]);
 
-    // 属性表: stats[0]=已知, stats[1]=基础, stats[2]=临时, stats[3]=附加
     QStandardItemModel *statM = static_cast<QStandardItemModel*>(ui->charaStattableView->model());
     for (int i = 0; i < 13; ++i) {
         statM->item(i, 1)->setText(QString::number(ch.stats[1][i]));
@@ -578,14 +664,10 @@ void MainWindow::refreshCharacterData(int ci)
         statM->item(i, 5)->setCheckState(ch.stats[0][i] ? Qt::Checked : Qt::Unchecked);
     }
 
-    // 资源表
     QStandardItemModel *resM = static_cast<QStandardItemModel*>(ui->charaResourcetableView->model());
     for (int i = 0; i < resourceNames.length(); ++i)
         resM->item(i, 1)->setText(QString::number(ch.resource[i]));
 
-    // weaponslots[槽位][内容]
-    // 内容：武器数量, 武器ID, 武器锁;
-    // 界面：武器按钮 武器数量 武器锁
     QStandardItemModel *wpM = static_cast<QStandardItemModel*>(ui->charaWeapontableView->model());
     for (int i = 0; i < 3; ++i) {
         int wid = ch.weaponslots[i][1];
@@ -603,14 +685,12 @@ void MainWindow::onWeaponButtonClicked(int charIndex, int slot)
 {
     if (!isAttached()) return;
     if (charIndex == -1) charIndex = selectedCharacterIndex();
+    if (charIndex < 0 || charIndex >= m_charCache.size()) return;
 
     WeaponDialog dlg(m_weaponNames, this);
     if (dlg.exec() == QDialog::Accepted) {
         int wid = dlg.selectedWeaponIndex();
         if (wid < 0) return;
-        // weaponslots[槽位][内容]
-        // 内容：武器数量, 武器ID, 武器锁;
-        // 界面：武器按钮 武器数量 武器锁
         m_charCache[charIndex] = m_gameData->modifyCharacter(charIndex, [&](CharacterData &ch) {
             ch.weaponslots[slot][1] = wid;
         });
@@ -628,7 +708,6 @@ void MainWindow::onStorageWeaponClicked(int slotIndex)
         int wid = dlg.selectedWeaponIndex();
         if (wid < 0) return;
         m_missionCache.storage_slots[slotIndex][0] = wid;
-        // 读取当前 stack
         QGridLayout *grid = qobject_cast<QGridLayout*>(ui->missionWeapon->layout());
         if (grid) {
             int r = slotIndex / 5, c = slotIndex % 5;
@@ -647,270 +726,651 @@ void MainWindow::onStorageWeaponClicked(int slotIndex)
     }
 }
 
-// ==================== 实体 - 使用 modifyThing ====================
-void MainWindow::onEntityTypeFilterChanged(int idx)
-{ m_entityTypeFilter = ui->entityTypecomboBox->itemData(idx).toInt(); refreshEntityList(); }
-
+// ==================== 实体 ====================
 void MainWindow::onEntityAreaFilterChanged(int idx)
-{ m_entityAreaFilter = ui->entityAreacomboBox->itemData(idx).toInt(); refreshEntityList(); }
+{ m_entityAreaFilter = ui->entityAreacomboBox->itemData(idx).toInt(); refreshEntityView(); }
 
-void MainWindow::onEntityTableSelectionChanged()
-{ int e = selectedEntityIndex(); if (e >= 0) refreshEntityData(e); }
-
-void MainWindow::onEntityCheckBoxToggled()
+int MainWindow::regionFromScenePos(const QPointF &scenePos) const
 {
-    int e = selectedEntityIndex();
-    if (e < 0 || m_updatingUI) return;
-    // vision[0]=unseen, vision[1]=invisible, hit[0]=no_hit, hit[1]=no_do_damage
-    quint8 nocollide = ui->noCollidecheckBox->isChecked() ? 1 : 0;
-    quint8 unseen   = ui->unSeencheckBox->isChecked()    ? 1 : 0;
-    quint8 invisible = ui->inVisiblecheckBox->isChecked() ? 1 : 0;
-    quint8 glow     = ui->glowcheckBox->isChecked()       ? 1 : 0;
-    quint8 nohit    = ui->noHitcheckBox->isChecked()      ? 1 : 0;
-    quint8 nopick = ui->noPickupcheckBox->isChecked()   ? 1 : 0;
-    m_thingCache[e] = m_gameData->modifyThing(e, [&](ThingData &th) {
-        th.nocollide = nocollide;
-        th.vision[0] = unseen;
-        th.vision[1] = invisible;
-        th.glow = glow;
-        th.no_hit = nohit;
-        th.nopick = nopick;
-    });
+    for (auto it = m_regionOffsets.constBegin(); it != m_regionOffsets.constEnd(); ++it) {
+        const int mapid = it.key();
+        const QPointF origin = it.value();
+        const QSizeF sz = m_regionSizes.value(mapid, QSizeF());
+        if (scenePos.x() >= origin.x() && scenePos.x() <= origin.x() + sz.width()
+            && scenePos.y() >= origin.y() && scenePos.y() <= origin.y() + sz.height())
+            return mapid;
+    }
+    // 找不到区域时返回当前选中区域，否则返回 0
+    return m_entityAreaFilter >= 0 ? m_entityAreaFilter : 0;
 }
 
-void MainWindow::onEntityDoubleSpinBoxChanged()
+void MainWindow::moveEntityToScenePos(quint64 addr, const QPointF &scenePos)
 {
-    int e = selectedEntityIndex();
-    if (e < 0 || m_updatingUI) return;
-    float px = static_cast<float>(ui->posXdoubleSpinBox->value());
-    float py = static_cast<float>(ui->posYdoubleSpinBox->value());
-    float pz = static_cast<float>(ui->posZdoubleSpinBox->value());
-    float vx = static_cast<float>(ui->velXdoubleSpinBox->value());
-    float vy = static_cast<float>(ui->velYdoubleSpinBox->value());
-    float vz = static_cast<float>(ui->velZdoubleSpinBox->value());
-    float mass = static_cast<float>(ui->massdoubleSpinBox->value());
-    float fric = static_cast<float>(ui->frictiondoubleSpinBox->value());
-    float boun = static_cast<float>(ui->bounceFrictiondoubleSpinBox->value());
-    m_thingCache[e] = m_gameData->modifyThing(e, [&](ThingData &th) {
-        th.vec3d[0][0] = px; th.vec3d[0][1] = py; th.vec3d[0][2] = pz;
-        th.vec3d[1][0] = vx; th.vec3d[1][1] = vy; th.vec3d[1][2] = vz;
-        th.phy[0] = mass; th.phy[1] = fric; th.phy[2] = boun;
+    if (!addr || !isAttached()) return;
+    const int region = regionFromScenePos(scenePos);
+    const QPointF origin = m_regionOffsets.value(region, QPointF(0, 0));
+    const float x = static_cast<float>(scenePos.x() - origin.x());
+    const float y = static_cast<float>(scenePos.y() - origin.y());
+
+    m_gameData->modifyThing(addr, [&](ThingData &th) {
+        th.mapid = static_cast<quint8>(region);
+        th.vec3d[0][0] = x;
+        th.vec3d[0][1] = y;
     });
+    statusBar()->showMessage(QString(tr("已移动实体至区域%1 (X:%2 Y:%3)"))
+                                 .arg(region)
+                                 .arg(x, 0, 'f', 1)
+                                 .arg(y, 0, 'f', 1));
+    //refreshEntityView();
 }
 
-void MainWindow::onEntitySpinBoxChanged()
+quint64 MainWindow::spawnEntityAt(uint type, const QPointF &scenePos)
 {
-    int e = selectedEntityIndex();
-    if (e < 0 || m_updatingUI) return;
-    int hp = ui->hitpointsspinBox->value();
-    quint32 aistate = static_cast<quint32>(ui->aiStatespinBox->value());
-    qint32 aiwait = static_cast<qint32>(ui->aiWaitspinBox->value());
-    quint16 spriteid = static_cast<quint16>(ui->spriteIdspinBox->value());
-    m_thingCache[e] = m_gameData->modifyThing(e, [&](ThingData &th) {
-        th.hitpoints = hp;
-        th.ai_state = aistate;
-        th.ai_wait = aiwait;
-        th.spriteid = spriteid;
-    });
+    const int region = regionFromScenePos(scenePos);
+    const QPointF origin = m_regionOffsets.value(region, QPointF(0, 0));
+    const float x = static_cast<float>(scenePos.x() - origin.x());
+    const float y = static_cast<float>(scenePos.y() - origin.y());
+
+    quint64 ptr = onSpawnEntity(type);
+    if (ptr != 0 && ptr != static_cast<quint64>(-1))
+        m_gameData->modifyThing(ptr, [&](ThingData &th) {
+            th.mapid = static_cast<quint8>(region);
+            th.vec3d[0][0] = x;
+            th.vec3d[0][1] = y;
+        });
+    return ptr;
 }
 
-void MainWindow::refreshEntityList()
+void MainWindow::refreshEntityView()
 {
     if (!isAttached()) return;
-    int selIdx = selectedEntityIndex();
-    int scrollPos = 0;
-    QTableWidget *t = ui->entitytableWidget;
-    if (t->verticalScrollBar())
-        scrollPos = t->verticalScrollBar()->value();
+    if (m_draggingEntity) return;
 
-    m_thingCache = m_gameData->readAllThings();
-    t->setRowCount(0);
+    m_thingCache = m_gameData->readAllThings(); // 固定大小实体池，下标即池索引
 
-    auto typeName = [](qint8 ty) -> QString {
-        switch (ty) {
-        case 1: return tr("人类");
-        case 2: return tr("僵尸");
-        case 3: return tr("物品");
-        case 4: return tr("抛射物");
-        default: return QString(tr("类型%1")).arg(ty);
-        }
-    };
-    auto subName = [](qint8 st) -> QString {
-        switch (st) {
-        case 0: return tr("家具");
-        case 1: return tr("拾取物");
-        case 2: return tr("武器");
-        case 3: return tr("车辆");
-        case 4: return tr("特殊拾取");
-        default: return QString(tr("子类型%1")).arg(st);
-        }
-    };
-
-    int row = 0;
-    for (int i = 0; i < m_thingCache.size(); ++i) {
-        const auto &th = m_thingCache[i];
+    // 按过滤条件筛选可见实体
+    QVector<ThingData> visible;
+    visible.reserve(m_thingCache.size());
+    for (const auto &th : m_thingCache) {
         if (th.id == 0) continue;
         if (m_entityAreaFilter >= 0 && th.mapid != m_entityAreaFilter) continue;
-        qint8 ty = th.type[0];
-        qint8 sub = th.type[1];
-        if (m_entityTypeFilter >= 0 && m_entityTypeFilter <= 4 && ty != m_entityTypeFilter) continue;
-        if (m_entityTypeFilter >= 5 && (ty != 3 || sub + 5 != m_entityTypeFilter)) continue;
-
-        t->insertRow(row);
-        QTableWidgetItem *idItem = new QTableWidgetItem(QString::number(th.id));
-        idItem->setData(Qt::UserRole, i);
-        t->setItem(row, 0, idItem);
-        t->setItem(row, 1, new QTableWidgetItem(typeName(ty)));
-        t->setItem(row, 2, new QTableWidgetItem(ty == 3 ? subName(sub) : typeName(ty)));
-        t->setItem(row, 3, new QTableWidgetItem(QString::number(th.mapid)));
-        t->setItem(row, 4, new QTableWidgetItem("0x" + QString::number(th.addr, 16).toUpper()));
-        ++row;
+        visible.append(th);
     }
 
-    ui->entityCountLabel->setText(QString(tr("实体: %1")).arg(row));
-    if (selIdx >= 0)
-        for (int r = 0; r < t->rowCount(); ++r)
-            if (t->item(r, 0)->data(Qt::UserRole).toInt() == selIdx) {
-                t->selectRow(r);
-                break;
-            }
-    if (t->verticalScrollBar())
-        t->verticalScrollBar()->setValue(scrollPos);
-}
+    // 动态刷新区域组合框：只保留"全部" + 实际存在的区域
+    {
+        QSet<int> areaSet;
+        for (const auto &th : m_thingCache)
+            if (th.id != 0)
+                areaSet.insert(th.mapid);
 
-void MainWindow::refreshEntityData(int ei)
-{
-    if (ei < 0 || ei >= m_thingCache.size()) return;
-    const auto &th = m_thingCache[ei];
-    m_updatingUI = true;
+        if (areaSet.size() != ui->entityAreacomboBox->count() - 1) {
+            int prevArea = m_entityAreaFilter;
+            ui->entityAreacomboBox->blockSignals(true);
+            ui->entityAreacomboBox->clear();
+            ui->entityAreacomboBox->addItem(tr("全部"), -1);
+            QList<int> areas = areaSet.values();
+            std::sort(areas.begin(), areas.end());
+            for (int a : areas)
+                ui->entityAreacomboBox->addItem(QString(tr("区域%1")).arg(a), a);
+            int restoreIdx = 0;
+            for (int i = 0; i < ui->entityAreacomboBox->count(); ++i)
+                if (ui->entityAreacomboBox->itemData(i).toInt() == prevArea) { restoreIdx = i; break; }
+            ui->entityAreacomboBox->setCurrentIndex(restoreIdx);
+            m_entityAreaFilter = ui->entityAreacomboBox->itemData(restoreIdx).toInt();
+            ui->entityAreacomboBox->blockSignals(false);
+        }
+    }
 
-    ui->noCollidecheckBox->setChecked(th.nocollide);
-    ui->unSeencheckBox->setChecked(th.vision[0]);
-    ui->inVisiblecheckBox->setChecked(th.vision[1]);
-    ui->glowcheckBox->setChecked(th.glow);
-    ui->noHitcheckBox->setChecked(th.no_hit);
-    ui->noPickupcheckBox->setChecked(th.nopick);
-    ui->posXdoubleSpinBox->setValue(static_cast<double>(th.vec3d[0][0]));
-    ui->posYdoubleSpinBox->setValue(static_cast<double>(th.vec3d[0][1]));
-    ui->posZdoubleSpinBox->setValue(static_cast<double>(th.vec3d[0][2]));
-    ui->velXdoubleSpinBox->setValue(static_cast<double>(th.vec3d[1][0]));
-    ui->velYdoubleSpinBox->setValue(static_cast<double>(th.vec3d[1][1]));
-    ui->velZdoubleSpinBox->setValue(static_cast<double>(th.vec3d[1][2]));
-    ui->massdoubleSpinBox->setValue(static_cast<double>(th.phy[0]));
-    ui->frictiondoubleSpinBox->setValue(static_cast<double>(th.phy[1]));
-    ui->bounceFrictiondoubleSpinBox->setValue(static_cast<double>(th.phy[2]));
-    ui->hitpointsspinBox->setValue(th.hitpoints);
-    ui->spriteIdspinBox->setValue(th.spriteid);
-    ui->aiStatespinBox->setValue(static_cast<int>(th.ai_state));
-    ui->aiWaitspinBox->setValue(static_cast<int>(th.ai_wait));
-    m_updatingUI = false;
+    // 读取区域元数据，计算场景偏移
+    QSet<int> visibleRegions;
+    for (const auto &th : visible)
+        visibleRegions.insert(th.mapid);
+
+    int maxMapId = 0;
+    for (int mapid : visibleRegions)
+        maxMapId = std::max(maxMapId, static_cast<int>(mapid));
+
+    QList<MapAreaData> areaMetas = m_gameData->readAllMapAreas(maxMapId);
+
+    m_regionOffsets.clear();
+    const qreal margin = 40.0;
+    const int columns = 3;
+    qreal cursorX = margin;
+    qreal cursorY = margin;
+    qreal rowHeight = 0.0;
+
+    QList<int> sortedRegions = visibleRegions.values();
+    std::sort(sortedRegions.begin(), sortedRegions.end());
+
+    QHash<int, QSizeF> regionSizes;
+    for (int mapid : sortedRegions) {
+        MapAreaData meta = (mapid < areaMetas.size()) ? areaMetas[mapid] : MapAreaData();
+        qreal w = meta.pixel_width > 0 ? meta.pixel_width : (meta.width * meta.tile_width);
+        qreal h = meta.pixel_height > 0 ? meta.pixel_height : (meta.height * meta.tile_height);
+        if (w <= 0) w = 1024.0;
+        if (h <= 0) h = 1024.0;
+        const qreal scaleX = (meta.scale_x > 0) ? meta.scale_x : 1.0;
+        const qreal scaleY = (meta.scale_y > 0) ? meta.scale_y : 1.0;
+        w *= scaleX;
+        h *= scaleY;
+        regionSizes.insert(mapid, QSizeF(w, h));
+    }
+
+    // 网格布局各区域
+    int col = 0;
+    for (int i = 0; i < sortedRegions.size(); ++i) {
+        const int mapid = sortedRegions[i];
+        const QSizeF sz = regionSizes[mapid];
+        m_regionOffsets.insert(mapid, QPointF(cursorX, cursorY));
+        rowHeight = std::max(rowHeight, sz.height());
+        ++col;
+        if (col >= columns && i + 1 < sortedRegions.size()) {
+            cursorX = margin;
+            cursorY += rowHeight + margin;
+            rowHeight = 0.0;
+            col = 0;
+        } else {
+            cursorX += sz.width() + margin;
+        }
+    }
+
+    m_regionSizes = regionSizes;
+
+    // 重建场景
+    m_entityScene->clear();
+
+    // 绘制区域背景
+    for (int mapid : sortedRegions) {
+        const QPointF origin = m_regionOffsets[mapid];
+        const QSizeF sz = regionSizes[mapid];
+        QGraphicsRectItem *rect = m_entityScene->addRect(origin.x(), origin.y(), sz.width(), sz.height(),
+                                                         QPen(QColor(80, 80, 80)), QBrush(QColor(35, 35, 35)));
+        rect->setZValue(-10);
+
+        QGraphicsSimpleTextItem *label = m_entityScene->addSimpleText(QString(tr("区域%1")).arg(mapid));
+        label->setBrush(QColor(200, 200, 200));
+        label->setPos(origin.x() + 4, origin.y() + 4);
+        label->setZValue(-9);
+    }
+
+    // 绘制实体图标
+    for (const auto &th : visible) {
+        const QPointF origin = m_regionOffsets.value(th.mapid, QPointF(0, 0));
+        const int iconIdx = iconIndexForThing(th);
+        QPixmap pix(QString("./Icons/%1.png").arg(iconIdx));
+        if (pix.isNull())
+            pix = QPixmap(24, 24);
+
+        QGraphicsPixmapItem *item = m_entityScene->addPixmap(pix);
+        item->setOffset(-pix.width() / 2.0, -pix.height() / 2.0);
+        item->setPos(origin.x() + th.vec3d[0][0], origin.y() + th.vec3d[0][1]);
+        item->setData(0, QVariant::fromValue(th.addr));
+        item->setData(1, QVariant::fromValue(th.id));
+        item->setFlag(QGraphicsItem::ItemIsSelectable, m_entityMode == SelectMode);
+        item->setToolTip(QString("ID: %1 | %2 | 区域%3\nX: %4 Y: %5 Z: %6")
+                             .arg(th.id)
+                             .arg(th.typeString)
+                             .arg(th.mapid)
+                             .arg(th.vec3d[0][0], 0, 'f', 1)
+                             .arg(th.vec3d[0][1], 0, 'f', 1)
+                             .arg(th.vec3d[0][2], 0, 'f', 1));
+
+        // 中心实体高亮标记
+        if (th.addr == m_selectedThingAddr) {
+            QGraphicsEllipseItem *marker = m_entityScene->addEllipse(-16, -16, 32, 32,
+                QPen(QColor(255, 200, 0), 3), QBrush(QColor(255, 200, 0, 60)));
+            marker->setPos(item->pos());
+            marker->setZValue(10);
+            marker->setAcceptedMouseButtons(Qt::NoButton);
+            marker->setFlag(QGraphicsItem::ItemIsSelectable, false);
+        }
+    }
+
+    ui->entityCountLabel->setText(QString(tr("实体: %1")).arg(visible.size()));
 }
 
 // ==================== 实体操作 ====================
-void MainWindow::onSetTargetEntity()
-{
-    int e = m_thingCache[selectedEntityIndex()].id;
-    if (e >= 0 && m_targetEntityId != e) {
-        m_targetEntityId = e;
-        statusBar()->showMessage(QString(tr("目标: ID=%1, 索引=%2")).arg(m_thingCache[e].id).arg(e));
-        ui->setTargetpushButton->setStyleSheet("background-color:lightgreen;");
-    } else {
-        ui->setTargetpushButton->setStyleSheet("background-color:transparent;");
-        m_targetEntityId = -1;
+void MainWindow::onEntityMenu(const QPoint &pos){
+    // pos 为 viewport 坐标，转成场景坐标供"新建"使用
+    const QPointF scenePos = ui->entitygraphicsView->mapToScene(pos);
+
+    QGraphicsItem *clickedItem = ui->entitygraphicsView->itemAt(pos);
+    quint64 clickedAddr = 0;
+    if (clickedItem)
+        clickedAddr = clickedItem->data(0).toULongLong();
+
+    // 未命中实体但命中背景/标记时，尝试取最上层实体图元
+    if (clickedAddr == 0) {
+        for (auto *item : ui->entitygraphicsView->items(pos)) {
+            const quint64 a = item->data(0).toULongLong();
+            if (a != 0) { clickedAddr = a; break; }
+        }
     }
+
+    // 收集操作对象：若有选中实体则用选中集，否则退化为本次点击的实体
+    QList<quint64> selAddrs = selectedEntityAddrs();
+    if (clickedAddr != 0 && !selAddrs.contains(clickedAddr))
+        selAddrs.clear();
+    if (selAddrs.isEmpty() && clickedAddr != 0)
+        selAddrs.append(clickedAddr);
+
+    QMenu entitytableViewMenu(this);
+    QList<QAction*> flagActs;
+    QList<bool> flagBools = {true, true, true, true, true, true};
+    if (!selAddrs.isEmpty()) {
+        entitytableViewMenu.addAction(tr("设置为中心"), this, [this, clickedAddr]() {
+            m_selectedThingAddr = clickedAddr;
+            statusBar()->showMessage(QString(tr("已设置中心实体: 0x%1"))
+                .arg(QString::number(m_selectedThingAddr, 16).toUpper()));
+            refreshEntityView();
+        });
+
+        QMenu *flagMenu = entitytableViewMenu.addMenu(tr("标志"));
+        flagActs.append(flagMenu->addAction(tr("无碰撞")));
+        flagActs.append(flagMenu->addAction(tr("隐身")));
+        flagActs.append(flagMenu->addAction(tr("不绘制")));
+        flagActs.append(flagMenu->addAction(tr("不可被击中")));
+        flagActs.append(flagMenu->addAction(tr("不可拾取")));
+        flagActs.append(flagMenu->addAction(tr("发光")));
+        for (QAction *act : flagActs)
+            act->setCheckable(true);
+        for (quint64 addr : selAddrs) {
+            ThingData *cur = thingByAddr(addr);
+            if (!cur) continue;
+            flagBools[0] &= (cur->nocollide != 0);
+            flagBools[1] &= (cur->vision[0] != 0);
+            flagBools[2] &= (cur->vision[1] != 0);
+            flagBools[3] &= (cur->no_hit != 0);
+            flagBools[4] &= (cur->nopick != 0);
+            flagBools[5] &= (cur->glow != 0);
+        }
+        flagActs[0]->setChecked(flagBools[0]);
+        flagActs[1]->setChecked(flagBools[1]);
+        flagActs[2]->setChecked(flagBools[2]);
+        flagActs[3]->setChecked(flagBools[3]);
+        flagActs[4]->setChecked(flagBools[4]);
+        flagActs[5]->setChecked(flagBools[5]);
+
+        entitytableViewMenu.addSeparator();
+        entitytableViewMenu.addAction(tr("修改位置"), this, [this, clickedAddr]() { onEditEntityPosition(clickedAddr); });
+        entitytableViewMenu.addAction(tr("修改速度"), this, [this, clickedAddr]() { onEditEntityVelocity(clickedAddr); });
+        entitytableViewMenu.addAction(tr("修改物理"), this, [this, clickedAddr]() { onEditEntityPhysics(clickedAddr); });
+        entitytableViewMenu.addAction(tr("修改其他"), this, [this, clickedAddr]() { onEditEntityOther(clickedAddr); });
+        entitytableViewMenu.addSeparator();
+        entitytableViewMenu.addAction(tr("销毁"), this, &MainWindow::onDestoryEntity);
+        entitytableViewMenu.addAction(tr("传送至中心"), this, &MainWindow::onTeleportToTarget);
+        entitytableViewMenu.addAction(tr("随机交换"), this, &MainWindow::onSwapEntityPositions);
+        entitytableViewMenu.addAction(tr("克隆"), this, &MainWindow::onCloneEntity);
+        entitytableViewMenu.addSeparator();
+    }
+
+    QMenu entitytableViewNewMenu(tr("新建"), this);
+    QList<QAction*> newactions;
+    newactions.append(entitytableViewNewMenu.addAction(tr("人类")));
+    newactions.append(entitytableViewNewMenu.addAction(tr("僵尸")));
+    newactions.append(entitytableViewNewMenu.addAction(tr("物品")));
+    newactions.append(entitytableViewNewMenu.addAction(tr("抛射物")));
+    newactions.append(entitytableViewNewMenu.addAction(tr("家具")));
+    newactions.append(entitytableViewNewMenu.addAction(tr("拾取物")));
+    newactions.append(entitytableViewNewMenu.addAction(tr("武器")));
+    newactions.append(entitytableViewNewMenu.addAction(tr("车辆")));
+    newactions.append(entitytableViewNewMenu.addAction(tr("特殊拾取")));
+    entitytableViewMenu.addMenu(&entitytableViewNewMenu);
+
+    // 模态菜单期间暂停定时刷新，避免模型重建
+    bool timerWasActive = m_refreshTimer->isActive();
+    m_refreshTimer->stop();
+
+    QAction *selectedAction = entitytableViewMenu.exec(ui->entitygraphicsView->viewport()->mapToGlobal(pos));
+
+    if (timerWasActive)
+        m_refreshTimer->start();
+
+    if (!selectedAction) return;
+
+    if (flagActs.contains(selectedAction)) {
+        int flagIdx = flagActs.indexOf(selectedAction);
+        applyEntityFlagsToAddrs(selAddrs, selectedAction->isChecked(), static_cast<quint8>(flagIdx));
+    } else if (newactions.contains(selectedAction)) {
+        spawnEntityAt(newactions.indexOf(selectedAction) + 1, scenePos);
+        //refreshEntityView();
+    }
+}
+
+void MainWindow::onEditEntityPosition(quint64 addr)
+{
+    if (!addr || !isAttached()) return;
+    ThingData cur = m_gameData->readThing(addr);
+
+    QDialog dlg(this);
+    dlg.setWindowTitle(tr("修改位置"));
+    QFormLayout *form = new QFormLayout(&dlg);
+
+    QSpinBox *areaSb = new QSpinBox(&dlg);
+    areaSb->setRange(-128, 127);
+    areaSb->setValue(cur.mapid);
+    form->addRow(tr("区域"), areaSb);
+
+    auto makeDSpin = [&dlg](double v) {
+        QDoubleSpinBox *sb = new QDoubleSpinBox(&dlg);
+        sb->setDecimals(3);
+        sb->setRange(-65535.0, 65535.0);
+        sb->setValue(v);
+        return sb;
+    };
+    QDoubleSpinBox *x = makeDSpin(static_cast<double>(cur.vec3d[0][0]));
+    QDoubleSpinBox *y = makeDSpin(static_cast<double>(cur.vec3d[0][1]));
+    QDoubleSpinBox *z = makeDSpin(static_cast<double>(cur.vec3d[0][2]));
+    form->addRow(tr("坐标X"), x);
+    form->addRow(tr("坐标Y"), y);
+    form->addRow(tr("坐标Z"), z);
+
+    QDialogButtonBox *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    connect(box, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    connect(box, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    form->addRow(box);
+
+    bool timerWasActive = m_refreshTimer->isActive();
+    m_refreshTimer->stop();
+    if (dlg.exec() == QDialog::Accepted) {
+        m_gameData->modifyThing(addr, [&](ThingData &th) {
+            th.mapid = static_cast<quint8>(areaSb->value());
+            th.vec3d[0][0] = static_cast<float>(x->value());
+            th.vec3d[0][1] = static_cast<float>(y->value());
+            th.vec3d[0][2] = static_cast<float>(z->value());
+        });
+        //refreshEntityView();
+    }
+    if (timerWasActive) m_refreshTimer->start();
+}
+
+void MainWindow::onEditEntityVelocity(quint64 addr)
+{
+    if (!addr || !isAttached()) return;
+    ThingData cur = m_gameData->readThing(addr);
+
+    QDialog dlg(this);
+    dlg.setWindowTitle(tr("修改速度"));
+    QFormLayout *form = new QFormLayout(&dlg);
+
+    auto makeDSpin = [&dlg](double v) {
+        QDoubleSpinBox *sb = new QDoubleSpinBox(&dlg);
+        sb->setDecimals(3);
+        sb->setRange(-65535.0, 65535.0);
+        sb->setValue(v);
+        return sb;
+    };
+    QDoubleSpinBox *x = makeDSpin(static_cast<double>(cur.vec3d[1][0]));
+    QDoubleSpinBox *y = makeDSpin(static_cast<double>(cur.vec3d[1][1]));
+    QDoubleSpinBox *z = makeDSpin(static_cast<double>(cur.vec3d[1][2]));
+    form->addRow(tr("速度X"), x);
+    form->addRow(tr("速度Y"), y);
+    form->addRow(tr("速度Z"), z);
+
+    QDialogButtonBox *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    connect(box, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    connect(box, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    form->addRow(box);
+
+    bool timerWasActive = m_refreshTimer->isActive();
+    m_refreshTimer->stop();
+    if (dlg.exec() == QDialog::Accepted) {
+        m_gameData->modifyThing(addr, [&](ThingData &th) {
+            th.vec3d[1][0] = static_cast<float>(x->value());
+            th.vec3d[1][1] = static_cast<float>(y->value());
+            th.vec3d[1][2] = static_cast<float>(z->value());
+        });
+        //refreshEntityView();
+    }
+    if (timerWasActive) m_refreshTimer->start();
+}
+
+void MainWindow::onEditEntityPhysics(quint64 addr)
+{
+    if (!addr || !isAttached()) return;
+    ThingData cur = m_gameData->readThing(addr);
+
+    QDialog dlg(this);
+    dlg.setWindowTitle(tr("修改物理"));
+    QFormLayout *form = new QFormLayout(&dlg);
+
+    auto makeDSpin = [&dlg](double v) {
+        QDoubleSpinBox *sb = new QDoubleSpinBox(&dlg);
+        sb->setDecimals(3);
+        sb->setRange(-65535.0, 65535.0);
+        sb->setValue(v);
+        return sb;
+    };
+    QDoubleSpinBox *mass = makeDSpin(static_cast<double>(cur.phy[0]));
+    QDoubleSpinBox *fric = makeDSpin(static_cast<double>(cur.phy[1]));
+    QDoubleSpinBox *boun = makeDSpin(static_cast<double>(cur.phy[2]));
+    form->addRow(tr("质量"), mass);
+    form->addRow(tr("摩擦力"), fric);
+    form->addRow(tr("弹跳力"), boun);
+
+    QDialogButtonBox *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    connect(box, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    connect(box, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    form->addRow(box);
+
+    bool timerWasActive = m_refreshTimer->isActive();
+    m_refreshTimer->stop();
+    if (dlg.exec() == QDialog::Accepted) {
+        m_gameData->modifyThing(addr, [&](ThingData &th) {
+            th.phy[0] = static_cast<float>(mass->value());
+            th.phy[1] = static_cast<float>(fric->value());
+            th.phy[2] = static_cast<float>(boun->value());
+        });
+        //refreshEntityView();
+    }
+    if (timerWasActive) m_refreshTimer->start();
+}
+
+void MainWindow::onEditEntityOther(quint64 addr)
+{
+    if (!addr || !isAttached()) return;
+    ThingData cur = m_gameData->readThing(addr);
+
+    QDialog dlg(this);
+    dlg.setWindowTitle(tr("修改其他"));
+    QFormLayout *form = new QFormLayout(&dlg);
+
+    QSpinBox *hp = new QSpinBox(&dlg);
+    hp->setRange(-65535, 65535);
+    hp->setValue(cur.hitpoints);
+    form->addRow(tr("生命值"), hp);
+
+    QSpinBox *sprite = new QSpinBox(&dlg);
+    sprite->setRange(0, 65535);
+    sprite->setValue(cur.spriteid);
+    form->addRow(tr("精灵图"), sprite);
+
+    QSpinBox *ai = new QSpinBox(&dlg);
+    ai->setRange(0, 65535);
+    ai->setValue(static_cast<int>(cur.ai_state));
+    form->addRow(tr("AI状态"), ai);
+
+    QDialogButtonBox *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    connect(box, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    connect(box, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    form->addRow(box);
+
+    bool timerWasActive = m_refreshTimer->isActive();
+    m_refreshTimer->stop();
+    if (dlg.exec() == QDialog::Accepted) {
+        m_gameData->modifyThing(addr, [&](ThingData &th) {
+            th.hitpoints = hp->value();
+            th.spriteid = static_cast<quint16>(sprite->value());
+            th.ai_state = static_cast<quint32>(ai->value());
+        });
+        //refreshEntityView();
+    }
+    if (timerWasActive) m_refreshTimer->start();
 }
 
 void MainWindow::onTeleportToTarget()
 {
-    int cur = selectedEntityIndex();
-    if (cur < 0 || m_targetEntityId < 0 || !isAttached()) {
-        QMessageBox::information(this, tr("提示"), tr("请先选择实体并设置目标"));
+    if (m_selectedThingAddr == 0 || !isAttached()) {
+        QMessageBox::information(this, tr("提示"), tr("请先设置中心实体"));
         return;
     }
-    const auto &target = m_thingCache[m_targetEntityId];
-    m_thingCache[cur] = m_gameData->modifyThing(cur, [&](ThingData &d) {
-        d.vec3d[0][0] = target.vec3d[0][0];
-        d.vec3d[0][1] = target.vec3d[0][1];
-        d.vec3d[0][2] = target.vec3d[0][2];
-        d.mapid = target.mapid;
-    });
-    refreshEntityData(cur);
-    statusBar()->showMessage(tr("已传送至目标"));
+    ThingData *target = thingByAddr(m_selectedThingAddr);
+    if (!target) {
+        QMessageBox::information(this, tr("提示"), tr("中心实体不存在"));
+        return;
+    }
+
+    QList<quint64> addrs = selectedEntityAddrs();
+    int count = 0;
+    for (quint64 addr : addrs) {
+        if (addr == m_selectedThingAddr) continue;
+        m_gameData->modifyThing(addr, [&](ThingData &d) {
+            d.vec3d[0][0] = target->vec3d[0][0];
+            d.vec3d[0][1] = target->vec3d[0][1];
+            d.vec3d[0][2] = target->vec3d[0][2];
+            d.mapid = target->mapid;
+        });
+        ++count;
+    }
+    if (count > 0) {
+        statusBar()->showMessage(QString(tr("已传送 %1 个实体至目标")).arg(count));
+        //refreshEntityView();
+    } else {
+        statusBar()->showMessage(tr("未选择要传送的实体"));
+    }
 }
 
 void MainWindow::onSwapEntityPositions()
 {
-    int cur = selectedEntityIndex();
-    if (cur < 0 || m_targetEntityId < 0 || !isAttached()) {
-        QMessageBox::information(this, tr("提示"), tr("请先选择实体并设置目标"));
+    if (!isAttached()) return;
+
+    QList<quint64> addrs = selectedEntityAddrs();
+    QList<ThingData*> entities;
+    for (quint64 addr : addrs) {
+        ThingData *th = thingByAddr(addr);
+        if (th)
+            entities.append(th);
+    }
+    if (entities.size() < 2) {
+        QMessageBox::information(this, tr("提示"), tr("请至少选择两个实体"));
         return;
     }
-    int target = m_targetEntityId;
-    // 暂存坐标
-    float posCur[3] = { m_thingCache[cur].vec3d[0][0], m_thingCache[cur].vec3d[0][1], m_thingCache[cur].vec3d[0][2] };
-    quint8 mapCur = m_thingCache[cur].mapid;
-    float posTgt[3] = { m_thingCache[target].vec3d[0][0], m_thingCache[target].vec3d[0][1], m_thingCache[target].vec3d[0][2] };
-    quint8 mapTgt = m_thingCache[target].mapid;
 
-    m_thingCache[cur] = m_gameData->modifyThing(cur, [&](ThingData &d) {
-        d.vec3d[0][0] = posTgt[0]; d.vec3d[0][1] = posTgt[1]; d.vec3d[0][2] = posTgt[2];
-        d.mapid = mapTgt;
-    });
-    m_thingCache[target] = m_gameData->modifyThing(target, [&](ThingData &d) {
-        d.vec3d[0][0] = posCur[0]; d.vec3d[0][1] = posCur[1]; d.vec3d[0][2] = posCur[2];
-        d.mapid = mapCur;
-    });
-    refreshEntityData(cur);
-    statusBar()->showMessage(tr("已交换位置"));
+    QVector<QVector<float>> positions;
+    QVector<quint8> maps;
+    for (ThingData *th : entities) {
+        QVector<float> pos;
+        pos.append(th->vec3d[0][0]);
+        pos.append(th->vec3d[0][1]);
+        pos.append(th->vec3d[0][2]);
+        positions.append(pos);
+        maps.append(th->mapid);
+    }
+
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(positions.begin(), positions.end(), g);
+    std::shuffle(maps.begin(), maps.end(), g);
+
+    for (int k = 0; k < entities.size(); ++k) {
+        m_gameData->modifyThing(entities[k]->addr, [&](ThingData &d) {
+            d.vec3d[0][0] = positions[k][0];
+            d.vec3d[0][1] = positions[k][1];
+            d.vec3d[0][2] = positions[k][2];
+            d.mapid = maps[k];
+        });
+    }
+
+    statusBar()->showMessage(QString(tr("已随机交换 %1 个实体的位置")).arg(entities.size()));
+    //refreshEntityView();
 }
 
 void MainWindow::onDestoryEntity()
 {
-    int idx = selectedEntityIndex();
-    if (idx < 0 || !isAttached() || idx >= m_thingCache.size()) return;
-    ThingData &th = m_thingCache[idx];
-    if (th.id == 0) return;
-    if (m_memMgr->FreeThing(th.addr)) {
-        th.id = 0;
-        refreshEntityList();
-        statusBar()->showMessage(tr("已销毁实体"));
+    if (!isAttached()) return;
+
+    QList<quint64> addrs = selectedEntityAddrs();
+    int count = 0;
+    for (quint64 addr : addrs) {
+        ThingData *th = thingByAddr(addr);
+        if (!th) continue;
+        if (m_memMgr->FreeThing(th->addr)) {
+            th->id = 0;
+            ++count;
+        }
+    }
+    if (count > 0) {
+        statusBar()->showMessage(QString(tr("已销毁 %1 个实体")).arg(count));
+        //refreshEntityView();
     } else {
         statusBar()->showMessage(tr("销毁实体失败"));
     }
 }
 
-void MainWindow::onSpawnEntity(){
-    int type = ui->spawnEntitycomboBox->currentData().toInt();
-    if (type < 1 || type > 9 || !isAttached()) return;
+quint64 MainWindow::onSpawnEntity(uint type){
+    if (type < 1 || type > 9 || !isAttached()) return -1;
 
-    bool ok;
+    quint64 thingPtr = 0;
     if (type == 1){
-        ok = m_memMgr->AllocateEntity(1);
-        quint32 lastID = m_gameData->GetLastEntityID() - 1;
-        m_memMgr->Assigncharactertothing(m_gameData->calcThingAddress(lastID), m_memMgr->AllocateCharacterSlot());
+        thingPtr = m_memMgr->AllocateEntity(1);
+        if (!thingPtr) {
+            statusBar()->showMessage(tr("生成实体失败"));
+            return -1;
+        }
+        quint32 charSlot = m_memMgr->AllocateCharacterSlot();
+        if (!charSlot) {
+            m_memMgr->FreeThing(thingPtr);
+            statusBar()->showMessage(tr("生成实体失败: 角色池已满"));
+            return -1;
+        }
+        m_memMgr->Assigncharactertothing(thingPtr, charSlot);
     }
     else if (type < 5){
-        ok = m_memMgr->AllocateEntity(type > 4 ? 3 : type);
+        thingPtr = m_memMgr->AllocateEntity(type > 4 ? 3 : type);
     }else{
-        ok = m_memMgr->AllocateThing(type - 5);
+        thingPtr = m_memMgr->AllocateThing(type - 5);
     }
-    if (ok)
+    if (thingPtr)
     {
         statusBar()->showMessage(tr("已生成实体"));
+        //refreshEntityView();
     }else{
         statusBar()->showMessage(tr("生成实体失败"));
     }
+    return thingPtr;
 }
+
+void MainWindow::onCloneEntity(){
+    if (!isAttached()) return;
+
+    QList<quint64> addrs = selectedEntityAddrs();
+    int count = 0;
+    for (quint64 addr : addrs) {
+        ThingData *th = thingByAddr(addr);
+        if (!th) continue;
+        quint64 newThingPtr = onSpawnEntity(th->type[0] == 3 ? th->type[1] + 5 : th->type[0]);
+        if (m_gameData->copyThing(th->addr, newThingPtr)) {
+            ++count;
+        }
+    }
+    if (count > 0) {
+        statusBar()->showMessage(QString(tr("已克隆 %1 个实体")).arg(count));
+        //refreshEntityView();
+    } else {
+        statusBar()->showMessage(tr("克隆实体失败"));
+    }
+}
+
 // ==================== 全局 ====================
 void MainWindow::onMissionChanged()
 {
     if (m_updatingUI || !isAttached()) return;
 
+    QStandardItemModel *resM = static_cast<QStandardItemModel*>(ui->missionResourcetableView->model());
     for (int i = 0; i < resourceNames.length(); ++i) {
-        auto *item = ui->missionResourcetableWidget->item(i, 1);
-        if (!item) continue;
         bool ok;
-        int v = item->text().toInt(&ok);
+        int v = resM->item(i, 1)->text().toInt(&ok);
         if (ok) m_missionCache.resource[i] = v;
     }
 
@@ -937,6 +1397,7 @@ void MainWindow::onCmdSend(){
         statusBar()->showMessage(tr("发送命令失败"));
     }
 }
+
 // ==================== 定时刷新 ====================
 void MainWindow::onRefreshTimerChara()
 {
@@ -965,17 +1426,8 @@ void MainWindow::onRefreshTimerChara()
 
 void MainWindow::onRefreshTimerEntity()
 {
-    int selEntity = selectedEntityIndex();
-    refreshEntityList();
-    if (selEntity >= 0) {
-        QTableWidget *t = ui->entitytableWidget;
-        for (int r = 0; r < t->rowCount(); ++r)
-            if (t->item(r, 0)->data(Qt::UserRole).toInt() == selEntity) {
-                t->selectRow(r);
-                refreshEntityData(selEntity);
-                break;
-            }
-    }
+    if (hasEditingFocus()) return;
+    refreshEntityView();
 }
 
 void MainWindow::onRefreshTimerMission()
@@ -987,19 +1439,20 @@ void MainWindow::onRefreshTimerMission()
 
     QList<QLineEdit*> missonCharapainTextEdits = ui->missionChara->findChildren<QLineEdit*>();
     for (int i = 0; i < missonCharapainTextEdits.length(); ++i) {
-        if (m_missionCache.player_char[i]) {
-            QString pName(QString::number(m_missionCache.player_char[i] - 1));
-            if (m_missionCache.player_char[i] - 1 < ui->charaSelcomboBox->count())
-                pName = QString("[#%1]%2").arg(pName, ui->charaSelcomboBox->itemText(m_missionCache.player_char[i] - 1));
+        if (m_missionCache.player_char[i] > 0) {
+            int charIdx = static_cast<int>(m_missionCache.player_char[i]) - 1;
+            QString pName(QString::number(charIdx));
+            if (charIdx < ui->charaSelcomboBox->count())
+                pName = QString("[#%1]%2").arg(pName, ui->charaSelcomboBox->itemText(charIdx));
             missonCharapainTextEdits[i]->setText(pName);
         } else {
             missonCharapainTextEdits[i]->setText(tr("无"));
         }
     }
 
-    for (int i = 0; i < 7; ++i)
-        if (ui->missionResourcetableWidget->item(i, 1))
-            ui->missionResourcetableWidget->item(i, 1)->setText(QString::number(m_missionCache.resource[i]));
+    QStandardItemModel *resM = static_cast<QStandardItemModel*>(ui->missionResourcetableView->model());
+    for (int i = 0; i < resourceNames.length(); ++i)
+        resM->item(i, 1)->setText(QString::number(m_missionCache.resource[i]));
 
     QGridLayout *grid = qobject_cast<QGridLayout*>(ui->missionWeapon->layout());
     if (grid) {

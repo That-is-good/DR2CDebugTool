@@ -11,6 +11,7 @@ qt_add_executable(DR2CDebugTool
     mainwindow.cpp
     mainwindow.h
     mainwindow.ui
+    #resources.qrc
     Memory/memorymanager.h
     Memory/memorymanager.cpp
     Memory/gamedatareader.h
@@ -22,6 +23,7 @@ qt_add_executable(DR2CDebugTool
     Setting/addrsetting.h
     Setting/addrsetting.cpp
     Setting/addrsetting.ui
+
 )
 
 qt_add_translations(

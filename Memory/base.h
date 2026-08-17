@@ -5,7 +5,7 @@ struct ThingData {
 
     // 0x02 类型 子类型 
     quint8 type[2];
-
+    QString typeString;
     
     quint8 mapid = 0; // 0x04 地图ID
 
@@ -34,7 +34,6 @@ struct ThingData {
     quint8 no_hit = 0; // 0x27a 不可被击中
 
     quint32 ai_state = 0; // 0x288 AI状态
-    qint32 ai_wait = 0; // 0x2a8 AI等待
 
     quint64 addr = 0;
 };
@@ -67,6 +66,26 @@ struct CharacterData {
     qint32 weaponslots[3][3] = {0};
 
     quint64 addr = 0;
+};
+
+
+
+struct MapAreaData {
+    quint32 resource_id = 0;   // 0x00
+    // quint8* cell_data;       // 0x04 略
+    qint32 width = 0;          // 0x08 列数
+    qint32 height = 0;         // 0x0C 行数
+    qint32 tile_width = 0;     // 0x10 格子宽度（像素）
+    qint32 tile_height = 0;    // 0x14 格子高度（像素）
+    float scale_x = 1.0f;      // 0x18 渲染缩放X
+    float scale_y = 1.0f;      // 0x1C 渲染缩放Y
+    qint32 pixel_width = 0;    // 0x20 = width * tile_width
+    qint32 pixel_height = 0;   // 0x24 = height * tile_height
+    // qint32 screen_off_x;     // 0x28
+    // qint32 screen_off_y;     // 0x2C
+    // void* render_callback;   // 0x30
+
+    bool valid() const { return width > 0 && height > 0; }
 };
 
 struct MissionStateData {

@@ -59,75 +59,6 @@
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2">
        <item>
-        <widget class="QGroupBox" name="CharagroupBox">
-         <property name="title">
-          <string>角色</string>
-         </property>
-         <layout class="QFormLayout" name="formLayout">
-          <item row="1" column="0">
-           <widget class="QLabel" name="CharaOffsetLabel">
-            <property name="text">
-             <string>偏移(Hex)</string>
-            </property>
-           </widget>
-          </item>
-          <item row="5" column="0">
-           <widget class="QLabel" name="CharaLengthLabel">
-            <property name="text">
-             <string>数量</string>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="0">
-           <widget class="QLabel" name="CharaSizeLabel">
-            <property name="text">
-             <string>大小(Hex)</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="QSpinBox" name="CharaOffsetspinBox">
-            <property name="minimum">
-             <number>0</number>
-            </property>
-            <property name="maximum">
-             <number>2147483647</number>
-            </property>
-            <property name="value">
-             <number>6170072</number>
-            </property>
-            <property name="displayIntegerBase">
-             <number>16</number>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="1">
-           <widget class="QSpinBox" name="CharaSizespinBox">
-            <property name="maximum">
-             <number>65535</number>
-            </property>
-            <property name="value">
-             <number>736</number>
-            </property>
-            <property name="displayIntegerBase">
-             <number>16</number>
-            </property>
-           </widget>
-          </item>
-          <item row="5" column="1">
-           <widget class="QSpinBox" name="CharaLengthspinBox">
-            <property name="maximum">
-             <number>32767</number>
-            </property>
-            <property name="value">
-             <number>256</number>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-       </item>
-       <item>
         <widget class="QGroupBox" name="EntitygroupBox">
          <property name="title">
           <string>实体</string>
@@ -265,7 +196,56 @@
           <string>任务</string>
          </property>
          <layout class="QFormLayout" name="formLayout_4">
-          <item row="1" column="0">
+          <item row="2" column="1">
+           <widget class="QGroupBox" name="CharagroupBox">
+            <property name="title">
+             <string>角色</string>
+            </property>
+             <layout class="QFormLayout" name="formLayout">
+              <item row="0" column="0">
+               <widget class="QLabel" name="CharaSizeLabel">
+                <property name="text">
+                 <string>大小(Hex)</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="QSpinBox" name="CharaSizespinBox">
+                <property name="maximum">
+                 <number>65535</number>
+                </property>
+                <property name="value">
+                 <number>736</number>
+                </property>
+                <property name="displayIntegerBase">
+                 <number>16</number>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="0">
+               <widget class="QLabel" name="CharaLengthLabel">
+                <property name="text">
+                 <string>数量</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="1">
+               <widget class="QSpinBox" name="CharaLengthspinBox">
+                <property name="maximum">
+                 <number>32767</number>
+                </property>
+                <property name="value">
+                 <number>255</number>
+                </property>
+                <property name="displayIntegerBase">
+                 <number>10</number>
+                </property>
+               </widget>
+              </item>
+             </layout>
+           </widget>
+          </item>
+          <item row="0" column="1">
            <widget class="QLabel" name="MissonOffsetLabel">
             <property name="text">
              <string>偏移(Hex)</string>

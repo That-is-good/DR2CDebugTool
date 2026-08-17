@@ -5,9 +5,9 @@
 #include <QTimer>
 #include <QList>
 #include <QVector>
+#include <QHash>
 #include <QStringList>
 #include <QModelIndex>
-#include <QTableWidget>
 #include <QTableView>
 #include <QStandardItemModel>
 #include <QHeaderView>
@@ -25,17 +25,22 @@
 #include <QScrollBar>
 #include <QCoreApplication>
 #include <QDir>
+#include <QMenu>
+#include <QBrush>
+#include <QColor>
+#include <QGraphicsScene>
+#include <QGraphicsView>
+#include <QPixmap>
+#include <QPointF>
+#include <QSet>
 
 #include "Setting/addrsetting.h"
 #include "Memory/gamedatareader.h"
 #include "Memory/memorymanager.h"
 #include "Delegates/spinboxdelegate.h"
 #include "WeaponDialog/weapondialog.h"
-#include "ui_mainwindow.h"
 
-QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
-QT_END_NAMESPACE
 
 class MemoryManager;
 
@@ -46,6 +51,9 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow() override;
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private slots:
     // 设置 / 进程
@@ -63,20 +71,21 @@ private slots:
     void onCharacterResourceChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight);
     void onCharacterWeaponChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight);
 
-    // 实体 - 合并槽
-    void onEntityTypeFilterChanged(int index);
+    // 实体 - 过滤 / 模式
     void onEntityAreaFilterChanged(int index);
-    void onEntityTableSelectionChanged();
-    void onEntityCheckBoxToggled();
-    void onEntityDoubleSpinBoxChanged();
-    void onEntitySpinBoxChanged();
+    void onEntityModeChanged();
 
     // 实体操作
-    void onSetTargetEntity();
+    void onEntityMenu(const QPoint &);
+    void onEditEntityPosition(quint64 addr);
+    void onEditEntityVelocity(quint64 addr);
+    void onEditEntityPhysics(quint64 addr);
+    void onEditEntityOther(quint64 addr);
     void onTeleportToTarget();
     void onSwapEntityPositions();
     void onDestoryEntity();
-    void onSpawnEntity();
+    quint64 onSpawnEntity(uint);
+    void onCloneEntity();
 
     // 全局
     void onMissionChanged();
@@ -95,7 +104,7 @@ private slots:
 private:
     void setupUI();
     void setupConnections();
-    void setupEntityTable();
+    void setupEntityView();
     void setupCharacterStatTable();
     void setupCharacterResourceTable();
     void setupCharacterWeaponTable();
@@ -106,13 +115,22 @@ private:
     void refreshAll();
     void refreshProcessList();
     void refreshCharacterData(int charIndex);
-    void refreshEntityList();
-    void refreshEntityData(int entityIndex);
+    void refreshEntityView();
 
     // 辅助
     void setControlsEnabled(bool enabled);
     int selectedCharacterIndex() const;
-    int selectedEntityIndex() const;
+
+    // 实体以内存地址为唯一标识
+    quint64 selectedEntityAddr() const;          // 当前选中实体地址
+    QList<quint64> selectedEntityAddrs() const;  // 所有选中实体地址
+    ThingData *thingByAddr(quint64 addr);        // 地址 → m_thingCache 实体
+    void applyEntityFlagsToAddrs(const QList<quint64> &addrs, bool set, quint8 flag);
+    int iconIndexForThing(const ThingData &th) const;
+    int regionFromScenePos(const QPointF &scenePos) const;
+    void moveEntityToScenePos(quint64 addr, const QPointF &scenePos);
+    quint64 spawnEntityAt(uint type, const QPointF &scenePos);
+
     bool isAttached() const;
     bool hasEditingFocus() const;
 
@@ -122,14 +140,26 @@ private:
     GameDataReader *m_gameData;
     QTimer *m_refreshTimer;
 
-    QList<ThingData> m_thingCache;
+    QGraphicsScene *m_entityScene = nullptr;
+    QVector<ThingData> m_thingCache;             // 固定大小实体池，下标即池索引
+    QHash<int, QPointF> m_regionOffsets;         // 区域ID → 场景原点偏移
+    QHash<int, QSizeF> m_regionSizes;            // 区域ID → 场景区域尺寸
+
+    // 拖拽实体状态
+    bool m_draggingEntity = false;
+    quint64 m_dragAddr = 0;
+    QGraphicsItem *m_dragItem = nullptr;
+    QPointF m_dragOffset;
+
     QList<CharacterData> m_charCache;
     MissionStateData m_missionCache;
     QStringList m_weaponNames;
 
-    int m_entityTypeFilter = -1;
+    enum EntityMode { SelectMode, ResizeMode, MoveMode };
+    EntityMode m_entityMode = SelectMode;
+
+    quint64 m_selectedThingAddr = 0;             // 唯一的中心实体地址
     int m_entityAreaFilter = -1;
-    int m_targetEntityId = -1;
 
     QList<QString> resourceNames;
     QList<QString> statNames;

@@ -19,9 +19,10 @@ void GameDataReader::setModuleBase(quint64 moduleBase)
 
 void GameDataReader::SetOffset(QList<quint64> offset){
     m_thingPoolBase = offset[0];
-    m_charPoolBase = offset[1];
-    m_weaponPoolBase = offset[2];
-    m_missionStateBase = offset[3];
+    m_weaponPoolBase = offset[1];
+    m_missionStateBase = offset[2];
+    // 角色池嵌入在 mission_state 中 (missionStateBase + 0xC0)，非独立池
+    m_charPoolBase = m_missionStateBase + 0xC0;
 }
 
 void GameDataReader::SetSize(QList<quint32> size){
@@ -36,16 +37,11 @@ void GameDataReader::SetLength(QList<quint16> length){
     WEAPON_LENGTH = length[2];
 }
 
-quint64 GameDataReader::calcThingAddress(qint32 index) const
-{
-    if (index < 0 || index >= maxThings()) return 0;
-    return m_moduleBase + m_thingPoolBase + static_cast<quint64>(index) * THING_SIZE;
-}
-
 quint64 GameDataReader::calcCharacterAddress(qint32 index) const
 {
     if (index < 0 || index >= maxCharacters()) return 0;
-    return m_moduleBase + m_charPoolBase + static_cast<quint64>(index) * CHARACTER_SIZE;
+    // 角色池槽0不存储角色，有效角色从槽1开始，索引0对应槽1
+    return m_moduleBase + m_charPoolBase + static_cast<quint64>(index + 1) * CHARACTER_SIZE;
 }
 
 quint64 GameDataReader::calcWeaponAddress(qint32 index) const
@@ -69,6 +65,14 @@ qint32 GameDataReader::GetCurrentMapID(){
     return mapid;
 }
 
+bool GameDataReader::SetCurrentMapID(qint32 mapid){
+    if (!m_memMgr->write<qint32>(m_moduleBase + m_currentMapIdBase, mapid))
+    {
+        return false;
+    }
+    return true;
+}
+
 qint32 GameDataReader::GetLastEntityID(){
     qint32 entityid;
     if (!m_memMgr->read<qint32>(m_moduleBase + m_lastEntityIdBase, entityid))
@@ -78,16 +82,48 @@ qint32 GameDataReader::GetLastEntityID(){
     return entityid;
 }
 
+qint32 GameDataReader::GetLeaderThingID(){
+    qint32 entityid;
+    if (!m_memMgr->read<qint32>(m_missionStateBase + 0x00, entityid))
+    {
+        entityid = -1;
+    }
+    return entityid;
+}
+
+QString GameDataReader::GettypeName(qint8 ty){
+    switch (ty) {
+    case 1: return tr("人类");
+    case 2: return tr("僵尸");
+    //case 3: return tr("物品");
+    case 4: return tr("抛射物");
+    default: return QString(tr("类型%1")).arg(ty);
+    }
+}
+
+QString GameDataReader::GetsubName(qint8 ty, qint8 st){
+    if (ty != 3) return GettypeName(ty);
+    switch (st) {
+    case 0: return tr("物品");
+    case 1: return tr("拾取物");
+    case 2: return tr("武器");
+    case 3: return tr("车辆");
+    case 4: return tr("特殊拾取");
+    default: return QString(tr("子类型%1")).arg(st);
+    }
+}
+
 // ==================== 实体 ====================
-ThingData GameDataReader::readThing(qint32 index) const
+ThingData GameDataReader::readThing(quint64 addr)
 {
     ThingData data;
-    quint64 addr = calcThingAddress(index);
     if (!addr || !isAttached()) return data;
 
     m_memMgr->read<quint16>(addr + 0x00, data.id);
 
     m_memMgr->readMemory(addr + 0x02, data.type, sizeof(quint8) * 2);
+    
+    data.typeString = GetsubName(data.type[0], data.type[1]);
 
     m_memMgr->read<quint8>(addr + 0x04, data.mapid);
 
@@ -105,14 +141,13 @@ ThingData GameDataReader::readThing(qint32 index) const
     m_memMgr->read<quint16>(addr + 0xD8, data.spriteid);
     m_memMgr->read<qint32>(addr + 0x254, data.hitpoints);
     m_memMgr->read<quint32>(addr + 0x288, data.ai_state);
-    m_memMgr->read<qint32>(addr + 0x2A8, data.ai_wait);
 
     data.addr = addr;
 
     return data;
 }
 
-QList<ThingData> GameDataReader::readAllThings() const
+QList<ThingData> GameDataReader::readAllThings()
 {
     QList<ThingData> list;
     if (!isAttached() || !m_moduleBase) return list;
@@ -122,7 +157,7 @@ QList<ThingData> GameDataReader::readAllThings() const
     QByteArray pool(poolSize, '\0');
     if (!m_memMgr->readMemory(m_moduleBase + m_thingPoolBase, pool.data(), poolSize)) {
         for (qint32 i = 0; i < maxThings(); ++i)
-            list.append(readThing(i));
+            list.append(readThing(m_moduleBase + m_thingPoolBase + static_cast<quint64>(i) * THING_SIZE));
         return list;
     }
 
@@ -133,6 +168,7 @@ QList<ThingData> GameDataReader::readAllThings() const
 
         memcpy(&data.id, p + 0x00, sizeof(quint16));
         memcpy(data.type, p + 0x02, sizeof(quint8) * 2);   // type, subtype
+        data.typeString = GetsubName(data.type[0], data.type[1]);
         data.mapid = p[0x04];
         memcpy(data.vec3d, p + 0x2C, sizeof(float) * 6);    // pos + vel
         memcpy(data.phy, p + 0x58, sizeof(float) * 3);      // mass, friction, bounce
@@ -145,7 +181,6 @@ QList<ThingData> GameDataReader::readAllThings() const
         memcpy(&data.spriteid, p + 0xD8, sizeof(quint16));
         memcpy(&data.hitpoints, p + 0x254, sizeof(qint32));
         memcpy(&data.ai_state, p + 0x288, sizeof(quint32));
-        memcpy(&data.ai_wait, p + 0x2A8, sizeof(qint32));
 
         data.addr = m_moduleBase + m_thingPoolBase + static_cast<quint64>(i) * THING_SIZE;
 
@@ -177,17 +212,87 @@ bool GameDataReader::writeThing(quint64 addr, const ThingData &data)
     ok &= m_memMgr->write<quint16>(addr + 0xD8, data.spriteid);
     ok &= m_memMgr->write<qint32>(addr + 0x254, data.hitpoints);
     ok &= m_memMgr->write<quint32>(addr + 0x288, data.ai_state);
-    ok &= m_memMgr->write<qint32>(addr + 0x2A8, data.ai_wait);
 
     return ok;
 }
 
-ThingData GameDataReader::modifyThing(qint32 index, std::function<void(ThingData&)> modifier)
+ThingData GameDataReader::modifyThing(quint64 addr, std::function<void(ThingData&)> modifier)
 {
-    ThingData data = readThing(index);
+    ThingData data = readThing(addr);
     modifier(data);
-    writeThing(data.addr, data);
+    writeThing(addr, data);
     return data;
+}
+
+bool GameDataReader::copyThing(quint64 srcAddr, quint64 dstAddr){
+    if (srcAddr == 0 || dstAddr == 0) return false;
+
+    if (!srcAddr || !dstAddr || !isAttached()) return false;
+
+    QByteArray buffer(THING_SIZE - 0x04, '\0');
+    if (!m_memMgr->readMemory(srcAddr + 0x04, buffer.data(), THING_SIZE - 0x04)) {
+        return false;
+    }
+
+    if (!m_memMgr->writeMemory(dstAddr + 0x04, buffer.constData(), THING_SIZE - 0x04)) {
+        return false;
+    }
+
+    return true;
+}
+
+// ==================== 区域元数据 ====================
+MapAreaData GameDataReader::readMapArea(qint32 mapid) const
+{
+    MapAreaData data;
+    if (!isAttached() || !m_moduleBase || mapid < 0) return data;
+
+    quint64 addr = m_moduleBase + m_mapLayerMetaBase + static_cast<quint64>(mapid) * MAP_META_SIZE;
+
+    m_memMgr->read<quint32>(addr + 0x00, data.resource_id);
+    m_memMgr->read<qint32>(addr + 0x08, data.width);
+    m_memMgr->read<qint32>(addr + 0x0C, data.height);
+    m_memMgr->read<qint32>(addr + 0x10, data.tile_width);
+    m_memMgr->read<qint32>(addr + 0x14, data.tile_height);
+    m_memMgr->read<float>(addr + 0x18, data.scale_x);
+    m_memMgr->read<float>(addr + 0x1C, data.scale_y);
+    m_memMgr->read<qint32>(addr + 0x20, data.pixel_width);
+    m_memMgr->read<qint32>(addr + 0x24, data.pixel_height);
+
+    return data;
+}
+
+QList<MapAreaData> GameDataReader::readAllMapAreas(qint32 maxMapId) const
+{
+    QList<MapAreaData> list;
+    if (!isAttached() || !m_moduleBase) return list;
+
+    const int count = maxMapId + 1;
+    list.reserve(count);
+
+    qint64 total = static_cast<qint64>(count) * MAP_META_SIZE;
+    QByteArray pool(total, '\0');
+    bool batchOk = m_memMgr->readMemory(m_moduleBase + m_mapLayerMetaBase, pool.data(), total);
+
+    for (int i = 0; i < count; ++i) {
+        MapAreaData data;
+        if (batchOk) {
+            const quint8 *p = reinterpret_cast<const quint8*>(pool.constData()) + static_cast<qint64>(i) * MAP_META_SIZE;
+            memcpy(&data.resource_id, p + 0x00, sizeof(quint32));
+            memcpy(&data.width, p + 0x08, sizeof(qint32));
+            memcpy(&data.height, p + 0x0C, sizeof(qint32));
+            memcpy(&data.tile_width, p + 0x10, sizeof(qint32));
+            memcpy(&data.tile_height, p + 0x14, sizeof(qint32));
+            memcpy(&data.scale_x, p + 0x18, sizeof(float));
+            memcpy(&data.scale_y, p + 0x1C, sizeof(float));
+            memcpy(&data.pixel_width, p + 0x20, sizeof(qint32));
+            memcpy(&data.pixel_height, p + 0x24, sizeof(qint32));
+        } else {
+            data = readMapArea(i);
+        }
+        list.append(data);
+    }
+    return list;
 }
 
 // ==================== 角色 ====================
@@ -228,9 +333,9 @@ QList<CharacterData> GameDataReader::readAllCharacters() const
     if (!isAttached() || !m_moduleBase) return list;
     list.reserve(maxCharacters());
 
-    qint64 poolSize = static_cast<qint64>(maxCharacters()) * CHARACTER_SIZE;
-    QByteArray pool(poolSize, '\0');
-    if (!m_memMgr->readMemory(m_moduleBase + m_charPoolBase, pool.data(), poolSize)) {
+    qint64 poolTotal = static_cast<qint64>(maxCharacters() + 1) * CHARACTER_SIZE;
+    QByteArray pool(poolTotal, '\0');
+    if (!m_memMgr->readMemory(m_moduleBase + m_charPoolBase, pool.data(), poolTotal)) {
         for (qint32 i = 0; i < maxCharacters(); ++i)
             list.append(readCharacter(i));
         return list;
@@ -239,8 +344,9 @@ QList<CharacterData> GameDataReader::readAllCharacters() const
     const quint8 *base = reinterpret_cast<const quint8*>(pool.constData());
     const quint64 poolBase = m_moduleBase + m_charPoolBase;
 
+    // 跳过槽0，从槽1开始读取，共 maxCharacters() 个有效角色
     for (qint32 i = 0; i < maxCharacters(); ++i) {
-        const quint8 *p = base + static_cast<qint64>(i) * CHARACTER_SIZE;
+        const quint8 *p = base + static_cast<qint64>(i + 1) * CHARACTER_SIZE;
         CharacterData data;
 
         memcpy(data.id, p + 0x00, sizeof(quint32) * 2);
@@ -260,7 +366,7 @@ QList<CharacterData> GameDataReader::readAllCharacters() const
         memcpy(data.resource, p + 0x288, sizeof(qint32) * 8);
         memcpy(data.weaponslots, p + 0x2B0, sizeof(qint32) * 9);
 
-        data.addr = poolBase + static_cast<quint64>(i) * CHARACTER_SIZE;
+        data.addr = poolBase + static_cast<quint64>(i + 1) * CHARACTER_SIZE;
 
         list.append(data);
     }

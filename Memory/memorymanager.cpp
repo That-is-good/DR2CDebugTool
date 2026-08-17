@@ -532,44 +532,50 @@ bool MemoryManager::FreeThing(quint64 curThingPtr) const
 #endif
 }
 
-bool MemoryManager::AllocateEntity(qint8 type) const
+quint64 MemoryManager::AllocateEntity(qint8 type) const
 {
 #ifdef Q_OS_WIN
-    if (!m_handle) return false;
+    if (!m_handle) return 0;
+    quint64 thingPtr = 0;
     QVector<quint64> args;
     args.append(type);
     
-    return CallFunction(0x052710, args);
+    if (!CallFunction(0x052710, args, &thingPtr))
+        return 0;
+    return thingPtr;
 #else
     Q_UNUSED(type);
-    return false;
+    return 0;
 #endif
 }
 
-bool MemoryManager::AllocateThing(qint8 subtype) const{
+quint64 MemoryManager::AllocateThing(qint8 subtype) const
+{
 #ifdef Q_OS_WIN
-    if (!m_handle) return false;
+    if (!m_handle) return 0;
+    quint64 thingPtr = 0;
     QVector<quint64> args;
     args.append(subtype);
     
-    return CallFunction(0x06deb0, args);
+    if (!CallFunction(0x06deb0, args, &thingPtr))
+        return 0;
+    return thingPtr;
 #else
     Q_UNUSED(subtype);
-    return false;
+    return 0;
 #endif
 }
 
 quint32 MemoryManager::AllocateCharacterSlot() const
 {
 #ifdef Q_OS_WIN
-    if (!m_handle) return false;
-    quint64 characterPtr;
-    if (!CallFunction(0x029a10, QVector<quint64>(), &characterPtr)){
-        return -1;
-    }
+    if (!m_handle) return 0;
+    quint64 characterPtr = 0;
+    if (!CallFunction(0x029a10, QVector<quint64>(), &characterPtr))
+        return 0;
     return static_cast<quint32>(characterPtr);
 #else
-    return -1;
+    return 0;
 #endif
 }
 
@@ -587,3 +593,19 @@ bool MemoryManager::Assigncharactertothing(quint64 addr, quint32 charid) const{
     return false;
 #endif
 }
+
+// bool MemoryManager::RecruitCharacter(quint32 charId, quint8 location) const
+// {
+// #ifdef Q_OS_WIN
+//     if (!m_handle) return false;
+//     QVector<quint64> args;
+//     args.append(charId);
+//     args.append(location);
+    
+//     return CallFunction(0x0492f0, args);
+// #else
+//     Q_UNUSED(charId);
+//     Q_UNUSED(location);
+//     return false;
+// #endif
+// }

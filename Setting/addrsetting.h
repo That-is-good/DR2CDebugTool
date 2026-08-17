@@ -43,9 +43,8 @@ public:
 private:
     Ui::AddrSetting *ui;
 
-    quint64 Charaoffset = 0x5E25D8;
     quint32 Charasize = 0x2E0;
-    quint16 Charalength = 256;
+    quint16 Charalength = 255;
 
     quint64 Entityoffset = 0x5632E0;
     quint32 Entitysize = 0x304;

@@ -23,6 +23,20 @@ enum THING_SUBTYPE{
     PICKUP_SPEC
 };
 
+struct Position4D
+{
+    float x;
+    float y;
+    float z;
+    float w;
+};
+
+union Vector4D
+{
+    struct Position4D Vec;
+    float vec[4];
+};
+
 struct Position3D
 {
     float x;
@@ -164,14 +178,14 @@ struct thing {
 
     ushort carryid;             // 0x200 携带的ID
 
-    byte chassis;               // 0x208 底盘
-    byte chassis_max;           // 0x209 最大底盘
-    byte engine;                // 0x20a 引擎
-    byte engine_max;            // 0x20b 最大底盘
-    byte armour;                // 0x20c 装甲
-    byte armour_max;            // 0x20d 最大装甲
-    byte carspeed;              // 0x20e 速度
-    byte carspeed_max;          // 0x20f 最大速度
+    sbyte chassis;               // 0x208 底盘
+    sbyte chassis_max;           // 0x209 最大底盘
+    sbyte engine;                // 0x20a 引擎
+    sbyte engine_max;            // 0x20b 最大底盘
+    sbyte armour;                // 0x20c 装甲
+    sbyte armour_max;            // 0x20d 最大装甲
+    sbyte carspeed;              // 0x20e 速度
+    sbyte carspeed_max;          // 0x20f 最大速度
     int repair;                 // 0x210 修理
     float mpg;                  // 0x214 油耗
 
@@ -216,7 +230,7 @@ struct character {
 
 // 武器 结构体
 // 大小: 0x1c4
-// 武器池偏移 0x004E0080;
+// 武器池偏移 0x4E0080;
 // 最多0x401个武器
 struct weapon {
     char name[40];              // 0x00 名字
@@ -226,9 +240,40 @@ struct weapon {
 // 起始: 0x5E2238
 // 大小: 因为没有数组，所以无所谓
 struct mission_state {
+    uint leader_thing_id;       // 0x00 当前队长物体ID
+    uint current_player_index;  // 0x04 当前玩家索引
+    uint player_thing_map[4];   // 0x08 玩家物体映射
     uint player_char[4];        // 0x18 当前队伍角色在角色中的顺序, 从1开始
     Resources storageResource;  // 0x28 资源
     WeaponSlots2D Storage_slots[15];    // 0x48 仓库武器槽
+    character CharacterPool[256];   // 0xC0 角色池但是第一个不储存角色，而是上面提到的0x5E25D8 = CharacterPoolBase(0x5E22F8) + 0x2e0
+
+    int vehicle_type;           // 0xC0 + 0x2E000 载具类型
+    int vehicle_variant;        // 0xC4 + 0x2E000 载具精灵图
+    float vehicle_chassis;        // 0xC8 + 0x2E000 载具底盘 只是显示，修改无效
+    float vehicle_engine;         // 0xCC + 0x2E000 载具引擎 只是显示，修改无效
+    float vehicle_speed;          // 0xD0 + 0x2E000 载具速度 只是显示，修改无效
+    float vehicle_armour;         // 0xD4 + 0x2E000 载具装甲 只是显示，修改无效
+    int vehicle_mpg;            // 0xD8 + 0x2E000 载具油耗
+};
+
+// 地图层元数据结构体（区域ID）
+// 起始：0x46DBC0
+// 大小: 0x34
+struct MapLayerMeta {
+    uint    resource_id;        // 0x00 所有区域共享的值 (0x00627FC0)
+    byte*    cell_data;          // 0x04 格子数据指针（堆分配，每格272字节）区域无效为空
+    int     width;              // 0x08 列数
+    int     height;             // 0x0C 行数
+    int     tile_width;         // 0x10 格子宽度（像素）
+    int     tile_height;        // 0x14 格子高度（像素）
+    float       scale_x;            // 0x18 渲染缩放X
+    float       scale_y;            // 0x1C 渲染缩放Y
+    int     pixel_width;        // 0x20 = width * tile_width
+    int     pixel_height;       // 0x24 = height * tile_height
+    int     screen_off_x;       // 0x28 屏幕偏移/裁剪（SetScreenSize设置）
+    int     screen_off_y;       // 0x2C
+    void*       render_callback;    // 0x30 渲染回调（sub_47EB10设置）
 };
 
 /*

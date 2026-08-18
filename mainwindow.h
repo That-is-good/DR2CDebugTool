@@ -33,6 +33,10 @@
 #include <QPixmap>
 #include <QPointF>
 #include <QSet>
+#include <QGraphicsItemGroup>
+class QGraphicsPixmapItem;
+class QGraphicsEllipseItem;
+class QGraphicsItemGroup;
 
 #include "Setting/addrsetting.h"
 #include "Memory/gamedatareader.h"
@@ -144,6 +148,14 @@ private:
     QVector<ThingData> m_thingCache;             // 固定大小实体池，下标即池索引
     QHash<int, QPointF> m_regionOffsets;         // 区域ID → 场景原点偏移
     QHash<int, QSizeF> m_regionSizes;            // 区域ID → 场景区域尺寸
+
+    // 固定实体池图元（槽位 = 实体池索引，预创建后仅更新属性，不重建场景）
+    QVector<QGraphicsPixmapItem*> m_thingItems;
+    QVector<QGraphicsEllipseItem*> m_thingMarkers;
+    QVector<int> m_thingIconCache;               // 每个槽位当前图标索引
+    QVector<QPixmap> m_iconPixmaps;              // 图标磁盘加载缓存
+    QGraphicsItemGroup *m_backgroundGroup = nullptr; // 区域背景/标签组
+    QString m_layoutSignature;                   // 区域布局签名，变化时重建背景
 
     // 拖拽实体状态
     bool m_draggingEntity = false;

@@ -19,7 +19,7 @@ AddrSetting::AddrSetting(QWidget *parent)
 }
 
 void AddrSetting::GetLocalLanguages(){
-    QString translationDir = "./translations";
+    QString translationDir = QCoreApplication::applicationDirPath() + "/translations";
     QDir dir(translationDir);
     if (dir.exists()) {
         QStringList filters;

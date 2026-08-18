@@ -101,9 +101,19 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event)
             return true;
         } else if (event->type() == QEvent::MouseButtonRelease && m_draggingEntity) {
             m_draggingEntity = false;
-            if (m_dragItem) {
-                const QPointF scenePos = m_dragItem->scenePos() + m_dragOffset;
-                moveEntityToScenePos(m_dragAddr, scenePos);
+            // 写回全部被跟随拖动且仍选中的实体（含主拖拽实体）
+            if (isAttached()) {
+                const auto selectedItems = m_entityScene->selectedItems();
+                for (auto *sel : selectedItems) {
+                    const quint64 a = sel->data(0).toULongLong();
+                    if (a == 0) continue;
+                    // 主拖拽项：光标锚点 = 图元中心 + 按下时偏移
+                    // 其它跟随项：整体平移，图元中心即新位置
+                    const QPointF scenePos = (sel == m_dragItem)
+                        ? sel->scenePos() + m_dragOffset
+                        : sel->scenePos();
+                    moveEntityToScenePos(a, scenePos);
+                }
             }
             m_dragAddr = 0;
             m_dragItem = nullptr;
@@ -834,7 +844,6 @@ void MainWindow::refreshEntityView()
 
     QList<MapAreaData> areaMetas = m_gameData->readAllMapAreas(maxMapId);
 
-    m_regionOffsets.clear();
     const qreal margin = 40.0;
     const int columns = 3;
     qreal cursorX = margin;
@@ -845,6 +854,7 @@ void MainWindow::refreshEntityView()
     std::sort(sortedRegions.begin(), sortedRegions.end());
 
     QHash<int, QSizeF> regionSizes;
+    QSet<int> inactiveRegions;
     for (int mapid : sortedRegions) {
         MapAreaData meta = (mapid < areaMetas.size()) ? areaMetas[mapid] : MapAreaData();
         qreal w = meta.pixel_width > 0 ? meta.pixel_width : (meta.width * meta.tile_width);
@@ -856,14 +866,17 @@ void MainWindow::refreshEntityView()
         w *= scaleX;
         h *= scaleY;
         regionSizes.insert(mapid, QSizeF(w, h));
+        if (!meta.valid())
+            inactiveRegions.insert(mapid); // 无元数据的区域暂不绘制背景，仅保留实体
     }
 
-    // 网格布局各区域
+    // 网格布局各区域（含无元数据区域，保证偏移连贯）
+    QHash<int, QPointF> newOffsets;
     int col = 0;
     for (int i = 0; i < sortedRegions.size(); ++i) {
         const int mapid = sortedRegions[i];
         const QSizeF sz = regionSizes[mapid];
-        m_regionOffsets.insert(mapid, QPointF(cursorX, cursorY));
+        newOffsets.insert(mapid, QPointF(cursorX, cursorY));
         rowHeight = std::max(rowHeight, sz.height());
         ++col;
         if (col >= columns && i + 1 < sortedRegions.size()) {
@@ -876,39 +889,121 @@ void MainWindow::refreshEntityView()
         }
     }
 
-    m_regionSizes = regionSizes;
-
-    // 重建场景
-    m_entityScene->clear();
-
-    // 绘制区域背景
+    // 布局签名：区域集合 + 尺寸，决定是否需要重建背景
+    QString layoutSig;
     for (int mapid : sortedRegions) {
-        const QPointF origin = m_regionOffsets[mapid];
         const QSizeF sz = regionSizes[mapid];
-        QGraphicsRectItem *rect = m_entityScene->addRect(origin.x(), origin.y(), sz.width(), sz.height(),
-                                                         QPen(QColor(80, 80, 80)), QBrush(QColor(35, 35, 35)));
-        rect->setZValue(-10);
-
-        QGraphicsSimpleTextItem *label = m_entityScene->addSimpleText(QString(tr("区域%1")).arg(mapid));
-        label->setBrush(QColor(200, 200, 200));
-        label->setPos(origin.x() + 4, origin.y() + 4);
-        label->setZValue(-9);
+        layoutSig += QString("%1:%2x%3;").arg(mapid).arg((int)sz.width()).arg((int)sz.height());
     }
 
-    // 绘制实体图标
-    for (const auto &th : visible) {
-        const QPointF origin = m_regionOffsets.value(th.mapid, QPointF(0, 0));
-        const int iconIdx = iconIndexForThing(th);
-        QPixmap pix(QString("./Icons/%1.png").arg(iconIdx));
-        if (pix.isNull())
-            pix = QPixmap(24, 24);
+    const bool layoutChanged = (layoutSig != m_layoutSignature);
 
-        QGraphicsPixmapItem *item = m_entityScene->addPixmap(pix);
-        item->setOffset(-pix.width() / 2.0, -pix.height() / 2.0);
-        item->setPos(origin.x() + th.vec3d[0][0], origin.y() + th.vec3d[0][1]);
-        item->setData(0, QVariant::fromValue(th.addr));
+    if (layoutChanged) {
+        m_regionOffsets = newOffsets;
+        m_regionSizes = regionSizes;
+        m_layoutSignature = layoutSig;
+
+        // ---- 重建背景/标签组 ----
+        if (m_backgroundGroup) {
+            m_entityScene->removeItem(m_backgroundGroup);
+            delete m_backgroundGroup;
+            m_backgroundGroup = nullptr;
+        }
+        m_backgroundGroup = new QGraphicsItemGroup();
+        m_backgroundGroup->setZValue(-10);
+        m_entityScene->addItem(m_backgroundGroup);
+
+        for (int mapid : sortedRegions) {
+            if (inactiveRegions.contains(mapid)) continue;
+            const QPointF origin = m_regionOffsets[mapid];
+            const QSizeF sz = m_regionSizes[mapid];
+            QGraphicsRectItem *rect = m_entityScene->addRect(origin.x(), origin.y(), sz.width(), sz.height(),
+                                                             QPen(QColor(80, 80, 80)), QBrush(QColor(35, 35, 35)));
+            m_backgroundGroup->addToGroup(rect);
+
+            QGraphicsSimpleTextItem *label = m_entityScene->addSimpleText(QString(tr("区域%1")).arg(mapid));
+            label->setBrush(QColor(200, 200, 200));
+            label->setPos(origin.x() + 4, origin.y() + 4);
+            m_backgroundGroup->addToGroup(label);
+        }
+    }
+
+    // ---- 第一次调用时预创建全部实体图元（固定池容量） ----
+    const int poolSize = m_gameData->maxThings();
+    if (m_thingItems.size() != poolSize) {
+        // 清空旧图元
+        for (auto *it : m_thingItems)
+            if (it) { m_entityScene->removeItem(it); delete it; }
+        for (auto *mk : m_thingMarkers)
+            if (mk) { m_entityScene->removeItem(mk); delete mk; }
+        m_thingItems.clear();
+        m_thingMarkers.clear();
+        m_thingItems.fill(nullptr, poolSize);
+        m_thingMarkers.fill(nullptr, poolSize);
+        m_thingIconCache.fill(0, poolSize);
+        m_iconPixmaps.clear();
+        m_iconPixmaps.resize(10); // 索引1..9 对应图标
+
+        for (int i = 1; i <= 9; ++i) {
+            QPixmap pix(QString(QCoreApplication::applicationDirPath() + "/Icons/%1.png").arg(i));
+            if (pix.isNull())
+                pix = QPixmap(24, 24);
+            m_iconPixmaps[i] = pix;
+        }
+
+        for (int slot = 0; slot < poolSize; ++slot) {
+            QGraphicsPixmapItem *item = new QGraphicsPixmapItem();
+            item->setAcceptHoverEvents(true);
+            item->setData(0, 0);
+            item->setData(1, 0);
+            item->setVisible(false);
+            item->setFlag(QGraphicsItem::ItemIsSelectable, m_entityMode == SelectMode);
+            m_entityScene->addItem(item);
+            m_thingItems[slot] = item;
+
+            QGraphicsEllipseItem *marker = new QGraphicsEllipseItem(-16, -16, 32, 32);
+            marker->setPen(QPen(QColor(255, 200, 0), 3));
+            marker->setBrush(QBrush(QColor(255, 200, 0, 60)));
+            marker->setAcceptedMouseButtons(Qt::NoButton);
+            marker->setFlag(QGraphicsItem::ItemIsSelectable, false);
+            marker->setVisible(false);
+            marker->setZValue(-8);
+            m_entityScene->addItem(marker);
+            m_thingMarkers[slot] = marker;
+        }
+    }
+
+    // ---- 每个槽位：仅更新属性，不重建图元 ----
+    int aliveCount = 0;
+    for (int slot = 0; slot < poolSize; ++slot) {
+        const ThingData &th = m_thingCache[slot];
+        QGraphicsPixmapItem *item = m_thingItems[slot];
+        QGraphicsEllipseItem *marker = m_thingMarkers[slot];
+
+        if (th.id == 0
+            || (m_entityAreaFilter >= 0 && th.mapid != m_entityAreaFilter)) {
+            item->setVisible(false);
+            marker->setVisible(false);
+            continue;
+        }
+
+        ++aliveCount;
+
+        const int iconIdx = iconIndexForThing(th);
+        if (iconIdx != m_thingIconCache[slot]) {
+            // 图标变化时更新（首次缓存值为0，必更新）
+            item->setPixmap(m_iconPixmaps[iconIdx]);
+            item->setOffset(-m_iconPixmaps[iconIdx].width() / 2.0,
+                            -m_iconPixmaps[iconIdx].height() / 2.0);
+            m_thingIconCache[slot] = iconIdx;
+        }
+
+        const QPointF origin = m_regionOffsets.value(th.mapid, QPointF(0, 0));
+        const QPointF pos(origin.x() + th.vec3d[0][0], origin.y() + th.vec3d[0][1]);
+
+        item->setPos(pos);
+        item->setData(0, QVariant::fromValue(th.addr)); // 地址可能变化（池槽位固定）
         item->setData(1, QVariant::fromValue(th.id));
-        item->setFlag(QGraphicsItem::ItemIsSelectable, m_entityMode == SelectMode);
         item->setToolTip(QString("ID: %1 | %2 | 区域%3\nX: %4 Y: %5 Z: %6")
                              .arg(th.id)
                              .arg(th.typeString)
@@ -916,19 +1011,15 @@ void MainWindow::refreshEntityView()
                              .arg(th.vec3d[0][0], 0, 'f', 1)
                              .arg(th.vec3d[0][1], 0, 'f', 1)
                              .arg(th.vec3d[0][2], 0, 'f', 1));
+        item->setVisible(true);
 
-        // 中心实体高亮标记
-        if (th.addr == m_selectedThingAddr) {
-            QGraphicsEllipseItem *marker = m_entityScene->addEllipse(-16, -16, 32, 32,
-                QPen(QColor(255, 200, 0), 3), QBrush(QColor(255, 200, 0, 60)));
-            marker->setPos(item->pos());
-            marker->setZValue(-8);
-            marker->setAcceptedMouseButtons(Qt::NoButton);
-            marker->setFlag(QGraphicsItem::ItemIsSelectable, false);
-        }
+        const bool isCenter = (th.addr == m_selectedThingAddr);
+        marker->setVisible(isCenter);
+        if (isCenter)
+            marker->setPos(pos);
     }
 
-    ui->entityCountLabel->setText(QString(tr("实体: %1")).arg(visible.size()));
+    ui->entityCountLabel->setText(QString(tr("实体: %1")).arg(aliveCount));
 }
 
 // ==================== 实体操作 ====================
@@ -964,7 +1055,7 @@ void MainWindow::onEntityMenu(const QPoint &pos){
             m_selectedThingAddr = clickedAddr;
             statusBar()->showMessage(QString(tr("已设置中心实体: 0x%1"))
                 .arg(QString::number(m_selectedThingAddr, 16).toUpper()));
-            //refreshEntityView();
+            refreshEntityView(); // 立即刷新以显示高亮圈（图元复用，开销极小）
         });
 
         QMenu *flagMenu = entitytableViewMenu.addMenu(tr("标志"));
@@ -1478,6 +1569,14 @@ void MainWindow::onRefreshTimerMission()
 void MainWindow::onRefreshTimer()
 {
     if (!isAttached()) return;
+
+    // 进程存活检测：目标进程已退出时自动分离，避免对已关闭进程做非法内存访问
+    if (!m_memMgr->isProcessAlive()) {
+        statusBar()->showMessage(tr("目标进程已退出，自动分离"));
+        m_memMgr->detachProcess(); // 触发 processDetached 信号 → 停止刷新/禁用控件
+        return;
+    }
+
     switch (ui->tabWidget->currentIndex()) {
     case 0: onRefreshTimerChara(); break;
     case 1: onRefreshTimerEntity(); break;

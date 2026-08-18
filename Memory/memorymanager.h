@@ -23,6 +23,7 @@ public:
     bool attachProcessById(quint32);
     void detachProcess();
     bool isAttached() const { return m_attached; }
+    bool isProcessAlive() const;
     QString attachedProcessName() const { return m_processName; }
     quint32 attachedProcessId() const { return m_processId; }
 

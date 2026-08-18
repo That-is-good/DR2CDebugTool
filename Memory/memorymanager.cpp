@@ -160,6 +160,20 @@ void MemoryManager::detachProcess()
     emit processDetached();
 }
 
+bool MemoryManager::isProcessAlive() const
+{
+#ifdef Q_OS_WIN
+    if (!m_handle) return false;
+    DWORD exitCode = 0;
+    if (!GetExitCodeProcess(m_handle, &exitCode))
+        return false;
+    // STILL_ACTIVE = 259 表示进程仍在运行
+    return exitCode == STILL_ACTIVE;
+#else
+    return false;
+#endif
+}
+
 bool MemoryManager::readMemory(quint64 address, void *buffer, quint64 size) const
 {
 #ifdef Q_OS_WIN

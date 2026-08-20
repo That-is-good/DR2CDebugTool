@@ -62,6 +62,7 @@ public:
     quint64 AllocateThing(qint8) const;
     quint32 AllocateCharacterSlot() const;
     bool Assigncharactertothing(quint64, quint32) const;
+    bool SwitchActiveTileLayer(quint8) const;
     //bool RecruitCharacter(quint32, quint8) const;
 
 signals:

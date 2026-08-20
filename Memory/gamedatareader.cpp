@@ -231,12 +231,13 @@ bool GameDataReader::copyThing(quint64 srcAddr, quint64 dstAddr){
 
     if (!srcAddr || !dstAddr || !isAttached()) return false;
 
-    QByteArray buffer(THING_SIZE - 0x04, '\0');
-    if (!m_memMgr->readMemory(srcAddr + 0x04, buffer.data(), THING_SIZE - 0x04)) {
+    const quint16 offset = 0x02;
+    QByteArray buffer(THING_SIZE - offset, '\0');
+    if (!m_memMgr->readMemory(srcAddr + offset, buffer.data(), THING_SIZE - offset)) {
         return false;
     }
 
-    if (!m_memMgr->writeMemory(dstAddr + 0x04, buffer.constData(), THING_SIZE - 0x04)) {
+    if (!m_memMgr->writeMemory(dstAddr + offset, buffer.constData(), THING_SIZE - offset)) {
         return false;
     }
 

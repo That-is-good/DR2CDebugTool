@@ -608,6 +608,19 @@ bool MemoryManager::Assigncharactertothing(quint64 addr, quint32 charid) const{
 #endif
 }
 
+bool MemoryManager::SwitchActiveTileLayer(quint8 mapid) const{
+#ifdef Q_OS_WIN
+    if (!m_handle) return false;
+    QVector<quint64> args;
+    args.append(mapid);
+    
+    return CallFunction(0x0548F0, args);
+#else
+    Q_UNUSED(mapid);
+    return false;
+#endif
+}
+
 // bool MemoryManager::RecruitCharacter(quint32 charId, quint8 location) const
 // {
 // #ifdef Q_OS_WIN

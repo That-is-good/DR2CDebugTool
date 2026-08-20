@@ -134,6 +134,7 @@ private:
     int regionFromScenePos(const QPointF &scenePos) const;
     void moveEntityToScenePos(quint64 addr, const QPointF &scenePos);
     quint64 spawnEntityAt(uint type, const QPointF &scenePos);
+    void RenderMapTileLayerAt(const QPointF &scenePos);
 
     bool isAttached() const;
     bool hasEditingFocus() const;

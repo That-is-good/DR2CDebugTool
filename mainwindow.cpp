@@ -792,6 +792,19 @@ quint64 MainWindow::spawnEntityAt(uint type, const QPointF &scenePos)
     return ptr;
 }
 
+void MainWindow::RenderMapTileLayerAt(const QPointF &scenePos){
+    if (!isAttached()) return;
+    const int region = regionFromScenePos(scenePos);
+    // const QPointF origin = m_regionOffsets.value(region, QPointF(0, 0));
+    // const float x = static_cast<float>(scenePos.x() - origin.x());
+    // const float y = static_cast<float>(scenePos.y() - origin.y());
+    if (m_memMgr->SwitchActiveTileLayer(region)) {
+        statusBar()->showMessage(tr("已设置渲染图层"));
+    } else {
+        statusBar()->showMessage(tr("设置图层失败"));
+    }
+}
+
 void MainWindow::refreshEntityView()
 {
     if (!isAttached()) return;
@@ -1109,6 +1122,7 @@ void MainWindow::onEntityMenu(const QPoint &pos){
     newactions.append(entitytableViewNewMenu.addAction(tr("车辆")));
     newactions.append(entitytableViewNewMenu.addAction(tr("特殊拾取")));
     entitytableViewMenu.addMenu(&entitytableViewNewMenu);
+    entitytableViewMenu.addAction(tr("设置渲染图层"), this, [this, scenePos]() { RenderMapTileLayerAt(scenePos); });
 
     // 模态菜单期间暂停定时刷新，避免模型重建
     bool timerWasActive = m_refreshTimer->isActive();
@@ -1441,7 +1455,7 @@ void MainWindow::onCloneEntity(){
     for (quint64 addr : addrs) {
         ThingData *th = thingByAddr(addr);
         if (!th) continue;
-        quint64 newThingPtr = onSpawnEntity(th->type[0] == 3 ? th->type[1] + 5 : th->type[0]);
+        quint64 newThingPtr =  m_memMgr->AllocateEntity(th->type[0]);
         if (m_gameData->copyThing(th->addr, newThingPtr)) {
             ++count;
         }

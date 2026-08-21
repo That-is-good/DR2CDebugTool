@@ -621,6 +621,21 @@ bool MemoryManager::SwitchActiveTileLayer(quint8 mapid) const{
 #endif
 }
 
+bool MemoryManager::SetCurrentPlayerThing(quint64 curThingPtr) const
+{
+#ifdef Q_OS_WIN
+    if (!m_handle) return false;
+    QVector<quint64> args;
+    args.append(curThingPtr);
+    
+    return CallFunction(0x054a20, args);
+#else
+    Q_UNUSED(curThingPtr);
+    return false;
+#endif
+}
+
+
 // bool MemoryManager::RecruitCharacter(quint32 charId, quint8 location) const
 // {
 // #ifdef Q_OS_WIN

@@ -7,14 +7,14 @@ WeaponDialog::WeaponDialog(const QStringList &weaponNames, QWidget *parent)
     : QDialog(parent)
     , m_allNames(weaponNames)
 {
-    setWindowTitle("选择武器");
+    setWindowTitle(tr("选择武器"));
     setMinimumSize(400, 500);
 
     QVBoxLayout *layout = new QVBoxLayout(this);
 
     m_filterEdit = new QLineEdit(this);
-    m_filterEdit->setPlaceholderText("输入名称或ID筛选...");
-    layout->addWidget(new QLabel("筛选:", this));
+    m_filterEdit->setPlaceholderText(tr("输入名称或ID筛选..."));
+    layout->addWidget(new QLabel(tr("筛选:"), this));
     layout->addWidget(m_filterEdit);
 
     m_listWidget = new QListWidget(this);

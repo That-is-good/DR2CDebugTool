@@ -15,6 +15,7 @@
 #include <QGraphicsEllipseItem>
 #include <QScrollBar>
 #include <QPainter>
+#include <QPair>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -198,11 +199,7 @@ bool MainWindow::hasEditingFocus() const
     if (qobject_cast<QLineEdit*>(w)) return true;
     if (qobject_cast<QSpinBox*>(w)) return true;
     if (qobject_cast<QDoubleSpinBox*>(w)) return true;
-    QWidget *p = w;
-    while (p) {
-        if (qobject_cast<QComboBox*>(p)) return true;
-        p = p->parentWidget();
-    }
+    // 注意：QComboBox 是选择控件，不视为编辑焦点，避免角色下拉框阻止刷新
     return false;
 }
 
@@ -1017,7 +1014,7 @@ void MainWindow::refreshEntityView()
         item->setPos(pos);
         item->setData(0, QVariant::fromValue(th.addr)); // 地址可能变化（池槽位固定）
         item->setData(1, QVariant::fromValue(th.id));
-        item->setToolTip(QString("ID: %1 | %2 | 区域%3\nX: %4 Y: %5 Z: %6")
+        item->setToolTip(QString(tr("ID: %1 | %2 | 区域：%3\nX: %4 Y: %5 Z: %6"))
                              .arg(th.id)
                              .arg(th.typeString)
                              .arg(th.mapid)
@@ -1055,8 +1052,14 @@ void MainWindow::onEntityMenu(const QPoint &pos){
 
     // 收集操作对象：若有选中实体则用选中集，否则退化为本次点击的实体
     QList<quint64> selAddrs = selectedEntityAddrs();
-    if (clickedAddr != 0 && !selAddrs.contains(clickedAddr))
+    if (clickedAddr != 0 && !selAddrs.contains(clickedAddr)) {
+        // 点击未选中的实体：仅对该实体操作（并选中它，便于后续克隆/销毁等）
         selAddrs.clear();
+        selAddrs.append(clickedAddr);
+        m_entityScene->clearSelection();
+        if (clickedItem)
+            clickedItem->setSelected(true);
+    }
     if (selAddrs.isEmpty() && clickedAddr != 0)
         selAddrs.append(clickedAddr);
 
@@ -1098,15 +1101,16 @@ void MainWindow::onEntityMenu(const QPoint &pos){
         flagActs[5]->setChecked(flagBools[5]);
 
         entitytableViewMenu.addSeparator();
-        entitytableViewMenu.addAction(tr("修改位置"), this, [this, clickedAddr]() { onEditEntityPosition(clickedAddr); });
-        entitytableViewMenu.addAction(tr("修改速度"), this, [this, clickedAddr]() { onEditEntityVelocity(clickedAddr); });
-        entitytableViewMenu.addAction(tr("修改物理"), this, [this, clickedAddr]() { onEditEntityPhysics(clickedAddr); });
-        entitytableViewMenu.addAction(tr("修改其他"), this, [this, clickedAddr]() { onEditEntityOther(clickedAddr); });
+        entitytableViewMenu.addAction(tr("修改位置"), this, [this, selAddrs]() { onEditEntityPosition(selAddrs); });
+        entitytableViewMenu.addAction(tr("修改速度"), this, [this, selAddrs]() { onEditEntityVelocity(selAddrs); });
+        entitytableViewMenu.addAction(tr("修改物理"), this, [this, selAddrs]() { onEditEntityPhysics(selAddrs); });
+        entitytableViewMenu.addAction(tr("修改其他"), this, [this, selAddrs]() { onEditEntityOther(selAddrs); });
         entitytableViewMenu.addSeparator();
-        entitytableViewMenu.addAction(tr("销毁"), this, &MainWindow::onDestoryEntity);
-        entitytableViewMenu.addAction(tr("传送至中心"), this, &MainWindow::onTeleportToTarget);
-        entitytableViewMenu.addAction(tr("随机交换"), this, &MainWindow::onSwapEntityPositions);
-        entitytableViewMenu.addAction(tr("克隆"), this, &MainWindow::onCloneEntity);
+        entitytableViewMenu.addAction(tr("销毁"), this, [this, selAddrs]() { onDestoryEntity(selAddrs); });
+        entitytableViewMenu.addAction(tr("传送至中心"), this, [this, selAddrs]() { onTeleportToTarget(selAddrs); });
+        entitytableViewMenu.addAction(tr("随机交换"), this, [this, selAddrs]() { onSwapEntityPositions(selAddrs); });
+        entitytableViewMenu.addAction(tr("克隆"), this, [this, selAddrs]() { onCloneEntity(selAddrs); });
+        entitytableViewMenu.addAction(tr("设为玩家实体"), this, [this, clickedAddr]() { onSetAsPlayerEntity(clickedAddr); });
         entitytableViewMenu.addSeparator();
     }
 
@@ -1144,10 +1148,10 @@ void MainWindow::onEntityMenu(const QPoint &pos){
     }
 }
 
-void MainWindow::onEditEntityPosition(quint64 addr)
+void MainWindow::onEditEntityPosition(const QList<quint64> &addrs)
 {
-    if (!addr || !isAttached()) return;
-    ThingData cur = m_gameData->readThing(addr);
+    if (addrs.isEmpty() || !isAttached()) return;
+    ThingData cur = m_gameData->readThing(addrs.first());
 
     QDialog dlg(this);
     dlg.setWindowTitle(tr("修改位置"));
@@ -1180,21 +1184,23 @@ void MainWindow::onEditEntityPosition(quint64 addr)
     bool timerWasActive = m_refreshTimer->isActive();
     m_refreshTimer->stop();
     if (dlg.exec() == QDialog::Accepted) {
-        m_gameData->modifyThing(addr, [&](ThingData &th) {
-            th.mapid = static_cast<quint8>(areaSb->value());
-            th.vec3d[0][0] = static_cast<float>(x->value());
-            th.vec3d[0][1] = static_cast<float>(y->value());
-            th.vec3d[0][2] = static_cast<float>(z->value());
-        });
+        for (quint64 a : addrs) {
+            m_gameData->modifyThing(a, [&](ThingData &th) {
+                th.mapid = static_cast<quint8>(areaSb->value());
+                th.vec3d[0][0] = static_cast<float>(x->value());
+                th.vec3d[0][1] = static_cast<float>(y->value());
+                th.vec3d[0][2] = static_cast<float>(z->value());
+            });
+        }
         //refreshEntityView();
     }
     if (timerWasActive) m_refreshTimer->start();
 }
 
-void MainWindow::onEditEntityVelocity(quint64 addr)
+void MainWindow::onEditEntityVelocity(const QList<quint64> &addrs)
 {
-    if (!addr || !isAttached()) return;
-    ThingData cur = m_gameData->readThing(addr);
+    if (addrs.isEmpty() || !isAttached()) return;
+    ThingData cur = m_gameData->readThing(addrs.first());
 
     QDialog dlg(this);
     dlg.setWindowTitle(tr("修改速度"));
@@ -1222,20 +1228,22 @@ void MainWindow::onEditEntityVelocity(quint64 addr)
     bool timerWasActive = m_refreshTimer->isActive();
     m_refreshTimer->stop();
     if (dlg.exec() == QDialog::Accepted) {
-        m_gameData->modifyThing(addr, [&](ThingData &th) {
-            th.vec3d[1][0] = static_cast<float>(x->value());
-            th.vec3d[1][1] = static_cast<float>(y->value());
-            th.vec3d[1][2] = static_cast<float>(z->value());
-        });
+        for (quint64 a : addrs) {
+            m_gameData->modifyThing(a, [&](ThingData &th) {
+                th.vec3d[1][0] = static_cast<float>(x->value());
+                th.vec3d[1][1] = static_cast<float>(y->value());
+                th.vec3d[1][2] = static_cast<float>(z->value());
+            });
+        }
         //refreshEntityView();
     }
     if (timerWasActive) m_refreshTimer->start();
 }
 
-void MainWindow::onEditEntityPhysics(quint64 addr)
+void MainWindow::onEditEntityPhysics(const QList<quint64> &addrs)
 {
-    if (!addr || !isAttached()) return;
-    ThingData cur = m_gameData->readThing(addr);
+    if (addrs.isEmpty() || !isAttached()) return;
+    ThingData cur = m_gameData->readThing(addrs.first());
 
     QDialog dlg(this);
     dlg.setWindowTitle(tr("修改物理"));
@@ -1263,20 +1271,22 @@ void MainWindow::onEditEntityPhysics(quint64 addr)
     bool timerWasActive = m_refreshTimer->isActive();
     m_refreshTimer->stop();
     if (dlg.exec() == QDialog::Accepted) {
-        m_gameData->modifyThing(addr, [&](ThingData &th) {
-            th.phy[0] = static_cast<float>(mass->value());
-            th.phy[1] = static_cast<float>(fric->value());
-            th.phy[2] = static_cast<float>(boun->value());
-        });
+        for (quint64 a : addrs) {
+            m_gameData->modifyThing(a, [&](ThingData &th) {
+                th.phy[0] = static_cast<float>(mass->value());
+                th.phy[1] = static_cast<float>(fric->value());
+                th.phy[2] = static_cast<float>(boun->value());
+            });
+        }
         //refreshEntityView();
     }
     if (timerWasActive) m_refreshTimer->start();
 }
 
-void MainWindow::onEditEntityOther(quint64 addr)
+void MainWindow::onEditEntityOther(const QList<quint64> &addrs)
 {
-    if (!addr || !isAttached()) return;
-    ThingData cur = m_gameData->readThing(addr);
+    if (addrs.isEmpty() || !isAttached()) return;
+    ThingData cur = m_gameData->readThing(addrs.first());
 
     QDialog dlg(this);
     dlg.setWindowTitle(tr("修改其他"));
@@ -1305,17 +1315,19 @@ void MainWindow::onEditEntityOther(quint64 addr)
     bool timerWasActive = m_refreshTimer->isActive();
     m_refreshTimer->stop();
     if (dlg.exec() == QDialog::Accepted) {
-        m_gameData->modifyThing(addr, [&](ThingData &th) {
-            th.hitpoints = hp->value();
-            th.spriteid = static_cast<quint16>(sprite->value());
-            th.ai_state = static_cast<quint32>(ai->value());
-        });
+        for (quint64 a : addrs) {
+            m_gameData->modifyThing(a, [&](ThingData &th) {
+                th.hitpoints = hp->value();
+                th.spriteid = static_cast<quint16>(sprite->value());
+                th.ai_state = static_cast<quint32>(ai->value());
+            });
+        }
         //refreshEntityView();
     }
     if (timerWasActive) m_refreshTimer->start();
 }
 
-void MainWindow::onTeleportToTarget()
+void MainWindow::onTeleportToTarget(const QList<quint64> &addrs)
 {
     if (m_selectedThingAddr == 0 || !isAttached()) {
         QMessageBox::information(this, tr("提示"), tr("请先设置中心实体"));
@@ -1327,7 +1339,6 @@ void MainWindow::onTeleportToTarget()
         return;
     }
 
-    QList<quint64> addrs = selectedEntityAddrs();
     int count = 0;
     for (quint64 addr : addrs) {
         if (addr == m_selectedThingAddr) continue;
@@ -1347,11 +1358,10 @@ void MainWindow::onTeleportToTarget()
     }
 }
 
-void MainWindow::onSwapEntityPositions()
+void MainWindow::onSwapEntityPositions(const QList<quint64> &addrs)
 {
     if (!isAttached()) return;
 
-    QList<quint64> addrs = selectedEntityAddrs();
     QList<ThingData*> entities;
     for (quint64 addr : addrs) {
         ThingData *th = thingByAddr(addr);
@@ -1392,11 +1402,10 @@ void MainWindow::onSwapEntityPositions()
     //refreshEntityView();
 }
 
-void MainWindow::onDestoryEntity()
+void MainWindow::onDestoryEntity(const QList<quint64> &addrs)
 {
     if (!isAttached()) return;
 
-    QList<quint64> addrs = selectedEntityAddrs();
     int count = 0;
     for (quint64 addr : addrs) {
         ThingData *th = thingByAddr(addr);
@@ -1447,10 +1456,9 @@ quint64 MainWindow::onSpawnEntity(uint type){
     return thingPtr;
 }
 
-void MainWindow::onCloneEntity(){
+void MainWindow::onCloneEntity(const QList<quint64> &addrs){
     if (!isAttached()) return;
 
-    QList<quint64> addrs = selectedEntityAddrs();
     int count = 0;
     for (quint64 addr : addrs) {
         ThingData *th = thingByAddr(addr);
@@ -1465,6 +1473,16 @@ void MainWindow::onCloneEntity(){
         //refreshEntityView();
     } else {
         statusBar()->showMessage(tr("克隆实体失败"));
+    }
+}
+
+void MainWindow::onSetAsPlayerEntity(quint64 addr){
+    if (!addr || !isAttached()) return;
+    ThingData cur = m_gameData->readThing(addr);
+    if (m_memMgr->SetCurrentPlayerThing(cur.addr)){
+        statusBar()->showMessage(tr("已设置为玩家实体"));
+    }else{
+        statusBar()->showMessage(tr("设置为玩家实体失败"));
     }
 }
 
@@ -1510,21 +1528,46 @@ void MainWindow::onRefreshTimerChara()
     if (hasEditingFocus()) return;
 
     m_charCache = m_gameData->readAllCharacters();
-    m_updatingUI = true;
-    int curCharIdx = selectedCharacterIndex();
-    ui->charaSelcomboBox->blockSignals(true);
-    ui->charaSelcomboBox->clear();
+
+    // 构建当前角色列表：以角色ID(id[0])判断是否存在（名字可重复，ID唯一）
+    QList<QPair<QString,int>> charList;
     for (int i = 0; i < m_charCache.size(); ++i) {
-        if (!m_charCache[i].name.isEmpty())
-            ui->charaSelcomboBox->addItem(m_charCache[i].name, i);
+        if (m_charCache[i].id[0] != 0)
+            charList.append(qMakePair(m_charCache[i].name, i));
     }
-    for (int i = 0; i < ui->charaSelcomboBox->count(); ++i)
-        if (ui->charaSelcomboBox->itemData(i).toInt() == curCharIdx) {
-            ui->charaSelcomboBox->setCurrentIndex(i);
-            break;
+
+    int curCharIdx = selectedCharacterIndex();
+
+    // 数量变化 → 重建下拉框
+    if (ui->charaSelcomboBox->count() != charList.size()) {
+        m_updatingUI = true;
+        ui->charaSelcomboBox->blockSignals(true);
+        ui->charaSelcomboBox->clear();
+        for (const auto &p : charList)
+            ui->charaSelcomboBox->addItem(p.first, p.second);
+        for (int i = 0; i < ui->charaSelcomboBox->count(); ++i)
+            if (ui->charaSelcomboBox->itemData(i).toInt() == curCharIdx) {
+                ui->charaSelcomboBox->setCurrentIndex(i);
+                break;
+            }
+        ui->charaSelcomboBox->blockSignals(false);
+        m_updatingUI = false;
+    } else {
+        // 数量没变 → 按角色索引(itemData)匹配，仅更新名字文本，不重建
+        m_updatingUI = true;
+        ui->charaSelcomboBox->blockSignals(true);
+        for (const auto &p : charList) {
+            for (int j = 0; j < ui->charaSelcomboBox->count(); ++j) {
+                if (ui->charaSelcomboBox->itemData(j).toInt() == p.second) {
+                    if (ui->charaSelcomboBox->itemText(j) != p.first)
+                        ui->charaSelcomboBox->setItemText(j, p.first);
+                    break;
+                }
+            }
         }
-    ui->charaSelcomboBox->blockSignals(false);
-    m_updatingUI = false;
+        ui->charaSelcomboBox->blockSignals(false);
+        m_updatingUI = false;
+    }
 
     if (curCharIdx >= 0 && curCharIdx < m_charCache.size())
         refreshCharacterData(curCharIdx);

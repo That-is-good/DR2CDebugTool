@@ -81,15 +81,16 @@ private slots:
 
     // 实体操作
     void onEntityMenu(const QPoint &);
-    void onEditEntityPosition(quint64 addr);
-    void onEditEntityVelocity(quint64 addr);
-    void onEditEntityPhysics(quint64 addr);
-    void onEditEntityOther(quint64 addr);
-    void onTeleportToTarget();
-    void onSwapEntityPositions();
-    void onDestoryEntity();
+    void onEditEntityPosition(const QList<quint64>&);
+    void onEditEntityVelocity(const QList<quint64>&);
+    void onEditEntityPhysics(const QList<quint64>&);
+    void onEditEntityOther(const QList<quint64>&);
+    void onTeleportToTarget(const QList<quint64>&);
+    void onSwapEntityPositions(const QList<quint64>&);
+    void onDestoryEntity(const QList<quint64>&);
     quint64 onSpawnEntity(uint);
-    void onCloneEntity();
+    void onCloneEntity(const QList<quint64>&);
+    void onSetAsPlayerEntity(quint64);
 
     // 全局
     void onMissionChanged();

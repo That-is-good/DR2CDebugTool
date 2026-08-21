@@ -1,67 +1,69 @@
-# Death Road to Canada 调试工具
+# Death Road to Canada Debug Tool
 
-- **English** · [中文](./Readme/ZH_CN.md) · [日本語](./Readme/JA.md)
+- **English** · [中文版本|Chinese](./Readme/ZH_CN.md) · [日本語版|Japanese](./Readme/JP.md)
 
-> 一个用于《加拿大死亡之路》（Death Road to Canada）的实时内存调试与修改工具，基于 **Qt6** 和 C++ 开发。  
-> 游戏运行时，可随时查看并修改角色属性、实体状态、全局资源及武器数据，适用于游戏研究、MOD 开发或进阶玩家的数据分析。
-
----
-
-## ✨ 主要功能
-
-- **进程管理** – 枚举系统进程，按名称/PID 过滤，一键附加/分离
-- **角色编辑** – 修改 13 项核心属性（含基础/临时/附加值）、8 种资源、3 个武器槽、生命、速度、性别、宠物及状态标志
-- **实体可视化** – 以图标形式展示各区域实体，支持选择、缩放、平移模式；**直接拖拽移动实体**；右键菜单提供传送、交换、克隆、销毁及新建（9 种类型）等丰富操作
-- **全局资源** – 调整食物、汽油、医疗等 8 种资源及 15 个仓库武器槽
-- **脚本控制台** – 发送游戏内脚本命令
-- **自动刷新** – 可自定义刷新频率（默认 500 ms），编辑时自动暂停，避免冲突
-- **配置持久化** – 偏移量、刷新间隔、语言等保存于 `config.json`，方便版本更新时切换
+> A real‑time memory debugging and editing tool for *Death Road to Canada*, built with **Qt6** and C++.  
+> While the game is running, you can view and modify character attributes, entity states, global resources, and weapon data – useful for game research, mod development, or advanced data analysis.
 
 ---
 
-## 🚀 快速开始
+## ✨ Key Features
 
-### 依赖环境
+- **Process Management** – enumerate system processes, filter by name/PID, attach/detach with one click
+- **Character Editing** – modify 13 core attributes (base/temp/bonus), 8 resources, 3 weapon slots, health, speed, gender, pet, and status flags
+- **Entity Visualization** – display entities as icons on a map grid; support selection, zoom, pan; **drag‑and‑drop to move entities**; right‑click menu offers teleport, swap, clone, destroy, and spawn (9 types) operations
+- **Global Resources** – adjust 8 resource types (food, gas, medical, etc.) and manage 15 storage weapon slots
+- **Script Console** – send in‑game script commands (supports UTF‑8 characters)
+- **Auto Refresh** – customisable refresh interval (default 500ms); automatically pauses while editing to avoid conflicts
+- **Persistent Configuration** – offsets, refresh rate, and language preferences saved in `config.json` for easy migration across game updates
+
+---
+
+## 🚀 Quick Start
+
+### Requirements
 - Windows 10/11
-- CMake 3.19+、C++17 编译器（MSVC 2019+ / MinGW-w64 8.0+）
-- Qt 6.5+（`Core`, `Widgets`, `LinguistTools`）
+- CMake 3.19+, C++17 compiler (MSVC 2019+ / MinGW‑w64 8.0+)
+- Qt 6.5+ (components: `Core`, `Widgets`, `LinguistTools`)
 
-### 构建
+### Build
 ```bash
 git clone https://github.com/yourusername/drtc-debug-tool.git
 cd drtc-debug-tool
 ```
-使用 Qt Creator 打开 `CMakeLists.txt`，选择 Qt 6.5+ 的套件，点击“构建”即可。  
-生成的可执行文件位于 `build/Release/` 或 `build/` 下。
+Open `CMakeLists.txt` with Qt Creator, select a kit with Qt 6.5+, and click “Build”.  
+The executable will be generated under `build/Release/` or `build/`.
 
-### 运行
-直接运行 `DR2CDebugTool.exe`（若缺少 Qt DLL，请使用 `windeployqt` 部署或添加 Qt 的 `bin` 目录到 PATH）。  
-启动后，从进程列表中选择游戏进程（通常为 `prog.exe`），点击“附加”即可开始使用。
+### Run
+Launch `DR2CDebugTool.exe` directly (if Qt DLLs are missing, use `windeployqt` or add Qt’s `bin` directory to your PATH).  
+After startup, select the game process (usually `prog.exe`) from the process list and click “Attach” to begin.
 
 ---
 
-## 📖 完整文档（语言版本）
+## 📖 Full Documentation (Language Versions)
 
 - [English Version](./Readme/EN.md)  
 - [中文版本](./Readme/ZH_CN.md)  
-- [日本語版](./Readme/JA.md)
+- [日本語版](./Readme/JP.md)
 
-每个语言版本均包含详细的功能说明、使用指南、项目结构及注意事项。
-
----
-
-## ⚠️ 注意事项
-
-- 本工具基于特定游戏版本逆向开发，偏移量可能随游戏更新而变化，可通过“设置”对话框调整。
-- 内存修改有崩溃风险，请提前备份存档。
-- 工具仅供个人学习与研究，禁止用于商业或侵犯他人权益的行为。
+Each language version contains detailed feature descriptions, usage guides, project structure, and important notes.
 
 ---
 
-## 📜 许可
+## ⚠️ Important Notes
 
-本项目仅限非商业用途。详情请参阅各语言文档中的许可声明。
+- This tool is built based on reverse‑engineering of a specific game version; offsets may change with game updates – adjust them via the “Settings” dialog.
+- Memory editing carries a risk of crashes; please back up your save files beforehand.
+- This tool is intended for personal learning and research only. Commercial use or any action that infringes upon others’ rights is prohibited.
+- Unmodified official releases may be freely redistributed. If you distribute a modified version, you assume all responsibility.
 
 ---
 
-如有问题或建议，欢迎提交 Issue 或 Pull Request。
+## 📜 License
+
+This project is for personal learning and research purposes only. Commercial use or any form of infringement is strictly prohibited.  
+For full license details, please refer to the license statements in each language document.
+
+---
+
+For questions or suggestions, feel free to open an Issue or submit a Pull Request.

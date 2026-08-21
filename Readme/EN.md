@@ -1,10 +1,10 @@
 # Death Road to Canada Debug Tool
 
 A real‑time memory debugging and editing tool for the game *Death Road to Canada*, built with **Qt6** and C++.  
-It reads the game process memory to display and modify character attributes, entity states, global resources, and weapon data on the fly – useful for game researchers, mod developers, or advanced players.
+It reads the target process memory to display and modify character attributes, entity states, global resources, and weapon data on the fly – useful for game researchers, mod developers, or advanced players.
 
 > **⚠️ Important Notice**  
-> This tool is intended for learning, research, and legitimate debugging purposes only. Do not use it to disrupt others’ gaming experience or for any illicit activities.
+> This tool is intended for learning, research, and legitimate debugging purposes only. Do not use it for any illicit activities.
 
 ---
 
@@ -14,25 +14,26 @@ It reads the game process memory to display and modify character attributes, ent
   Enumerate all system processes, filter by name or PID, and attach/detach with one click.
 
 - **Character Panel**  
-  - Display basic info (name, perk, trait, description) for all characters in the current party  
+  - Show basic info (name, perk, trait, description) for all characters in the current party  
   - Real‑time editing of **13 core attributes** (morale, attitude, composure, charm, etc.) including base, temp, and bonus values  
   - Modify character resources (food, gas, medical, ammo, and 4 other types)  
   - Manage **3 weapon slots** (weapon ID, stack count, lock status)  
-  - Adjust health, speed bonus, gender, pet flag, and two state‑flag fields (bit‑wise)
+  - Adjust health, speed bonus, gender, pet flag, and two status‑flag fields (bit‑wise)
 
 - **Entity Panel** (Graphical View)  
   - Filter entities by map area; displayed as icons on a grid layout  
   - Three interaction modes: **Select** (click/box select), **Zoom** (scroll wheel), **Pan** (drag canvas)  
   - In *Select* mode, **drag‑and‑drop** entities directly to new positions (writes back on release)  
   - Rich right‑click context menu:  
-    - **Set as Target** – marks an entity as a reference for teleport/swap  
+    - **Set as Target** – mark an entity as a reference for teleport/swap  
     - **Flags** – toggle nocollide, unseen, invisible, no_hit, nopick, glow (batch for multiple selections)  
     - **Edit Position / Velocity / Physics / Other** – open dialogs for precise numeric adjustment  
-    - **Teleport to Target** – moves selected entities to the target’s coordinates  
-    - **Random Swap** – shuffles positions and areas among selected entities  
-    - **Clone** – duplicates selected entities (if the type supports it)  
-    - **Destroy** – removes entities from the game  
-    - **Spawn** – create new entities: human, zombie, item, projectile, furniture, pickup, weapon, vehicle, special pickup
+    - **Teleport to Target** – move selected entities to the target’s coordinates  
+    - **Random Swap** – shuffle positions and areas among selected entities  
+    - **Clone** – duplicate selected entities (if the type supports it)  
+    - **Destroy** – remove entities from the game  
+    - **Spawn** – create new entities: human, zombie, item, projectile, furniture, pickup, weapon, vehicle, special pickup  
+    - **Set Render Layer** – change the camera’s rendering area
 
 - **Mission (Global) Panel**  
   - Show current party members (automatically linked to character names)  
@@ -94,15 +95,15 @@ cd drtc-debug-tool
 If a game update breaks data reading, click the **“Settings”** button to open the offset dialog:  
 - Configure start offsets, structure sizes, and maximum counts for **Characters**, **Entities**, **Weapons**, and **Mission**.  
 - Adjust the global refresh interval (in milliseconds).  
-- Choose the UI language (System, English, 中文, 日本語) – requires restart.  
+- Switch the UI language (choose “System” or any loaded translation; currently includes Chinese, English, and Japanese – you can add more). A restart is required for the language change to take effect.  
 - Save – changes take effect immediately without restarting.
 
 ### Character Operations
 - In the **“Character”** tab, select a character from the dropdown.  
 - All editable fields (line edits, spin boxes, checkboxes) support direct modification; changes are written to memory on submission.  
-- In the attribute table, the “Base / Temp / Bonus” values are editable (double‑click); the effective value is calculated automatically.  
+- In the attribute table, the “Base / Temp / Bonus” values are editable (double‑click); the effective value is calculated automatically. Note that the “Temp” value is usually controlled by status flags and manual changes have little effect.  
 - Click a weapon slot button to open the weapon selection dialog and pick from the list of loaded weapons.  
-- The two status flags (属性1/属性2) are edited as integer bitmasks – use binary logic.
+- The two status flags (属性1/属性2) are edited as integer bitmasks – think of them in binary.
 
 ### Entity Operations (Graphical View)
 - In the **“Entity”** tab, use the area filter combobox to show entities from a specific map area (default: “All”).  
@@ -112,14 +113,16 @@ If a game update breaks data reading, click the **“Settings”** button to ope
   - **Pan**: drag the canvas to navigate around.  
 - Right‑click on an entity (or on empty space) to open the context menu:  
   - If multiple entities are selected, most actions apply to all of them.  
-  - **“Set as Target”** marks the clicked entity as a target (button highlighted) – used for teleport/swap operations.  
-  - **“Flags”** submenu: toggle special properties (nocollide, unseen, invisible, no_hit, nopick, glow) for all selected entities.  
-  - **“Edit Position / Velocity / Physics / Other”** open dialogs for fine‑tuning numeric values.  
-  - **“Teleport to Target”** moves selected entities to the target entity’s coordinates.  
+  - **“Set as Target”** marks the clicked entity as a target (used for teleport/swap operations).  
+  - **“Flags”** submenu: batch toggle special properties (nocollide, unseen, invisible, no_hit, nopick, glow). The displayed flag state is the logical AND result of all selected entities.  
+  - **“Edit Position / Velocity / Physics / Other”** open dialogs for fine‑tuning numeric values – the dialog shows the current values of the first selected entity.  
+  - **“Teleport to Target”** moves selected entities to the target’s coordinates.  
   - **“Random Swap”** randomly swaps positions and area IDs among the selected entities.  
   - **“Clone”** duplicates selected entities (if the type is clonable).  
   - **“Destroy”** permanently removes selected entities.  
   - **“Spawn”** submenu: create a new entity at the mouse position – choose from human, zombie, item, projectile, furniture, pickup, weapon, vehicle, or special pickup.  
+    > **Note**: When spawning non‑character entities such as **item, projectile, furniture, pickup, weapon, vehicle, or special pickup**, you usually need to set a valid **Sprite ID** in the “Edit Other” dialog, otherwise the entity may not appear correctly in the game.  
+  - **“Set Render Layer”**: set the current area as the camera’s render target. For example, after teleporting a player‑controlled character to a different area, you must call this function to update the render layer; otherwise the camera may get stuck in the upper‑left corner.  
 - While dragging entities, the auto‑refresh timer is temporarily paused to prevent scene rebuilds; it resumes after the drag is finished.
 
 ### Mission (Global) Operations
@@ -129,7 +132,8 @@ If a game update breaks data reading, click the **“Settings”** button to ope
 - Storage weapon slots are arranged as a grid of buttons + spin boxes – click a button to select a weapon ID, and adjust the quantity with the spin box.
 
 ### Script Console
-- In the bottom‑right of the “Mission” tab, type a game script command (e.g., `spawn`) into the input field and press Enter.  
+- In the command input box at the bottom of the “Mission” tab, type a game script command (e.g., `spawn`) and press Enter.  
+- Since the game supports UTF‑8, commands may include Unicode characters (which the built‑in game console cannot input).  
 - The status bar will show whether the command was executed successfully.
 
 ---
@@ -157,7 +161,8 @@ If a game update breaks data reading, click the **“Settings”** button to ope
 - **Stability**: Memory editing carries a risk of crashes. It is advisable to back up your save files. If the game crashes, simply restart it – the tool does not need to be restarted.  
 - **Editing Conflicts**: The auto‑refresh pauses while you are editing a field to avoid overwriting your input. However, do not use another memory editor simultaneously to prevent race conditions.  
 - **Read‑Only Mode**: If you only want to view data, avoid modifying fields; the tool writes any UI changes to memory immediately.  
-- **Language Support**: The interface supports Chinese, English, and Japanese – switch in the Settings dialog.
+- **Language Support**: The UI language is dynamically loaded from the `translations` directory. It supports the system language and all available translation files (currently includes Chinese, English, and Japanese). You can freely switch in the settings and even add custom translations.  
+- **Destroying Entities vs. Deleting Characters**: Executing **“Destroy”** in the entity panel only removes the game‑world object (e.g., character model, item model) – it **does not** free the character slot or character data associated with that entity.
 
 ---
 
@@ -170,4 +175,5 @@ If a game update breaks data reading, click the **“Settings”** button to ope
 
 ## 📜 License
 
-This project is for personal learning and research purposes only. Commercial use or any form of infringement is strictly prohibited.
+This project is for personal learning and research purposes only. Commercial use or any form of infringement is strictly prohibited.  
+You are allowed to freely distribute unmodified official releases. If you distribute a modified version, you assume all responsibility, and the original author is not liable.

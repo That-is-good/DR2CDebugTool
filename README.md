@@ -33,11 +33,12 @@ Each language version contains detailed feature descriptions, usage guides, proj
 - **Persistent Configuration** – offsets, refresh rate, and language preferences saved in `config.json` for easy migration across game updates
 
 🖼️ Screenshots
-[Character Panel](./Readme/character.png)
 
-[Entity Panel](./Readme/entity.png)
+![Character Panel](./Readme/character.png)
 
-[Mission Panel](./Readme/misson.png)
+![Entity Panel](./Readme/entity.png)
+
+![Mission Panel](./Readme/misson.png)
 
 ---
 

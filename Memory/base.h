@@ -89,9 +89,10 @@ struct MapAreaData {
 };
 
 struct MissionStateData {
+    quint32 leader_thing_id = 0;       // 0x00 当前队长物体ID
+    quint32 player_thing_map[4] = {0};   // 0x08 玩家物体映射
     quint32 player_char[4] = {0}; // 0x18 当前队伍角色在角色中的顺序, 从1开始
     qint32 resource[8] = {0}; // 0x28 资源
-
     // 0x48
     // weaponslots[槽位][内容]
     // 武器数量 武器ID

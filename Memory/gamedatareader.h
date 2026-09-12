@@ -54,6 +54,8 @@ public:
 
     // ---- 本局游戏状态 ----
     MissionStateData readMissionState() const;
+    quint32 readMissionStateLeaderChar() const;
+    std::array<quint32, 4> readMissionStatePlayerChar() const;
     bool writeMission(const MissionStateData&);
 
     // ---- 武器池 ----

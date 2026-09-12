@@ -36,6 +36,8 @@
 #include <QGraphicsItemGroup>
 class QGraphicsPixmapItem;
 class QGraphicsEllipseItem;
+class QGraphicsRectItem;
+class QGraphicsItem;
 class QGraphicsItemGroup;
 
 #include "Setting/addrsetting.h"
@@ -121,6 +123,10 @@ private:
     void refreshProcessList();
     void refreshCharacterData(int charIndex);
     void refreshEntityView();
+    void rebuildEntityBackground(const QList<int> &regions,
+                                 const QHash<int, QSizeF> &sizes,
+                                 const QSet<int> &inactiveRegions);
+    void ensureEntityItems(int poolSize);
 
     // 辅助
     void setControlsEnabled(bool enabled);
@@ -132,7 +138,10 @@ private:
     ThingData *thingByAddr(quint64 addr);        // 地址 → m_thingCache 实体
     void applyEntityFlagsToAddrs(const QList<quint64> &addrs, bool set, quint8 flag);
     int iconIndexForThing(const ThingData &th) const;
+    int regionContainingScenePos(const QPointF &scenePos) const;
     int regionFromScenePos(const QPointF &scenePos) const;
+    QPointF clampEntityPos(const QGraphicsItem *item, const QPointF &scenePos, int region) const;
+    void updateEntityMarkerPositions();
     void moveEntityToScenePos(quint64 addr, const QPointF &scenePos);
     quint64 spawnEntityAt(uint type, const QPointF &scenePos);
     void RenderMapTileLayerAt(const QPointF &scenePos);
@@ -154,8 +163,16 @@ private:
     // 固定实体池图元（槽位 = 实体池索引，预创建后仅更新属性，不重建场景）
     QVector<QGraphicsPixmapItem*> m_thingItems;
     QVector<QGraphicsEllipseItem*> m_thingMarkers;
+    QVector<QGraphicsRectItem*> m_playerMarkers;
+    QGraphicsPixmapItem *m_leaderMarker = nullptr;
     QVector<int> m_thingIconCache;               // 每个槽位当前图标索引
+    QVector<quint64> m_thingImageAddrCache;
+    QVector<quint8> m_thingImageTypeCache;
+    QVector<quint8> m_thingImageSubTypeCache;
     QVector<QPixmap> m_iconPixmaps;              // 图标磁盘加载缓存
+    QVector<QPixmap> m_playerEntityPixmaps;
+    QVector<QPixmap> m_furniturePixmaps;
+    QPixmap m_leaderPixmap;
     QGraphicsItemGroup *m_backgroundGroup = nullptr; // 区域背景/标签组
     QString m_layoutSignature;                   // 区域布局签名，变化时重建背景
 
@@ -164,6 +181,7 @@ private:
     quint64 m_dragAddr = 0;
     QGraphicsItem *m_dragItem = nullptr;
     QPointF m_dragOffset;
+    QHash<quint64, int> m_dragStartRegions;
 
     QList<CharacterData> m_charCache;
     MissionStateData m_missionCache;

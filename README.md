@@ -1,6 +1,14 @@
 # Death Road to Canada Debug Tool
 
-- **English** · [中文版本|Chinese](./Readme/ZH_CN.md) · [日本語版|Japanese](./Readme/JP.md)
+## 📖 Full Documentation (Language Versions)
+
+- [English Version](./Readme/EN.md)  
+- [中文版本](./Readme/ZH_CN.md)  
+- [日本語版](./Readme/JA.md)
+
+Each language version contains detailed feature descriptions, usage guides, project structure, and important notes.
+
+---
 
 > A real‑time memory debugging and editing tool for *Death Road to Canada*, built with **Qt6** and C++.  
 > While the game is running, you can view and modify character attributes, entity states, global resources, and weapon data – useful for game research, mod development, or advanced data analysis.
@@ -9,12 +17,19 @@
 
 ## ✨ Key Features
 
-- **Process Management** – enumerate system processes, filter by name/PID, attach/detach with one click
-- **Character Editing** – modify 13 core attributes (base/temp/bonus), 8 resources, 3 weapon slots, health, speed, gender, pet, and status flags
-- **Entity Visualization** – display entities as icons on a map grid; support selection, zoom, pan; **drag‑and‑drop to move entities**; right‑click menu offers teleport, swap, clone, destroy, and spawn (9 types) operations
+- **Process Management** – enumerate system processes, filter by name/PID, attach/detach with one click; automatically detaches when the target process exits
+- **Character Editing** – modify 13 core attributes (base/temp/bonus + known flag), 8 resources, 3 weapon slots, health, speed, gender, pet, and status flags; party members are marked with **★** in the character drop-down
+- **Entity Visualization** – display entities as icons on a map grid; support select / zoom / pan modes; **drag‑and‑drop to move entities** (single or multi‑selection); right‑click menu offers:
+  - Set as Center (target marker with yellow circle)
+  - Flags (no collision, invisible, not drawn, no hit, no pickup, glow)
+  - Edit Position / Velocity / Physics / Other
+  - Teleport to Center, Random Swap, Clone, Destroy, Set as Player Entity
+  - Spawn (9 types: Human, Zombie, Item, Projectile, Furniture, Pickup, Weapon, Vehicle, Special Pickup)
+  - Set Render Layer
+  - Area drop-down dynamically lists existing areas
 - **Global Resources** – adjust 8 resource types (food, gas, medical, etc.) and manage 15 storage weapon slots
 - **Script Console** – send in‑game script commands (supports UTF‑8 characters)
-- **Auto Refresh** – customisable refresh interval (default 500ms); automatically pauses while editing to avoid conflicts
+- **Auto Refresh** – customisable refresh interval (default 500 ms); automatically pauses while editing to avoid conflicts
 - **Persistent Configuration** – offsets, refresh rate, and language preferences saved in `config.json` for easy migration across game updates
 
 ---
@@ -40,20 +55,12 @@ After startup, select the game process (usually `prog.exe`) from the process lis
 
 ---
 
-## 📖 Full Documentation (Language Versions)
-
-- [English Version](./Readme/EN.md)  
-- [中文版本](./Readme/ZH_CN.md)  
-- [日本語版](./Readme/JP.md)
-
-Each language version contains detailed feature descriptions, usage guides, project structure, and important notes.
-
----
-
 ## ⚠️ Important Notes
 
 - This tool is built based on reverse‑engineering of a specific game version; offsets may change with game updates – adjust them via the “Settings” dialog.
 - Memory editing carries a risk of crashes; please back up your save files beforehand.
+- **Destroying an entity** in the Entity panel only removes the game‑world object (model, item, etc.); it does **not** release the bound character slot.
+- When spawning non‑character entities (items, projectiles, furniture, etc.), you usually need to set a valid **Sprite ID** via the “Edit Other” dialog, otherwise they may not render correctly.
 - This tool is intended for personal learning and research only. Commercial use or any action that infringes upon others’ rights is prohibited.
 - Unmodified official releases may be freely redistributed. If you distribute a modified version, you assume all responsibility.
 

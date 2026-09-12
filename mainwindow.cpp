@@ -16,6 +16,8 @@
 #include <QScrollBar>
 #include <QPainter>
 #include <QPair>
+#include <QDir>
+#include <QRandomGenerator>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -63,16 +65,20 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event)
         return true;
     }
 
-    // SelectMode 下拖动实体图元（原地直接拖动，不写内存，松手后写回位置）
     if (m_entityMode == SelectMode
         && watched == ui->entitygraphicsView->viewport()) {
         if (event->type() == QEvent::MouseButtonPress) {
             QMouseEvent *me = static_cast<QMouseEvent*>(event);
             if (me->button() == Qt::LeftButton) {
-                QGraphicsItem *item = ui->entitygraphicsView->itemAt(me->pos());
+                QGraphicsItem *item = nullptr;
+                for (QGraphicsItem *candidate : ui->entitygraphicsView->items(me->pos())) {
+                    if (candidate->data(0).toULongLong() != 0) {
+                        item = candidate;
+                        break;
+                    }
+                }
                 quint64 addr = item ? item->data(0).toULongLong() : 0;
                 if (addr != 0) {
-                    // 若点击未选中的实体，先选中它
                     if (!item->isSelected()) {
                         m_entityScene->clearSelection();
                         item->setSelected(true);
@@ -81,7 +87,13 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event)
                     m_dragAddr = addr;
                     m_dragItem = item;
                     m_dragOffset = item->mapFromScene(ui->entitygraphicsView->mapToScene(me->pos()));
-                    // 拖动期间停止定时刷新，避免场景重建导致 m_dragItem 悬空
+                    m_dragStartRegions.clear();
+                    for (auto *selected : m_entityScene->selectedItems()) {
+                        const quint64 selectedAddr = selected->data(0).toULongLong();
+                        if (selectedAddr != 0)
+                            m_dragStartRegions.insert(
+                                selectedAddr, regionContainingScenePos(selected->scenePos()));
+                    }
                     m_refreshTimer->stop();
                     return true;
                 }
@@ -90,36 +102,33 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event)
             QMouseEvent *me = static_cast<QMouseEvent*>(event);
             if (m_dragItem) {
                 const QPointF scenePos = ui->entitygraphicsView->mapToScene(me->pos());
-                const QPointF itemAnchor = scenePos - m_dragOffset;
-                // 仅移动当前拖拽项，其他选中项一并跟随
-                QPointF delta = itemAnchor - m_dragItem->pos();
+                const QPointF requestedPos = scenePos - m_dragOffset;
+                const QPointF delta = requestedPos - m_dragItem->pos();
                 for (auto *sel : m_entityScene->selectedItems()) {
                     if (sel->data(0).toULongLong() != 0)
                         sel->setPos(sel->pos() + delta);
                 }
-                m_dragItem->setPos(itemAnchor);
+                updateEntityMarkerPositions();
             }
             return true;
         } else if (event->type() == QEvent::MouseButtonRelease && m_draggingEntity) {
             m_draggingEntity = false;
-            // 写回全部被跟随拖动且仍选中的实体（含主拖拽实体）
             if (isAttached()) {
                 const auto selectedItems = m_entityScene->selectedItems();
                 for (auto *sel : selectedItems) {
-                    const quint64 a = sel->data(0).toULongLong();
-                    if (a == 0) continue;
-                    // 主拖拽项：光标锚点 = 图元中心 + 按下时偏移
-                    // 其它跟随项：整体平移，图元中心即新位置
-                    const QPointF scenePos = (sel == m_dragItem)
-                        ? sel->scenePos() + m_dragOffset
-                        : sel->scenePos();
-                    moveEntityToScenePos(a, scenePos);
+                    const quint64 addr = sel->data(0).toULongLong();
+                    if (addr == 0) continue;
+                    int region = regionContainingScenePos(sel->scenePos());
+                    if (region < 0)
+                        region = m_dragStartRegions.value(addr, 0);
+                    const QPointF reboundPos = clampEntityPos(sel, sel->scenePos(), region);
+                    moveEntityToScenePos(addr, reboundPos);
                 }
             }
             m_dragAddr = 0;
             m_dragItem = nullptr;
             m_dragOffset = QPointF();
-            // 拖动结束，恢复定时刷新
+            m_dragStartRegions.clear();
             if (isAttached())
                 m_refreshTimer->start();
             return true;
@@ -130,7 +139,10 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event)
 }
 
 // ==================== 辅助 ====================
-bool MainWindow::isAttached() const { return m_memMgr && m_memMgr->isAttached(); }
+bool MainWindow::isAttached() const
+{
+    return m_memMgr && m_memMgr->isAttached();
+}
 
 int MainWindow::selectedCharacterIndex() const
 {
@@ -313,6 +325,31 @@ void MainWindow::setupConnections()
 // ==================== 视图初始化 ====================
 void MainWindow::setupEntityView()
 {
+    m_iconPixmaps.resize(10); // 索引1..9 对应图标
+    for (int i = 1; i <= 9; ++i) {
+        QPixmap pix(QString(QCoreApplication::applicationDirPath() + "/Icons/%1.png").arg(i));
+        if (pix.isNull())
+            pix = QPixmap(24, 24);
+        m_iconPixmaps[i] = pix;
+    }
+    m_leaderPixmap.load(QCoreApplication::applicationDirPath() + "/Icons/leader.png");
+
+    const QStringList imageFilters = {"*.png", "*.jpg", "*.jpeg", "*.bmp"};
+    auto loadPixmapDirectory = [&imageFilters](const QString &path) {
+        QVector<QPixmap> pixmaps;
+        const QFileInfoList files = QDir(path).entryInfoList(
+            imageFilters, QDir::Files, QDir::Name);
+        for (const QFileInfo &file : files) {
+            QPixmap pixmap(file.absoluteFilePath());
+            if (!pixmap.isNull())
+                pixmaps.append(pixmap);
+        }
+        return pixmaps;
+    };
+    const QString iconsPath = QCoreApplication::applicationDirPath() + "/Icons";
+    m_playerEntityPixmaps = loadPixmapDirectory(iconsPath + "/player");
+    m_furniturePixmaps = loadPixmapDirectory(iconsPath + "/furniture");
+
     m_entityScene = new QGraphicsScene(this);
     ui->entitygraphicsView->setScene(m_entityScene);
     ui->entitygraphicsView->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -737,7 +774,7 @@ void MainWindow::onStorageWeaponClicked(int slotIndex)
 void MainWindow::onEntityAreaFilterChanged(int idx)
 { m_entityAreaFilter = ui->entityAreacomboBox->itemData(idx).toInt(); refreshEntityView(); }
 
-int MainWindow::regionFromScenePos(const QPointF &scenePos) const
+int MainWindow::regionContainingScenePos(const QPointF &scenePos) const
 {
     for (auto it = m_regionOffsets.constBegin(); it != m_regionOffsets.constEnd(); ++it) {
         const int mapid = it.key();
@@ -747,8 +784,133 @@ int MainWindow::regionFromScenePos(const QPointF &scenePos) const
             && scenePos.y() >= origin.y() && scenePos.y() <= origin.y() + sz.height())
             return mapid;
     }
-    // 找不到区域时返回当前选中区域，否则返回 0
-    return m_entityAreaFilter >= 0 ? m_entityAreaFilter : 0;
+    return -1;
+}
+
+int MainWindow::regionFromScenePos(const QPointF &scenePos) const
+{
+    const int region = regionContainingScenePos(scenePos);
+    return region >= 0 ? region : (m_entityAreaFilter >= 0 ? m_entityAreaFilter : 0);
+}
+
+QPointF MainWindow::clampEntityPos(const QGraphicsItem *item, const QPointF &scenePos,
+                                   int region) const
+{
+    const QRectF bounds = item->boundingRect();
+    const QPointF origin = m_regionOffsets.value(region, QPointF(0, 0));
+    const QSizeF size = m_regionSizes.value(region, QSizeF());
+    if (size.isEmpty()) return scenePos;
+
+    return QPointF(
+        qBound(origin.x() - bounds.left(), scenePos.x(),
+               origin.x() + size.width() - bounds.right()),
+        qBound(origin.y() - bounds.top(), scenePos.y(),
+               origin.y() + size.height() - bounds.bottom()));
+}
+
+void MainWindow::updateEntityMarkerPositions()
+{
+    const int count = std::min(m_thingItems.size(), m_thingMarkers.size());
+    for (int slot = 0; slot < count; ++slot) {
+        QGraphicsPixmapItem *item = m_thingItems[slot];
+        if (!item || !item->isVisible()) continue;
+
+        const QPointF pos = item->scenePos();
+        m_thingMarkers[slot]->setPos(pos);
+        m_playerMarkers[slot]->setPos(pos);
+        if (m_leaderMarker && m_leaderMarker->isVisible()
+            && item->data(1).toUInt() == m_leaderMarker->data(1).toUInt())
+            m_leaderMarker->setPos(pos);
+    }
+}
+
+void MainWindow::rebuildEntityBackground(const QList<int> &regions,
+                                         const QHash<int, QSizeF> &sizes,
+                                         const QSet<int> &inactiveRegions)
+{
+    if (m_backgroundGroup) {
+        m_entityScene->removeItem(m_backgroundGroup);
+        delete m_backgroundGroup;
+    }
+
+    m_backgroundGroup = new QGraphicsItemGroup();
+    m_backgroundGroup->setZValue(-10);
+    m_entityScene->addItem(m_backgroundGroup);
+
+    for (int mapid : regions) {
+        const QPointF origin = m_regionOffsets.value(mapid);
+        const QSizeF size = sizes.value(mapid);
+        QGraphicsRectItem *rect = m_entityScene->addRect(
+            origin.x(), origin.y(), size.width(), size.height(),
+            QPen(QColor(210, 190, 210), 2),
+            inactiveRegions.contains(mapid)
+                ? QBrush(Qt::NoBrush)
+                : QBrush(QColor("#5C5059")));
+        m_backgroundGroup->addToGroup(rect);
+
+        QGraphicsSimpleTextItem *label = m_entityScene->addSimpleText(
+            QString(tr("区域%1")).arg(mapid));
+        label->setBrush(QColor(200, 200, 200));
+        label->setPos(origin.x() + 4, origin.y() + 4);
+        m_backgroundGroup->addToGroup(label);
+    }
+}
+
+void MainWindow::ensureEntityItems(int poolSize)
+{
+    if (m_thingItems.size() == poolSize)
+        return;
+
+    for (auto *item : m_thingItems)
+        if (item) { m_entityScene->removeItem(item); delete item; }
+    for (auto *marker : m_thingMarkers)
+        if (marker) { m_entityScene->removeItem(marker); delete marker; }
+    for (auto *marker : m_playerMarkers)
+        if (marker) { m_entityScene->removeItem(marker); delete marker; }
+    if (m_leaderMarker) {
+        m_entityScene->removeItem(m_leaderMarker);
+        delete m_leaderMarker;
+        m_leaderMarker = nullptr;
+    }
+
+    m_thingItems.fill(nullptr, poolSize);
+    m_thingMarkers.fill(nullptr, poolSize);
+    m_playerMarkers.fill(nullptr, poolSize);
+    m_thingIconCache.fill(0, poolSize);
+    m_thingImageAddrCache.fill(0, poolSize);
+    m_thingImageTypeCache.fill(0, poolSize);
+    m_thingImageSubTypeCache.fill(0, poolSize);
+
+    for (int slot = 0; slot < poolSize; ++slot) {
+        QGraphicsPixmapItem *item = new QGraphicsPixmapItem();
+        item->setAcceptHoverEvents(true);
+        item->setData(0, 0);
+        item->setData(1, 0);
+        item->setVisible(false);
+        item->setFlag(QGraphicsItem::ItemIsSelectable, m_entityMode == SelectMode);
+        m_entityScene->addItem(item);
+        m_thingItems[slot] = item;
+
+        QGraphicsEllipseItem *centerMarker = new QGraphicsEllipseItem(-16, -16, 32, 32);
+        centerMarker->setPen(QPen(QColor(255, 200, 0), 3));
+        centerMarker->setBrush(QBrush(QColor(255, 200, 0, 60)));
+        centerMarker->setAcceptedMouseButtons(Qt::NoButton);
+        centerMarker->setFlag(QGraphicsItem::ItemIsSelectable, false);
+        centerMarker->setVisible(false);
+        centerMarker->setZValue(-8);
+        m_entityScene->addItem(centerMarker);
+        m_thingMarkers[slot] = centerMarker;
+
+        QGraphicsRectItem *playerMarker = new QGraphicsRectItem();
+        playerMarker->setPen(QPen(Qt::red, 2));
+        playerMarker->setBrush(Qt::NoBrush);
+        playerMarker->setData(0, 0);
+        playerMarker->setAcceptedMouseButtons(Qt::NoButton);
+        playerMarker->setZValue(5);
+        playerMarker->setVisible(false);
+        m_entityScene->addItem(playerMarker);
+        m_playerMarkers[slot] = playerMarker;
+    }
 }
 
 void MainWindow::moveEntityToScenePos(quint64 addr, const QPointF &scenePos)
@@ -913,103 +1075,91 @@ void MainWindow::refreshEntityView()
         m_regionSizes = regionSizes;
         m_layoutSignature = layoutSig;
 
-        // ---- 重建背景/标签组 ----
-        if (m_backgroundGroup) {
-            m_entityScene->removeItem(m_backgroundGroup);
-            delete m_backgroundGroup;
-            m_backgroundGroup = nullptr;
-        }
-        m_backgroundGroup = new QGraphicsItemGroup();
-        m_backgroundGroup->setZValue(-10);
-        m_entityScene->addItem(m_backgroundGroup);
-
-        for (int mapid : sortedRegions) {
-            if (inactiveRegions.contains(mapid)) continue;
-            const QPointF origin = m_regionOffsets[mapid];
-            const QSizeF sz = m_regionSizes[mapid];
-            QGraphicsRectItem *rect = m_entityScene->addRect(origin.x(), origin.y(), sz.width(), sz.height(),
-                                                             QPen(QColor(80, 80, 80)), QBrush(QColor(35, 35, 35)));
-            m_backgroundGroup->addToGroup(rect);
-
-            QGraphicsSimpleTextItem *label = m_entityScene->addSimpleText(QString(tr("区域%1")).arg(mapid));
-            label->setBrush(QColor(200, 200, 200));
-            label->setPos(origin.x() + 4, origin.y() + 4);
-            m_backgroundGroup->addToGroup(label);
-        }
+        rebuildEntityBackground(sortedRegions, m_regionSizes, inactiveRegions);
     }
 
-    // ---- 第一次调用时预创建全部实体图元（固定池容量） ----
     const int poolSize = m_gameData->maxThings();
-    if (m_thingItems.size() != poolSize) {
-        // 清空旧图元
-        for (auto *it : m_thingItems)
-            if (it) { m_entityScene->removeItem(it); delete it; }
-        for (auto *mk : m_thingMarkers)
-            if (mk) { m_entityScene->removeItem(mk); delete mk; }
-        m_thingItems.clear();
-        m_thingMarkers.clear();
-        m_thingItems.fill(nullptr, poolSize);
-        m_thingMarkers.fill(nullptr, poolSize);
-        m_thingIconCache.fill(0, poolSize);
-        m_iconPixmaps.clear();
-        m_iconPixmaps.resize(10); // 索引1..9 对应图标
+    ensureEntityItems(poolSize);
 
-        for (int i = 1; i <= 9; ++i) {
-            QPixmap pix(QString(QCoreApplication::applicationDirPath() + "/Icons/%1.png").arg(i));
-            if (pix.isNull())
-                pix = QPixmap(24, 24);
-            m_iconPixmaps[i] = pix;
-        }
-
-        for (int slot = 0; slot < poolSize; ++slot) {
-            QGraphicsPixmapItem *item = new QGraphicsPixmapItem();
-            item->setAcceptHoverEvents(true);
-            item->setData(0, 0);
-            item->setData(1, 0);
-            item->setVisible(false);
-            item->setFlag(QGraphicsItem::ItemIsSelectable, m_entityMode == SelectMode);
-            m_entityScene->addItem(item);
-            m_thingItems[slot] = item;
-
-            QGraphicsEllipseItem *marker = new QGraphicsEllipseItem(-16, -16, 32, 32);
-            marker->setPen(QPen(QColor(255, 200, 0), 3));
-            marker->setBrush(QBrush(QColor(255, 200, 0, 60)));
-            marker->setAcceptedMouseButtons(Qt::NoButton);
-            marker->setFlag(QGraphicsItem::ItemIsSelectable, false);
-            marker->setVisible(false);
-            marker->setZValue(-8);
-            m_entityScene->addItem(marker);
-            m_thingMarkers[slot] = marker;
-        }
+    if (!m_leaderMarker) {
+        m_leaderMarker = new QGraphicsPixmapItem(m_leaderPixmap);
+        m_leaderMarker->setOffset(-m_leaderPixmap.width() / 2.0,
+                                  -m_leaderPixmap.height() - 4.0);
+        m_leaderMarker->setAcceptedMouseButtons(Qt::NoButton);
+        m_leaderMarker->setZValue(5);
+        m_leaderMarker->setData(0, 0);
+        m_leaderMarker->setData(1, 0);
+        m_leaderMarker->setVisible(false);
+        m_entityScene->addItem(m_leaderMarker);
     }
+    m_leaderMarker->setVisible(false);
+    m_leaderMarker->setData(1, 0);
 
     // ---- 每个槽位：仅更新属性，不重建图元 ----
+    const quint32 leaderCharSlot = m_gameData->readMissionStateLeaderChar();
+    quint32 leaderEntityId = 0;
+    if (leaderCharSlot > 0
+        && leaderCharSlot <= static_cast<quint32>(m_gameData->maxCharacters())) {
+        const CharacterData leader = m_gameData->readCharacter(
+            static_cast<qint32>(leaderCharSlot - 1));
+        leaderEntityId = leader.id[1];
+    }
+    const auto playerCharSlots = m_gameData->readMissionStatePlayerChar();
+    QSet<quint32> playerEntityIds;
+    for (quint32 charSlot : playerCharSlots) {
+        if (charSlot == 0 || charSlot > static_cast<quint32>(m_gameData->maxCharacters()))
+            continue;
+        const CharacterData player = m_gameData->readCharacter(
+            static_cast<qint32>(charSlot - 1));
+        if (player.id[1] != 0)
+            playerEntityIds.insert(player.id[1]);
+    }
+
     int aliveCount = 0;
     for (int slot = 0; slot < poolSize; ++slot) {
         const ThingData &th = m_thingCache[slot];
         QGraphicsPixmapItem *item = m_thingItems[slot];
         QGraphicsEllipseItem *marker = m_thingMarkers[slot];
+        QGraphicsRectItem *playerMarker = m_playerMarkers[slot];
 
         if (th.id == 0
             || (m_entityAreaFilter >= 0 && th.mapid != m_entityAreaFilter)) {
             item->setVisible(false);
             marker->setVisible(false);
+            playerMarker->setVisible(false);
             continue;
         }
 
         ++aliveCount;
 
-        const int iconIdx = iconIndexForThing(th);
-        if (iconIdx != m_thingIconCache[slot]) {
-            // 图标变化时更新（首次缓存值为0，必更新）
-            item->setPixmap(m_iconPixmaps[iconIdx]);
-            item->setOffset(-m_iconPixmaps[iconIdx].width() / 2.0,
-                            -m_iconPixmaps[iconIdx].height() / 2.0);
-            m_thingIconCache[slot] = iconIdx;
+        if (m_thingImageAddrCache[slot] != th.addr
+            || m_thingImageTypeCache[slot] != th.type[0]
+            || m_thingImageSubTypeCache[slot] != th.type[1]) {
+            QPixmap pixmap;
+            const QVector<QPixmap> *randomPixmaps = nullptr;
+            const int iconIdx = iconIndexForThing(th);
+            if (iconIdx == 1)
+                randomPixmaps = &m_playerEntityPixmaps;
+            else if (iconIdx == 5)
+                randomPixmaps = &m_furniturePixmaps;
+
+            if (randomPixmaps && !randomPixmaps->isEmpty()) {
+                const int index = QRandomGenerator::global()->bounded(randomPixmaps->size());
+                pixmap = randomPixmaps->at(index);
+            } else {
+                pixmap = m_iconPixmaps.value(iconIdx, m_iconPixmaps.value(3));
+            }
+
+            item->setPixmap(pixmap);
+            item->setOffset(-pixmap.width() / 2.0, -pixmap.height() / 2.0);
+            m_thingImageAddrCache[slot] = th.addr;
+            m_thingImageTypeCache[slot] = th.type[0];
+            m_thingImageSubTypeCache[slot] = th.type[1];
         }
 
         const QPointF origin = m_regionOffsets.value(th.mapid, QPointF(0, 0));
-        const QPointF pos(origin.x() + th.vec3d[0][0], origin.y() + th.vec3d[0][1]);
+        const QPointF rawPos(origin.x() + th.vec3d[0][0], origin.y() + th.vec3d[0][1]);
+        const QPointF pos = clampEntityPos(item, rawPos, th.mapid);
 
         item->setPos(pos);
         item->setData(0, QVariant::fromValue(th.addr)); // 地址可能变化（池槽位固定）
@@ -1027,6 +1177,23 @@ void MainWindow::refreshEntityView()
         marker->setVisible(isCenter);
         if (isCenter)
             marker->setPos(pos);
+
+        if (th.id == leaderEntityId && !m_leaderPixmap.isNull()) {
+            playerMarker->setRect(item->boundingRect());
+            playerMarker->setPen(Qt::NoPen);
+            playerMarker->setBrush(Qt::NoBrush);
+            playerMarker->setVisible(false);
+            m_leaderMarker->setPos(pos);
+            m_leaderMarker->setData(1, QVariant::fromValue(th.id));
+            m_leaderMarker->setVisible(true);
+        } else if (playerEntityIds.contains(th.id)) {
+            playerMarker->setRect(item->boundingRect());
+            playerMarker->setPos(pos);
+            playerMarker->setPen(QPen(QColor(0, 200, 200), 2));
+            playerMarker->setVisible(true);
+        } else {
+            playerMarker->setVisible(false);
+        }
     }
 
     ui->entityCountLabel->setText(QString(tr("实体: %1")).arg(aliveCount));
@@ -1528,12 +1695,21 @@ void MainWindow::onRefreshTimerChara()
     if (hasEditingFocus()) return;
 
     m_charCache = m_gameData->readAllCharacters();
+    const auto playerCharSlots = m_gameData->readMissionStatePlayerChar();
+    QSet<quint32> playerCharSlotSet;
+    for (quint32 charSlot : playerCharSlots)
+        if (charSlot != 0)
+            playerCharSlotSet.insert(charSlot);
 
     // 构建当前角色列表：以角色ID(id[0])判断是否存在（名字可重复，ID唯一）
     QList<QPair<QString,int>> charList;
     for (int i = 0; i < m_charCache.size(); ++i) {
-        if (m_charCache[i].id[0] != 0)
-            charList.append(qMakePair(m_charCache[i].name, i));
+        if (m_charCache[i].id[0] != 0) {
+            QString displayName = m_charCache[i].name;
+            if (playerCharSlotSet.contains(static_cast<quint32>(i + 1)))
+                displayName += QStringLiteral(" ★");
+            charList.append(qMakePair(displayName, i));
+        }
     }
 
     int curCharIdx = selectedCharacterIndex();
@@ -1585,19 +1761,6 @@ void MainWindow::onRefreshTimerMission()
 
     m_missionCache = m_gameData->readMissionState();
     m_updatingUI = true;
-
-    QList<QLineEdit*> missonCharapainTextEdits = ui->missionChara->findChildren<QLineEdit*>();
-    for (int i = 0; i < missonCharapainTextEdits.length(); ++i) {
-        if (m_missionCache.player_char[i] > 0) {
-            int charIdx = static_cast<int>(m_missionCache.player_char[i]) - 1;
-            QString pName(QString::number(charIdx));
-            if (charIdx < ui->charaSelcomboBox->count())
-                pName = QString("[#%1]%2").arg(pName, ui->charaSelcomboBox->itemText(charIdx));
-            missonCharapainTextEdits[i]->setText(pName);
-        } else {
-            missonCharapainTextEdits[i]->setText(tr("无"));
-        }
-    }
 
     QStandardItemModel *resM = static_cast<QStandardItemModel*>(ui->missionResourcetableView->model());
     for (int i = 0; i < resourceNames.length(); ++i)

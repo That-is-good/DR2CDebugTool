@@ -426,6 +426,26 @@ MissionStateData GameDataReader::readMissionState() const
     return data;
 }
 
+quint32 GameDataReader::readMissionStateLeaderChar() const
+{
+    quint32 leader_thing_id = 0;
+    if (!isAttached() || !m_moduleBase) return leader_thing_id;
+
+    quint64 addr = m_moduleBase + m_missionStateBase;
+    m_memMgr->read<quint32>(addr + 0x00, leader_thing_id);
+    return leader_thing_id;
+}
+
+std::array<quint32, 4> GameDataReader::readMissionStatePlayerChar() const
+{
+    std::array<quint32, 4> player_char{};
+    if (!isAttached() || !m_moduleBase) return player_char;
+
+    quint64 addr = m_moduleBase + m_missionStateBase;
+    m_memMgr->readMemory(addr + 0x18, player_char.data(), sizeof(qint32) * 4);
+    return player_char;
+}
+
 bool GameDataReader::writeMission(const MissionStateData &data)
 {
     if (!isAttached() || !m_moduleBase) return false;

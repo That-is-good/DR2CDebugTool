@@ -1,179 +1,183 @@
 # Death Road to Canada Debug Tool
 
-A real‑time memory debugging and editing tool for the game *Death Road to Canada*, built with **Qt6** and C++.  
-It reads the target process memory to display and modify character attributes, entity states, global resources, and weapon data on the fly – useful for game researchers, mod developers, or advanced players.
+A game memory debugging/modification tool for *Death Road to Canada*, built with **Qt6** and C++. It reads the target process memory to display and modify character attributes, entity states, global resources, and weapon data in real time. It is suitable for game research, mod development, or advanced player analysis.
 
-> **⚠️ Important Notice**  
-> This tool is intended for learning, research, and legitimate debugging purposes only. Do not use it for any illicit activities.
+> **⚠️ Note**  
+> This tool is intended for learning, research, and legitimate debugging purposes only. Do not use it for any unauthorized purposes.
 
 ---
 
 ## ✨ Features
 
 - **Process Management**  
-  Enumerate all system processes, filter by name or PID, and attach/detach with one click.
+  Enumerate all system processes, filter by name or PID, and attach with one click. Automatically detaches when the target process exits.
 
 - **Character Panel**  
-  - Show basic info (name, perk, trait, description) for all characters in the current party  
-  - Real‑time editing of **13 core attributes** (morale, attitude, composure, charm, etc.) including base, temp, and bonus values  
-  - Modify character resources (food, gas, medical, ammo, and 4 other types)  
-  - Manage **3 weapon slots** (weapon ID, stack count, lock status)  
-  - Adjust health, speed bonus, gender, pet flag, and two status‑flag fields (bit‑wise)
+  - Displays basic information for all characters in the current party (name, perk, trait, description)  
+  - The character drop-down marks current mission party members with **★**  
+  - Real-time editing of **13 core stats** (morale, attitude, composure, charisma, etc.) with base/temporary/bonus values, plus "known" checkboxes  
+  - Modify character resources (None, Food, Gas, Medical, Pistol, Rifle, Shotgun, Junk — 8 types)  
+  - Manage **3 weapon slots** (weapon ID, quantity, locked state)  
+  - Adjust HP, speed bonus, gender, pet flags, and status flags
 
-- **Entity Panel** (Graphical View)  
-  - Filter entities by map area; displayed as icons on a grid layout  
-  - Three interaction modes: **Select** (click/box select), **Zoom** (scroll wheel), **Pan** (drag canvas)  
-  - In *Select* mode, **drag‑and‑drop** entities directly to new positions (writes back on release)  
-  - Rich right‑click context menu:  
-    - **Set as Target** – mark an entity as a reference for teleport/swap  
-    - **Flags** – toggle nocollide, unseen, invisible, no_hit, nopick, glow (batch for multiple selections)  
-    - **Edit Position / Velocity / Physics / Other** – open dialogs for precise numeric adjustment  
-    - **Teleport to Target** – move selected entities to the target’s coordinates  
-    - **Random Swap** – shuffle positions and areas among selected entities  
-    - **Clone** – duplicate selected entities (if the type supports it)  
-    - **Destroy** – remove entities from the game  
-    - **Spawn** – create new entities: human, zombie, item, projectile, furniture, pickup, weapon, vehicle, special pickup  
-    - **Set Render Layer** – change the camera’s rendering area
+- **Entity Panel** (visual graphics view)  
+  - Filter entities by area and display them as icons on a map grid  
+  - Supports **Select mode** (click/rubber-band selection), **Resize/Zoom mode** (wheel zoom), and **Move mode** (drag canvas)  
+  - In Select mode, entities can be **dragged directly** to a new position (coordinates are written back to memory on release)  
+  - Right-click context menu provides:  
+    - **Set as Center** (marks a target entity for later teleport/swap; the center entity is shown with a yellow circle marker)  
+    - **Flags** (No Collision, Invisible/Unseen, Not Drawn, No Hit, No Pickup, Glow)  
+    - **Edit Position / Velocity / Physics / Other** (numeric adjustment dialogs)  
+    - **Teleport to Center** (move selected entities to the center entity's coordinates)  
+    - **Random Swap** (randomly swap positions and areas among selected entities)  
+    - **Clone** (duplicate selected entities)  
+    - **Destroy** (remove entities)  
+    - **Set as Player Entity** (set the selected entity as the current player entity)  
+    - **New** (spawn Human, Zombie, Item, Projectile, Furniture, Pickup, Weapon, Vehicle, Special Pickup)  
+    - **Set Render Layer** (set the camera area)  
+  - The area drop-down dynamically shows areas that actually exist
 
-- **Mission (Global) Panel**  
-  - Show current party members (automatically linked to character names)  
-  - Edit global resources (8 types)  
-  - Manage **15 storage weapon slots** (weapon ID and quantity)
+- **Global (Mission) Panel**  
+  - Modify global resources (8 types)  
+  - Manage **15 storage weapon slots** (weapon ID and quantity)  
+  - Script console
 
 - **Script Console**  
-  Send custom script commands directly to the game (requires internal scripting support).
+  Send custom script commands to the game (requires support from the game's script system).
 
-- **Auto Refresh**  
-  Configurable refresh interval (default 500ms); editing fields temporarily pauses refresh to avoid interference.
+- **Scheduled Refresh**  
+  Customizable refresh interval (default 500 ms); data is synchronized automatically. Refresh is paused while editing to avoid interfering with input.
 
-- **Persistent Configuration**  
-  All memory offsets, refresh rate, and language preferences are stored in `config.json` – easy to adjust when game versions change.
+- **Configuration Persistence**  
+  All memory offsets, refresh frequency, language preferences, etc. are saved in `config.json`, making it easy to adjust quickly after game updates.
 
 ---
 
 ## 📦 Requirements
 
-- **OS**: Windows (tested on 10/11)
-- **Build Tools**:  
-  - CMake 3.19 or higher  
-  - C++17‑compatible compiler (MSVC 2019+ / MinGW‑w64 8.0+)
-- **Qt Version**: **Qt 6.5** or later (required components: `Core`, `Widgets`, `LinguistTools`)
+- **OS**: Windows (tested on Win10/11)
+- **Build tools**:  
+  - CMake 3.19 or later  
+  - A C++17-compatible compiler (MSVC 2019+ / MinGW-w64 8.0+)
+- **Qt version**: **Qt 6.5** or later (required components: `Core`, `Widgets`, `LinguistTools`)
 - **Optional**: Qt Creator (recommended for project management and CMake integration)
 
 ---
 
-## 🔧 Building and Running
+## 🔧 Build and Run
 
-### 1. Get the Source
+### 1. Get the source
 ```bash
 git clone https://github.com/yourusername/drtc-debug-tool.git
 cd drtc-debug-tool
 ```
 
-### 2. Using Qt Creator (Recommended)
-- Open Qt Creator, select **“Open Project”**, and choose `CMakeLists.txt` in the project root.
-- Select a kit with Qt 6.5+ (e.g., `Desktop Qt 6.5.0 MinGW 64-bit`).
-- Click **“Build”** (or Ctrl+B). The executable will be placed in a subfolder under `build/`.
-- After building, you can find `DR2CDebugTool.exe` in `build/Release/` or `build/`.
+### 2. Using Qt Creator (recommended)
+- Open Qt Creator, choose **"Open Project"**, and select `CMakeLists.txt`.
+- Select a Qt 6.5+ kit (e.g. `Desktop Qt 6.5.0 MinGW 64-bit`).
+- Click **"Build"** (or press Ctrl+B). The generated executable will be under a subdirectory of `build/`.
+- After building, you can find `DR2CDebugTool.exe` under `build/Release/` or `build/`.
 
-### 3. Deploy and Run
-- Run `DR2CDebugTool.exe` directly (if Qt DLLs are missing, add Qt’s `bin` directory to your PATH or use `windeployqt`).
-- On first launch, a `config.json` file will be created automatically (if not present).
+### 3. Deploy and run
+- Run `DR2CDebugTool.exe` directly. If Qt dynamic libraries are missing, add Qt's `bin` directory to PATH or use `windeployqt`.
+- On first run, `config.json` is generated automatically if it does not exist.
 
 ---
 
-## 📖 User Guide
+## 📖 Usage Guide
 
 ### Launch and Attach to Process
-1. Start the tool – the main window shows a list of running processes.  
-2. Enter a filter (e.g., `prog`) or PID in the filter box and press Enter to narrow down.  
-3. Select the game process from the dropdown (usually `prog.exe`).  
-4. Click **“Attach”**. The status bar will confirm a successful attachment and show the module base address.  
-5. The tool starts refreshing automatically; all UI controls become enabled.
+1. Start the tool. The process list is shown at the top of the main window.  
+2. Enter a process name (e.g. `prog`) or PID in the filter box and press Enter to filter.  
+3. Select the game process (usually `prog.exe`) from the drop-down list.  
+4. Click **"Attach"**. The status bar shows the attach result and module base address.  
+5. The tool begins automatic data refresh and enables the UI controls.
 
-### Memory Offset Settings
-If a game update breaks data reading, click the **“Settings”** button to open the offset dialog:  
-- Configure start offsets, structure sizes, and maximum counts for **Characters**, **Entities**, **Weapons**, and **Mission**.  
-- Adjust the global refresh interval (in milliseconds).  
-- Switch the UI language (choose “System” or any loaded translation; currently includes Chinese, English, and Japanese – you can add more). A restart is required for the language change to take effect.  
-- Save – changes take effect immediately without restarting.
+### Configure Memory Offsets
+If a game update causes data reads to fail, click the **"Settings"** button to open the offset dialog:  
+- Configure the start offset, structure size, and maximum count for **Characters**, **Entities**, **Weapons**, and **Global** separately.  
+- Adjust the global refresh interval (milliseconds).  
+- Switch the UI language (choose "System" or any loaded translation file; currently includes Chinese, English, and Japanese, and can be extended). A restart is required for the language change.
+- Changes take effect immediately after saving; no restart is required for offsets.
 
 ### Character Operations
-- In the **“Character”** tab, select a character from the dropdown.  
-- All editable fields (line edits, spin boxes, checkboxes) support direct modification; changes are written to memory on submission.  
-- In the attribute table, the “Base / Temp / Bonus” values are editable (double‑click); the effective value is calculated automatically. Note that the “Temp” value is usually controlled by status flags and manual changes have little effect.  
-- Click a weapon slot button to open the weapon selection dialog and pick from the list of loaded weapons.  
-- The two status flags (属性1/属性2) are edited as integer bitmasks – think of them in binary.
+- In the **"Character"** tab, select a character from the drop-down list.  
+- All editable fields (text boxes, spin boxes, check boxes) can be modified directly and are written to memory automatically on commit.  
+- The "Base / Temporary / Bonus" columns in the stats table can be edited by double-clicking; the effective value is calculated automatically. Note that "Temporary" values are usually controlled by status flags, so manually changing them is often not meaningful.  
+- The "Known" column can be checked to change whether a character stat is known.  
+- Clicking a weapon slot button opens the weapon selection dialog, where you can choose from the loaded weapon list.  
+- When modifying status flags (Status 1 / Status 2), it is recommended to understand their meaning bit by bit.
 
-### Entity Operations (Graphical View)
-- In the **“Entity”** tab, use the area filter combobox to show entities from a specific map area (default: “All”).  
-- Three interaction modes are available via radio buttons in the top‑right:  
-  - **Select** (default): click or rubber‑band select entities. You can also **drag** any selected entity to move it – the new position is written back when you release the mouse.  
-  - **Zoom**: scroll the mouse wheel to zoom in/out.  
-  - **Pan**: drag the canvas to navigate around.  
-- Right‑click on an entity (or on empty space) to open the context menu:  
-  - If multiple entities are selected, most actions apply to all of them.  
-  - **“Set as Target”** marks the clicked entity as a target (used for teleport/swap operations).  
-  - **“Flags”** submenu: batch toggle special properties (nocollide, unseen, invisible, no_hit, nopick, glow). The displayed flag state is the logical AND result of all selected entities.  
-  - **“Edit Position / Velocity / Physics / Other”** open dialogs for fine‑tuning numeric values – the dialog shows the current values of the first selected entity.  
-  - **“Teleport to Target”** moves selected entities to the target’s coordinates.  
-  - **“Random Swap”** randomly swaps positions and area IDs among the selected entities.  
-  - **“Clone”** duplicates selected entities (if the type is clonable).  
-  - **“Destroy”** permanently removes selected entities.  
-  - **“Spawn”** submenu: create a new entity at the mouse position – choose from human, zombie, item, projectile, furniture, pickup, weapon, vehicle, or special pickup.  
-    > **Note**: When spawning non‑character entities such as **item, projectile, furniture, pickup, weapon, vehicle, or special pickup**, you usually need to set a valid **Sprite ID** in the “Edit Other” dialog, otherwise the entity may not appear correctly in the game.  
-  - **“Set Render Layer”**: set the current area as the camera’s render target. For example, after teleporting a player‑controlled character to a different area, you must call this function to update the render layer; otherwise the camera may get stuck in the upper‑left corner.  
-- While dragging entities, the auto‑refresh timer is temporarily paused to prevent scene rebuilds; it resumes after the drag is finished.
+### Entity Operations (Visual View)
+- In the **"Entity"** tab, first filter the area of interest via the "Area" drop-down (default is "All").  
+- Three interaction modes are available at the top right of the view:  
+  - **Select** (default): click or rubber-band select entities. After selection, use the right-click menu or drag them directly.  
+  - **Resize/Zoom**: use the mouse wheel to zoom the view; useful for inspecting the overall layout.  
+  - **Move**: drag to pan the canvas; convenient for browsing large areas.  
+- Right-click any entity (or empty space) to open the context menu:  
+  - If multiple entities are selected, most operations apply to all selected items.  
+  - **"Set as Center"**: marks an entity as the target (used as the reference for later teleport/swap). The center entity is shown with a yellow circle marker.  
+  - **"Flags"** submenu: batch enable/disable special properties (No Collision, Invisible, etc.). The displayed flag state is the logical AND of all selected entities.  
+  - **"Edit Position / Velocity / Physics / Other"**: opens a dialog for precise numeric adjustment. The dialog shows the current values of the first selected entity.  
+  - **"Teleport to Center"**: moves selected entities to the center entity's coordinates.  
+  - **"Random Swap"**: randomly swaps positions (including areas) among selected entities.  
+  - **"Clone"**: duplicates selected entities at their current positions (if the type supports it).  
+  - **"Destroy"**: completely removes entities.  
+  - **"Set as Player Entity"**: sets the selected entity as the current player entity.  
+  - **"New"** submenu: spawns a new entity at the mouse position (type selectable).  
+    > **Note**: When spawning non-character entities such as **Items, Projectiles, Furniture, Pickups, Weapons, Vehicles, Special Pickups**, you usually need to set a valid **Sprite ID** as well; otherwise the entity will not display correctly in the game. Use the "Edit Other" dialog to assign a valid sprite ID to the newly spawned entity.  
+  - **"Set Render Layer"**: sets the current area as the camera's render target. For example, after teleporting the player-controlled character to another area, use this function to set the new area as the render layer; otherwise the camera may stay stuck in the top-left corner.  
+- While dragging entities, automatic refresh is paused. On release, the new coordinates are written back and refresh resumes. This also applies to multi-selection dragging.
 
-### Mission (Global) Operations
-- The **“Mission”** tab shows party members, global resources, and storage weapons.  
-- Member names are automatically linked to the character list and are read‑only.  
-- Resource values are editable directly in the table.  
-- Storage weapon slots are arranged as a grid of buttons + spin boxes – click a button to select a weapon ID, and adjust the quantity with the spin box.
+### Global (Mission) Operations
+- The **"Global"** tab shows global resources and storage weapons.  
+- The character panel's drop-down marks current party members with **★**; member names are automatically synchronized from character data.  
+- Resource tables can be edited directly. Click the table after editing to trigger the write.  
+- Storage weapon slots are arranged as button + quantity spin box pairs. Click the button to choose a weapon ID, and use the spin box to adjust the quantity (range 0–999).
 
 ### Script Console
-- In the command input box at the bottom of the “Mission” tab, type a game script command (e.g., `spawn`) and press Enter.  
-- Since the game supports UTF‑8, commands may include Unicode characters (which the built‑in game console cannot input).  
-- The status bar will show whether the command was executed successfully.
+- In the command input box at the bottom of the "Global" tab, enter an in-game script command (e.g. `spawn`) and press Enter to send it.  
+- Because the game supports UTF-8, commands may contain Unicode characters (the game's built-in console cannot input such characters).  
+- The execution result (success/failure) is shown in the status bar.
 
 ---
 
 ## 🗂 Project Structure
 
-| File / Directory | Description |
-|------------------|-------------|
-| `mainwindow.cpp/.h/.ui` | Main window UI and logic – all signals/slots, data refresh, and modification handling |
-| `Setting/addrsetting.cpp/.h/.ui` | Offset settings dialog – manages offsets and configuration I/O |
-| `Memory/memorymanager.cpp/.h` | Low‑level process enumeration, attach/detach, memory read/write, entity allocation/free |
-| `Memory/gamedatareader.cpp/.h` | Reads game data using offsets and converts to high‑level structures (character/entity/mission) |
-| `Delegates/spinboxdelegate.cpp/.h` | QSpinBox editor delegate for table cells |
-| `WeaponDialog/weapondialog.cpp/.h` | Weapon selection dialog showing loaded weapon names |
-| `Languages/` | Qt translation files (`.ts`, supporting English, Chinese, Japanese) |
-| `Struct/` | Reverse‑engineered game data structure definitions (`thing`, `character`, `mission_state`, etc.) |
-| `config.json` | Auto‑generated/read configuration file storing offsets and user preferences |
+| File/Directory | Description |
+|-----------|------|
+| `mainwindow.cpp/.h/.ui` | Main window UI and logic, including all signals/slots, data refresh, and modification operations |
+| `Setting/addrsetting.cpp/.h/.ui` | Offset settings dialog; manages configuration read/write |
+| `Memory/memorymanager.cpp/.h` | Low-level wrappers for process enumeration, attach/detach, memory read/write, entity allocation/free, etc. |
+| `Memory/gamedatareader.cpp/.h` | Reads/writes game data structures (characters, entities, global state, etc.) according to offsets |
+| `Delegates/spinboxdelegate.cpp/.h` | Delegate that provides a QSpinBox editor for tables |
+| `WeaponDialog/weapondialog.cpp/.h` | Weapon selection dialog; displays the loaded weapon name list |
+| `Languages/` | Qt translation files (`.ts`; supports English, Chinese, and Japanese) |
+| `Struct/` | Reverse-engineered game data structure definitions (`thing`, `character`, `mission_state`, etc.) |
+| `config.json` | Automatically generated/read configuration file; stores offsets, refresh interval, language, etc. |
 | `CMakeLists.txt` | Main CMake project configuration file |
 
 ---
 
-## ⚠️ Important Notes
+## ⚠️ Notes
 
-- **Game Version Compatibility**: Offsets are version‑specific. If data becomes invalid, use the **Settings** dialog to update the offsets (you can re‑locate them with tools like Cheat Engine).  
-- **Stability**: Memory editing carries a risk of crashes. It is advisable to back up your save files. If the game crashes, simply restart it – the tool does not need to be restarted.  
-- **Editing Conflicts**: The auto‑refresh pauses while you are editing a field to avoid overwriting your input. However, do not use another memory editor simultaneously to prevent race conditions.  
-- **Read‑Only Mode**: If you only want to view data, avoid modifying fields; the tool writes any UI changes to memory immediately.  
-- **Language Support**: The UI language is dynamically loaded from the `translations` directory. It supports the system language and all available translation files (currently includes Chinese, English, and Japanese). You can freely switch in the settings and even add custom translations.  
-- **Destroying Entities vs. Deleting Characters**: Executing **“Destroy”** in the entity panel only removes the game‑world object (e.g., character model, item model) – it **does not** free the character slot or character data associated with that entity.
+- **Game Version Compatibility**: Offsets may change with game updates. If data looks incorrect, update the offsets via the "Settings" function (you can relocate them with tools such as Cheat Engine).  
+- **Stability**: Memory modification carries a risk of crashing. Back up your saves in advance. If the game crashes, simply restart the game; the tool does not need to be restarted.  
+- **Editing Conflicts**: While editing fields, automatic refresh is paused to prevent input interruption caused by data overwrites. However, do not use other memory modification tools at the same time to avoid conflicts.  
+- **Read-Only Use**: If you only need to view data, avoid accidentally modifying fields; by default, any UI change is written to memory immediately.  
+- **Language Support**: UI languages are loaded dynamically from the translations directory, supporting the system language and all available translation files (currently Chinese, English, and Japanese). You can switch freely in Settings and add custom translations.  
+- **Destroying an Entity vs Deleting a Character**: Executing **"Destroy"** in the Entity panel only removes the entity object in the game world (such as a character model or item model). It does **not** release the character data (character slot) bound to that entity.
 
 ---
 
 ## 🤝 Acknowledgements
 
-- Thanks to the game developers Rocketcat Games and Madgarden for creating this wonderful game.  
-- This project is based on reverse‑engineering research; structure definitions come from community resources and personal analysis.
+- Thanks to Rocketcat Games and Madgarden for creating this excellent game.  
+- This tool is based on reverse-engineering research; structure definitions reference publicly available community information and personal analysis.
 
 ---
 
 ## 📜 License
 
-This project is for personal learning and research purposes only. Commercial use or any form of infringement is strictly prohibited.  
-You are allowed to freely distribute unmodified official releases. If you distribute a modified version, you assume all responsibility, and the original author is not liable.
+This project is for personal learning and research use only. Commercial use or use for infringement is prohibited.  
+Unmodified official releases may be freely distributed. If you modify and distribute it, the original author assumes no responsibility.

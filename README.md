@@ -50,7 +50,7 @@ Each language version contains detailed feature descriptions, usage guides, proj
 - Qt 6.5+ (components: `Core`, `Widgets`, `LinguistTools`)
 
 ### Build
-Download source files.
+Download source files and upack.
 Open `CMakeLists.txt` with Qt Creator, select a kit with Qt 6.5+, and click “Build”.  
 The executable will be generated under `build/Release/` or `build/`.
 

@@ -1,6 +1,7 @@
-# 加拿大死亡之路 调试工具
-- Death Road to Canada Debug Tool
-- Death Road to Canada デバッグツール
+# 加拿大死亡之路 调试工具（旧）
+- Death Road to Canada Debug Tool(old)
+- Death Road to Canada デバッグツール（旧）
+- 新版本请前往Cpp-Vision, New Version Go to Cpp-Vision, 最新のバージョン、Cpp-Vision へ
 
 ## 📖 完整文档（语言版本）
 

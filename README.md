@@ -36,7 +36,7 @@ Each language version contains detailed feature descriptions, usage guides, proj
 
 ![Character Panel](./Readme/character.png)
 
-[Entity Panel](./Readme/entity.png)
+![Entity Panel](./Readme/entity.png)
 
 ![Mission Panel](./Readme/misson.png)
 

@@ -68,10 +68,7 @@
 ## 🔧 构建与运行
 
 ### 1. 获取源码
-```bash
-git clone https://github.com/yourusername/drtc-debug-tool.git
-cd drtc-debug-tool
-```
+- 下载源码压缩包文件
 
 ### 2. 使用 Qt Creator（推荐）
 - 打开 Qt Creator，选择 **“打开项目”**，定位到 `CMakeLists.txt`。

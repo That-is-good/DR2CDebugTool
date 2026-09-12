@@ -32,6 +32,13 @@ Each language version contains detailed feature descriptions, usage guides, proj
 - **Auto Refresh** – customisable refresh interval (default 500 ms); automatically pauses while editing to avoid conflicts
 - **Persistent Configuration** – offsets, refresh rate, and language preferences saved in `config.json` for easy migration across game updates
 
+🖼️ Screenshots
+[Character Panel](./Readme/character.png)
+
+[Entity Panel](./Readme/entity.png)
+
+[Mission Panel](./Readme/misson.png)
+
 ---
 
 ## 🚀 Quick Start
@@ -42,10 +49,7 @@ Each language version contains detailed feature descriptions, usage guides, proj
 - Qt 6.5+ (components: `Core`, `Widgets`, `LinguistTools`)
 
 ### Build
-```bash
-git clone https://github.com/yourusername/drtc-debug-tool.git
-cd drtc-debug-tool
-```
+Download source files.
 Open `CMakeLists.txt` with Qt Creator, select a kit with Qt 6.5+, and click “Build”.  
 The executable will be generated under `build/Release/` or `build/`.
 

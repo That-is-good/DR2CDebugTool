@@ -67,10 +67,7 @@ A game memory debugging/modification tool for *Death Road to Canada*, built with
 ## 🔧 Build and Run
 
 ### 1. Get the source
-```bash
-git clone https://github.com/yourusername/drtc-debug-tool.git
-cd drtc-debug-tool
-```
+- Download source files.
 
 ### 2. Using Qt Creator (recommended)
 - Open Qt Creator, choose **"Open Project"**, and select `CMakeLists.txt`.

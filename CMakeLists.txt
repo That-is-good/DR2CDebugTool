@@ -1,51 +1,57 @@
 cmake_minimum_required(VERSION 3.19)
-project(DR2CDebugTool LANGUAGES CXX)
+project(DR2CInternalOverlay LANGUAGES CXX)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets LinguistTools)
+if(NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
+    message(FATAL_ERROR "DR2CInternalOverlay must be built with a 32-bit MinGW toolchain")
+endif()
 
-qt_standard_project_setup()
+set(IMGUI_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/imgui-1.92.9b")
+set(MINHOOK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/MinHook")
 
-qt_add_executable(DR2CDebugTool
-    WIN32 MACOSX_BUNDLE
-    main.cpp
-    mainwindow.cpp
-    mainwindow.h
-    mainwindow.ui
-    Memory/memorymanager.h
-    Memory/memorymanager.cpp
-    Memory/gamedatareader.h
-    Memory/gamedatareader.cpp
-    Delegates/spinboxdelegate.h
-    Delegates/spinboxdelegate.cpp
-    WeaponDialog/weapondialog.h
-    WeaponDialog/weapondialog.cpp
-    Setting/addrsetting.h
-    Setting/addrsetting.cpp
-    Setting/addrsetting.ui
+add_library(DR2CInternalOverlay SHARED
+    dllmain.cpp
+    imgui_ui.cpp
+    ${IMGUI_ROOT}/imgui.cpp
+    ${IMGUI_ROOT}/imgui_draw.cpp
+    ${IMGUI_ROOT}/imgui_tables.cpp
+    ${IMGUI_ROOT}/imgui_widgets.cpp
+    ${IMGUI_ROOT}/backends/imgui_impl_win32.cpp
+    ${IMGUI_ROOT}/backends/imgui_impl_opengl3.cpp
 )
 
-qt_add_translations(
-    TARGETS DR2CDebugTool
-    TS_FILES Languages/DR2CDebugTool_zh_CN.ts
-    TS_FILES Languages/DR2CDebugTool_ja.ts
-    TS_FILES Languages/DR2CDebugTool_en.ts
+target_include_directories(DR2CInternalOverlay PRIVATE
+    ${IMGUI_ROOT}
+    ${IMGUI_ROOT}/backends
+    ${MINHOOK_ROOT}/include
 )
 
-target_link_libraries(DR2CDebugTool
-    PRIVATE
-        Qt::Core
-        Qt::Widgets
+target_link_libraries(DR2CInternalOverlay PRIVATE
+    "${MINHOOK_ROOT}/lib/MinHook.a"
+    opengl32
+    gdi32
+    user32
+    dwmapi
+    gdiplus
 )
 
-install(TARGETS DR2CDebugTool
-    BUNDLE  DESTINATION .
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+target_compile_features(DR2CInternalOverlay PRIVATE cxx_std_17)
+target_compile_options(DR2CInternalOverlay PRIVATE -m32 -O2 -Wall -Wextra -fno-exceptions -fno-rtti)
+target_link_options(DR2CInternalOverlay PRIVATE
+    -m32
+    -static
+    -static-libgcc
+    -static-libstdc++
+    -Wl,--enable-stdcall-fixup
 )
 
-qt_generate_deploy_app_script(
-    TARGET DR2CDebugTool
-    OUTPUT_SCRIPT deploy_script
-    NO_UNSUPPORTED_PLATFORM_ERROR
+set_target_properties(DR2CInternalOverlay PROPERTIES
+    PREFIX ""
+    OUTPUT_NAME "DR2CInternalOverlay"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
-install(SCRIPT ${deploy_script})
+
+add_custom_command(TARGET DR2CInternalOverlay POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/Icons"
+        "$<TARGET_FILE_DIR:DR2CInternalOverlay>/Icons"
+)

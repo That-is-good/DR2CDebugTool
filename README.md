@@ -2,7 +2,7 @@
 
 一个基于 ImGui + MinHook 的 **DR2C 进程内覆盖层（Internal Overlay）**。
 
-通过 Hook `opengl32!wglSwapBuffers`，在游戏自己的 OpenGL 上下文里绘制调试 / 编辑面板，不依赖外挂注入器、不需要外部窗口，也不需要 overlay 分层。可以在运行时查看并修改实体、角色、物品、车辆等数据。
+通过 Hook `opengl32!wglSwapBuffers`，在游戏自己的 OpenGL 上下文里绘制调试 / 编辑面板，需要注入器注入dll。可以在运行时查看并修改实体、角色、物品、车辆等数据。
 
 界面支持**中英文实时切换**，语言选择会落盘到 DLL 同目录的 `.ini`。
 

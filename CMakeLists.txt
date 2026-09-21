@@ -31,7 +31,6 @@ target_link_libraries(DR2CInternalOverlay PRIVATE
     gdi32
     user32
     dwmapi
-    gdiplus
 )
 
 target_compile_features(DR2CInternalOverlay PRIVATE cxx_std_17)
@@ -48,10 +47,4 @@ set_target_properties(DR2CInternalOverlay PROPERTIES
     PREFIX ""
     OUTPUT_NAME "DR2CInternalOverlay"
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-)
-
-add_custom_command(TARGET DR2CInternalOverlay POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_CURRENT_SOURCE_DIR}/Icons"
-        "$<TARGET_FILE_DIR:DR2CInternalOverlay>/Icons"
 )

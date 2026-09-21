@@ -4,283 +4,983 @@
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_win32.h"
 #include <windows.h>
-#include <gdiplus.h>
-#include <gl/GL.h>
-#include <cstdio>
 #include <cstring>
-
-using namespace Gdiplus;
+#include <cmath>
+#include <cstdio>
+#include <fstream>
+#include <vector>
+#include <string>
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
     HWND window, UINT message, WPARAM wParam, LPARAM lParam);
 
 namespace {
 
+// ==================== 模块基址 + 函数指针（一次缓存） ====================
+uintptr_t g_moduleBase = 0;
+
+using fn_AllocateEntity_t   = uintptr_t(__cdecl*)(uint8_t);
+using fn_FreeThing_t        = void(__cdecl*)(uintptr_t);
+using fn_GetCharacterData_t = void*(__cdecl*)(uint32_t);
+using fn_GetFrameRate       = uint32_t(__cdecl*)();
+using fn_SetFrameRate       = uint32_t(__cdecl*)(uint32_t);
+using fn_GetCurrentMapLayer = uint32_t(__cdecl*)();
+using fn_SetCurrentMapLayer = uint32_t(__cdecl*)(uint32_t);
+
+fn_AllocateEntity_t   pAllocateEntity   = nullptr;
+fn_FreeThing_t        pFreeThing        = nullptr;
+fn_GetCharacterData_t pGetCharacterData = nullptr;
+fn_GetFrameRate       pGetFrameRate     = nullptr;
+fn_SetFrameRate       pSetFrameRate     = nullptr;
+// fn_GetCurrentMapLayer pGetCurrentMapLayer = nullptr;
+// fn_SetCurrentMapLayer pSetCurrentMapLayer = nullptr;
+
+
+void CacheGameFunctions()
+{
+    g_moduleBase      = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
+    pAllocateEntity   = reinterpret_cast<fn_AllocateEntity_t>  (g_moduleBase + 0x52710u);
+    pFreeThing        = reinterpret_cast<fn_FreeThing_t>       (g_moduleBase + 0x52AA0u);
+    pGetCharacterData = reinterpret_cast<fn_GetCharacterData_t>(g_moduleBase + 0x28AE0u);
+    pGetFrameRate     = reinterpret_cast<fn_GetFrameRate>      (g_moduleBase + 0x04C50u);
+    pSetFrameRate     = reinterpret_cast<fn_SetFrameRate>      (g_moduleBase + 0x04B30u);
+    // pGetCurrentMapLayer     = reinterpret_cast<fn_GetCurrentMapLayer>      (g_moduleBase + 0x07D2E0u);
+    // pSetCurrentMapLayer     = reinterpret_cast<fn_SetCurrentMapLayer>      (g_moduleBase + 0x07D310u);
+}
+
+// ==================== 直接读全局值 ====================
+constexpr uintptr_t kThingPoolRva   = 0x5632E0u;
+constexpr uintptr_t kCameraXRva     = 0x610340u;
+constexpr uintptr_t kCameraYRva     = 0x610344u;
+constexpr uintptr_t kScreenScaleRva = 0x0D14ACu;
+constexpr uintptr_t kWeaponPoolRva  = 0x4E0080u;
+constexpr uintptr_t g_CameraRenderMapLayer  = 0x5D6294u;
+constexpr uintptr_t kThingStride    = 0x304u;
+constexpr uintptr_t kWeaponStride   = 0x1C4u;
+constexpr unsigned int kThingMaxSlots = 610u;
+constexpr unsigned int kWeaponMaxCount = 0x401u;
+
+inline unsigned char *EntityPtr(unsigned int slot)
+{
+    return reinterpret_cast<unsigned char *>(g_moduleBase + kThingPoolRva + slot * kThingStride);
+}
+
+inline float ReadFloat(uintptr_t rva)
+{
+    return *reinterpret_cast<const float *>(g_moduleBase + rva);
+}
+
+inline uint8_t ReadUInt8(uintptr_t rva)
+{
+    return *reinterpret_cast<const uint8_t *>(g_moduleBase + rva);
+}
+
+inline void WriteInt(uint32_t data, uintptr_t rva){
+    std::memcpy((unsigned char*)(g_moduleBase + rva), &data, sizeof(uint32_t));
+}
+
+// ==================== 全局状态 ====================
 HWND g_window = nullptr;
 bool g_initialized = false;
-bool g_showWindow = true;
-unsigned int g_frameCount = 0;
-unsigned int g_entityCount = 0;
-int g_selectedSlot = -1;
+bool g_showDebugPanel = true;
+bool g_dragEntity = false;
 
+int  g_hoveredSlot = -1;
+int  g_editTargetSlot = -1;
+int  g_draggingSlot = -1;
+int  g_fps = 60;
+int  g_currentMapID = 0;
 
-struct MapView {
-    bool visible = false;
-    int width = 1024;
-    int height = 1024;
-    ImVec2 origin = ImVec2(0.0f, 0.0f);
+float g_dragStartMouseX = 0.0f;
+float g_dragStartMouseY = 0.0f;
+float g_dragStartEntityX = 0.0f;
+float g_dragStartEntityY = 0.0f;
+bool  g_prevLeftDown = false;
+bool  g_prevRightDown = false;
+
+float g_pickRadiusWorld = 8.0f;
+
+struct DebugInfo {
+    float screenScaleRaw = 0.0f;
+    float cameraX = 0.0f;
+    float cameraY = 0.0f;
+    float mouseX = 0.0f;
+    float mouseY = 0.0f;
+    bool  mouseInside = false;
+    float effectiveScale = 1.0f;
+    float mouseWorldX = 0.0f;
+    float mouseWorldY = 0.0f;
+    float hitEntityX = 0.0f;
+    float hitEntityY = 0.0f;
+    float hitDistance = 0.0f;
 };
+DebugInfo g_debug;
 
-MapView g_maps[64] = {};
-float g_mapZoom = 0.55f;
+// ==================== Log ====================
+std::ofstream g_logFile;
+bool g_logToFile = false;
+int g_logFrameCounter = 0;
 
-Dr2cEntityView g_entities[610] = {};
+void LogInit(HMODULE module)
+{
+    char path[MAX_PATH] = {};
+    DWORD len = GetModuleFileNameA(module, path, MAX_PATH);
+    if (len == 0 || len >= MAX_PATH) return;
+    char *dot = strrchr(path, '.');
+    char *sep = strrchr(path, '\\');
+    if (dot && (!sep || dot > sep)) *dot = 0;
+    const size_t used = strlen(path);
+    if (used + 4 < MAX_PATH) {
+        snprintf(path + used, MAX_PATH - used, ".log");
+    }
+    g_logFile.open(path, std::ios::out | std::ios::trunc);
+    if (g_logFile.is_open())
+        g_logFile << "=== DR2C overlay log ===" << std::endl;
+}
+
+void LogShutdown()
+{
+    if (g_logFile.is_open()) {
+        g_logFile << "=== end ===" << std::endl;
+        g_logFile.close();
+    }
+}
+
+void LogLine(const char *fmt, ...)
+{
+    if (!g_logFile.is_open() || !g_logToFile) return;
+    char buf[512];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
+    g_logFile << buf << std::endl;
+    g_logFile.flush();
+}
+
+double EffectiveScale()
+{
+    float s = ReadFloat(kScreenScaleRva);
+    if (!(s > 0.5f && s < 32.0f)) s = 4.0f;
+    return static_cast<double>(s);
+}
+
+// ==================== 鼠标 / 窗口 ====================
+void GetClientMousePos(float &mx, float &my, bool &insideWindow)
+{
+    mx = 0.0f; my = 0.0f; insideWindow = false;
+    if (!g_window) return;
+    POINT pt;
+    if (!GetCursorPos(&pt)) return;
+    if (!ScreenToClient(g_window, &pt)) return;
+    RECT rect;
+    if (!GetClientRect(g_window, &rect)) return;
+    mx = static_cast<float>(pt.x);
+    my = static_cast<float>(pt.y);
+    insideWindow = (pt.x >= rect.left && pt.x < rect.right
+                    && pt.y >= rect.top && pt.y < rect.bottom);
+}
+
+bool GetClientSize(float &w, float &h)
+{
+    if (!g_window) return false;
+    RECT rect;
+    if (!GetClientRect(g_window, &rect)) return false;
+    w = static_cast<float>(rect.right - rect.left);
+    h = static_cast<float>(rect.bottom - rect.top);
+    return (w > 0.0f && h > 0.0f);
+}
+
+bool IsLeftMouseDown()  { return (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0; }
+bool IsRightMouseDown() { return (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0; }
+bool IsImGuiCapturingMouse() { return ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow); }
+
+bool ComputeMouseWorldPos(float &outWorldX, float &outWorldY)
+{
+    float cw = 0.0f, ch = 0.0f;
+    if (!GetClientSize(cw, ch)) return false;
+    float mx = 0.0f, my = 0.0f;
+    bool inside = false;
+    GetClientMousePos(mx, my, inside);
+    const double scale = EffectiveScale();
+    outWorldX = g_debug.cameraX + static_cast<float>((mx - cw * 0.5) / scale);
+    outWorldY = g_debug.cameraY + static_cast<float>((my - ch * 0.5) / scale);
+    return true;
+}
+
+bool WorldToScreen(const float world[3], float &outScreenX, float &outScreenY)
+{
+    float cw = 0.0f, ch = 0.0f;
+    if (!GetClientSize(cw, ch)) return false;
+    const double scale = EffectiveScale();
+    outScreenX = static_cast<float>((world[0] - g_debug.cameraX) * scale + cw * 0.5);
+    outScreenY = static_cast<float>((world[1] - g_debug.cameraY) * scale + ch * 0.5);
+    return true;
+}
+
+void RefreshDebug()
+{
+    g_debug.screenScaleRaw = ReadFloat(kScreenScaleRva);
+    g_debug.cameraX = ReadFloat(kCameraXRva);
+    g_debug.cameraY = ReadFloat(kCameraYRva);
+    GetClientMousePos(g_debug.mouseX, g_debug.mouseY, g_debug.mouseInside);
+    g_debug.effectiveScale = static_cast<float>(EffectiveScale());
+    g_currentMapID = ReadUInt8(g_CameraRenderMapLayer);
+}
+
+// ==================== 实体读写 ====================
+Dr2cEntityView g_entities[kThingMaxSlots] = {};
 Dr2cEntityView g_pendingEntity = {};
 unsigned int g_pendingSlot = 0;
 volatile LONG g_pendingEntityWrite = 0;
 bool g_keepEntityWrite = false;
 unsigned int g_pendingWriteMask = 0;
-ULONG_PTR g_gdiplusToken = 0;
-GLuint g_entityTextures[8] = {};
-bool g_entityTexturesLoaded = false;
-int g_dragSlot = -1;
-ImVec2 g_dragOffset = ImVec2(0.0f, 0.0f);
-
-const unsigned char *EntityAddress(unsigned int slot)
-{
-    const uintptr_t moduleBase = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
-    return reinterpret_cast<const unsigned char *>(moduleBase + 0x5632E0u + slot * 0x304u);
-}
 
 void ReadEntity(unsigned int slot, Dr2cEntityView &entity)
 {
-    const unsigned char *thing = EntityAddress(slot);
-    std::memcpy(&entity.id, thing + 0x00, sizeof(entity.id));
-    entity.type = thing[0x02];
-    entity.subtype = thing[0x03];
-    entity.mapId = thing[0x04];
-    entity.noCollide = thing[0x0D];
-    entity.noPick = thing[0x11];
-    entity.unseen = thing[0x12];
-    entity.invisible = thing[0x13];
-    std::memcpy(entity.position, thing + 0x2C, sizeof(entity.position));
-    std::memcpy(entity.velocity, thing + 0x38, sizeof(entity.velocity));
-    std::memcpy(entity.physics, thing + 0x58, sizeof(entity.physics));
-    entity.glow = thing[0x70];
-    std::memcpy(&entity.spriteId, thing + 0xD8, sizeof(entity.spriteId));
-    std::memcpy(&entity.hitpoints, thing + 0x254, sizeof(entity.hitpoints));
-    entity.noHit = thing[0x27A];
-    std::memcpy(&entity.aiState, thing + 0x288, sizeof(entity.aiState));
+    const unsigned char *p = EntityPtr(slot);
+    std::memcpy(&entity.id, p + 0x00, sizeof(entity.id));
+    entity.type    = p[0x02];
+    entity.subtype = p[0x03];
+    entity.mapId   = p[0x04];
+    entity.noCollide = p[0x0D];
+    entity.noPick    = p[0x11];
+    entity.unseen    = p[0x12];
+    entity.invisible = p[0x13];
+    std::memcpy(entity.position, p + 0x2C, sizeof(entity.position));
+    std::memcpy(entity.velocity, p + 0x38, sizeof(entity.velocity));
+    std::memcpy(entity.physics,  p + 0x58, sizeof(entity.physics));
+    entity.glow = p[0x70];
+    std::memcpy(&entity.spriteId, p + 0xD8, sizeof(entity.spriteId));
+    std::memcpy(&entity.hitpoints, p + 0x254, sizeof(entity.hitpoints));
+    entity.noHit = p[0x27A];
+    std::memcpy(&entity.aiState, p + 0x288, sizeof(entity.aiState));
 }
 
 void WriteEntity(unsigned int slot, const Dr2cEntityView &entity, unsigned int mask)
 {
-    unsigned char *thing = const_cast<unsigned char *>(EntityAddress(slot));
+    unsigned char *p = EntityPtr(slot);
     if (mask & DR2C_ENTITY_WRITE_MAP)
-        std::memcpy(thing + 0x04, &entity.mapId, sizeof(entity.mapId));
+        std::memcpy(p + 0x04, &entity.mapId, sizeof(entity.mapId));
     if (mask & DR2C_ENTITY_WRITE_FLAGS) {
-        std::memcpy(thing + 0x0D, &entity.noCollide, sizeof(entity.noCollide));
-        std::memcpy(thing + 0x11, &entity.noPick, sizeof(entity.noPick));
-        std::memcpy(thing + 0x12, &entity.unseen, sizeof(entity.unseen));
-        std::memcpy(thing + 0x13, &entity.invisible, sizeof(entity.invisible));
-        std::memcpy(thing + 0x70, &entity.glow, sizeof(entity.glow));
-        std::memcpy(thing + 0x27A, &entity.noHit, sizeof(entity.noHit));
+        std::memcpy(p + 0x0D, &entity.noCollide, sizeof(entity.noCollide));
+        std::memcpy(p + 0x11, &entity.noPick, sizeof(entity.noPick));
+        std::memcpy(p + 0x12, &entity.unseen, sizeof(entity.unseen));
+        std::memcpy(p + 0x13, &entity.invisible, sizeof(entity.invisible));
+        std::memcpy(p + 0x70, &entity.glow, sizeof(entity.glow));
+        std::memcpy(p + 0x27A, &entity.noHit, sizeof(entity.noHit));
     }
     if (mask & DR2C_ENTITY_WRITE_POSITION)
-        std::memcpy(thing + 0x2C, entity.position, sizeof(entity.position));
+        std::memcpy(p + 0x2C, entity.position, sizeof(entity.position));
     if (mask & DR2C_ENTITY_WRITE_VELOCITY)
-        std::memcpy(thing + 0x38, entity.velocity, sizeof(entity.velocity));
+        std::memcpy(p + 0x38, entity.velocity, sizeof(entity.velocity));
     if (mask & DR2C_ENTITY_WRITE_PHYSICS)
-        std::memcpy(thing + 0x58, entity.physics, sizeof(entity.physics));
+        std::memcpy(p + 0x58, entity.physics, sizeof(entity.physics));
     if (mask & DR2C_ENTITY_WRITE_SPRITE)
-        std::memcpy(thing + 0xD8, &entity.spriteId, sizeof(entity.spriteId));
+        std::memcpy(p + 0xD8, &entity.spriteId, sizeof(entity.spriteId));
     if (mask & DR2C_ENTITY_WRITE_HITPOINTS)
-        std::memcpy(thing + 0x254, &entity.hitpoints, sizeof(entity.hitpoints));
+        std::memcpy(p + 0x254, &entity.hitpoints, sizeof(entity.hitpoints));
     if (mask & DR2C_ENTITY_WRITE_AI)
-        std::memcpy(thing + 0x288, &entity.aiState, sizeof(entity.aiState));
+        std::memcpy(p + 0x288, &entity.aiState, sizeof(entity.aiState));
 }
 
 void UpdateEntityStats()
 {
-    unsigned int count = 0;
-    for (unsigned int index = 0; index < 610u; ++index) {
-        ReadEntity(index, g_entities[index]);
-        if (g_entities[index].id != 0)
-            ++count;
+    for (unsigned int i = 0; i < kThingMaxSlots; ++i)
+        ReadEntity(i, g_entities[i]);
+}
+
+// ==================== 复制 / 销毁 ====================
+void CloneEntity(int slot)
+{
+    if (slot < 0 || slot >= static_cast<int>(kThingMaxSlots)) return;
+    if (g_entities[slot].id == 0 || !pAllocateEntity) return;
+
+    unsigned char *src = EntityPtr(static_cast<unsigned int>(slot));
+    uintptr_t dst = pAllocateEntity(g_entities[slot].type);
+    if (!dst) return;
+
+    // 从 +0x02 复制到末尾，保留新分配的 id
+    std::memcpy(reinterpret_cast<void *>(dst + 0x02),
+                src + 0x02,
+                kThingStride - 0x02);
+}
+
+void DestroyEntity(int slot)
+{
+    if (slot < 0 || slot >= static_cast<int>(kThingMaxSlots)) return;
+    if (g_entities[slot].id == 0 || !pFreeThing) return;
+    pFreeThing(reinterpret_cast<uintptr_t>(EntityPtr(static_cast<unsigned int>(slot))));
+}
+
+// ==================== Character 读写 ====================
+struct CharacterView {
+    bool     active = false;
+    void*    charPtr = nullptr;
+    uint32_t charid  = 0;
+
+    char name[40]        = {};
+    char perk[40]        = {};
+    char trait[40]       = {};
+    char description[120]= {};
+
+    int32_t female = 0;
+    int32_t pet    = 0;
+    int32_t health = 0;
+    float   speed_bonus = 0.0f;
+
+    int32_t baseStat[13]  = {};
+    int32_t bonusStat[13] = {};
+
+    int32_t resource[8] = {};
+
+    int32_t weaponStack[3] = {};
+    int32_t weaponID[3]    = {};
+    int32_t weaponLock[3]  = {};
+};
+
+CharacterView g_charBuf;
+
+void WriteStringAt(unsigned char *p, const char *src, size_t maxLen)
+{
+    memset(p, 0, maxLen);
+    size_t len = 0;
+    while (len < maxLen && src[len] != 0) ++len;
+    if (len > 0) memcpy(p, src, len);
+}
+
+void ReadCharacterFromPtr(const unsigned char *p, CharacterView &v)
+{
+    if (!p) { v.active = false; return; }
+
+    memcpy(v.name, p + 0x1C, 40);          v.name[39] = 0;
+    memcpy(v.perk, p + 0x44, 40);          v.perk[39] = 0;
+    memcpy(v.trait, p + 0x6C, 40);         v.trait[39] = 0;
+    memcpy(v.description, p + 0x144, 120); v.description[119] = 0;
+
+    int16_t female = 0, pet = 0;
+    memcpy(&female, p + 0x94, 2);
+    memcpy(&pet,    p + 0x96, 2);
+    v.female = female;
+    v.pet    = pet;
+
+    memcpy(&v.health,      p + 0x140, 4);
+    memcpy(&v.speed_bonus, p + 0x1F0, 4);
+
+    for (int i = 0; i < 13; ++i) {
+        v.baseStat[i]  = static_cast<int8_t>(p[0x1C9 + i]);
+        v.bonusStat[i] = static_cast<int8_t>(p[0x1E3 + i]);
     }
-    g_entityCount = count;
-}
 
-GLuint LoadPngTexture(const wchar_t *path)
-{
-    Bitmap bitmap(path, FALSE);
-    if (bitmap.GetLastStatus() != Ok)
-        return 0;
+    for (int i = 0; i < 8; ++i)
+        memcpy(&v.resource[i], p + 0x288 + i * 4, 4);
 
-    const UINT width = bitmap.GetWidth();
-    const UINT height = bitmap.GetHeight();
-    Rect rect(0, 0, static_cast<INT>(width), static_cast<INT>(height));
-    BitmapData data = {};
-    if (bitmap.LockBits(&rect, ImageLockModeRead, PixelFormat32bppARGB, &data) != Ok)
-        return 0;
-
-    GLuint texture = 0;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, static_cast<GLsizei>(width),
-                 static_cast<GLsizei>(height), 0, 0x80E1 /* GL_BGRA_EXT */,
-                 GL_UNSIGNED_BYTE, data.Scan0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    bitmap.UnlockBits(&data);
-    return texture;
-}
-
-void LoadEntityTextures(HMODULE module)
-{
-    if (g_entityTexturesLoaded)
-        return;
-    GdiplusStartupInput input;
-    if (GdiplusStartup(&g_gdiplusToken, &input, nullptr) != Ok)
-        return;
-
-    wchar_t modulePath[MAX_PATH] = {};
-    GetModuleFileNameW(module, modulePath, MAX_PATH);
-    wchar_t *slash = wcsrchr(modulePath, L'\\');
-    if (slash)
-        *(slash + 1) = L'\0';
-
-    const wchar_t *files[8] = {
-        L"Icons\\player\\anon.png", L"Icons\\zombie\\lks.png",
-        L"Icons\\furniture\\sofa.png", L"Icons\\projectile\\tear.png",
-        L"Icons\\item\\box.png", L"Icons\\weapon\\farmer.png",
-        L"Icons\\vehicle\\car.png", L"Icons\\unknown\\9.png"
-    };
-    for (int index = 0; index < 8; ++index) {
-        wchar_t path[MAX_PATH] = {};
-        wcsncpy_s(path, MAX_PATH, modulePath, _TRUNCATE);
-        wcsncat_s(path, MAX_PATH, files[index], _TRUNCATE);
-        g_entityTextures[index] = LoadPngTexture(path);
+    for (int i = 0; i < 3; ++i) {
+        memcpy(&v.weaponStack[i], p + 0x2B0 + i * 12 + 0, 4);
+        memcpy(&v.weaponID[i],    p + 0x2B0 + i * 12 + 4, 4);
+        memcpy(&v.weaponLock[i],  p + 0x2B0 + i * 12 + 8, 4);
     }
-    g_entityTexturesLoaded = true;
+
+    v.active = true;
 }
 
-void ReleaseEntityTextures()
+void WriteCharacter()
 {
-    if (!g_entityTexturesLoaded)
-        return;
-    glDeleteTextures(8, g_entityTextures);
-    GdiplusShutdown(g_gdiplusToken);
-    g_gdiplusToken = 0;
-    g_entityTexturesLoaded = false;
-}
+    if (!g_charBuf.active || !g_charBuf.charPtr) return;
+    unsigned char *p = reinterpret_cast<unsigned char *>(g_charBuf.charPtr);
 
-int EntityTextureIndex(const Dr2cEntityView &entity)
-{
-    if (entity.type == 1) return 0;
-    if (entity.type == 2) return 1;
-    if (entity.type == 4) return 3;
-    if (entity.type != 3) return 7;
-    switch (entity.subtype) {
-    case 0: return 2;
-    case 1: return 4;
-    case 2: return 5;
-    case 3: return 6;
-    default: return 7;
+    WriteStringAt(p + 0x1C,  g_charBuf.name,  40);
+    WriteStringAt(p + 0x44,  g_charBuf.perk,  40);
+    WriteStringAt(p + 0x6C,  g_charBuf.trait, 40);
+    WriteStringAt(p + 0x144, g_charBuf.description, 120);
+
+    int16_t female = static_cast<int16_t>(g_charBuf.female);
+    int16_t pet    = static_cast<int16_t>(g_charBuf.pet);
+    memcpy(p + 0x94, &female, 2);
+    memcpy(p + 0x96, &pet,    2);
+
+    memcpy(p + 0x140, &g_charBuf.health, 4);
+    memcpy(p + 0x1F0, &g_charBuf.speed_bonus, 4);
+
+    for (int i = 0; i < 13; ++i) {
+        p[0x1C9 + i] = static_cast<uint8_t>(static_cast<int8_t>(g_charBuf.baseStat[i]));
+        p[0x1E3 + i] = static_cast<uint8_t>(static_cast<int8_t>(g_charBuf.bonusStat[i]));
+    }
+
+    for (int i = 0; i < 8; ++i)
+        memcpy(p + 0x288 + i * 4, &g_charBuf.resource[i], 4);
+
+    for (int i = 0; i < 3; ++i) {
+        memcpy(p + 0x2B0 + i * 12 + 0, &g_charBuf.weaponStack[i], 4);
+        memcpy(p + 0x2B0 + i * 12 + 4, &g_charBuf.weaponID[i], 4);
+        memcpy(p + 0x2B0 + i * 12 + 8, &g_charBuf.weaponLock[i], 4);
     }
 }
 
-void DrawMapCanvas();
+// ==================== 武器名缓存 ====================
+std::vector<std::string> g_weaponNames;
+bool g_weaponNamesLoaded = false;
 
-void DrawEntityPanel()
+void LoadWeaponNames()
 {
-    ImGui::SetNextWindowSize(ImVec2(940.0f, 560.0f), ImGuiCond_FirstUseEver);
-    ImGui::Begin("DR2C Entities", &g_showWindow,
-             ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
-    ImGui::BeginChild("entity-map-panel", ImVec2(-360.0f, 0.0f), ImGuiChildFlags_Borders);
-    DrawMapCanvas();
-    ImGui::EndChild();
+    g_weaponNames.clear();
+    g_weaponNames.reserve(kWeaponMaxCount);
 
+    for (unsigned int i = 0; i < kWeaponMaxCount; ++i) {
+        const char *namePtr = reinterpret_cast<const char *>(
+            g_moduleBase + kWeaponPoolRva + i * kWeaponStride);
+        size_t len = strnlen(namePtr, 40);
+        if (len == 0) break;
+        std::string name(namePtr, len);
+        if (name == "UNDEFINED") break;
+        g_weaponNames.push_back(std::move(name));
+    }
+    g_weaponNamesLoaded = true;
+}
+
+// ==================== 悬停 ====================
+void UpdateHoveredEntity()
+{
+    if (g_draggingSlot >= 0) { g_hoveredSlot = g_draggingSlot; return; }
+    if (g_editTargetSlot >= 0) { g_hoveredSlot = g_editTargetSlot; return; }
+
+    g_hoveredSlot = -1;
+    g_debug.hitEntityX = 0.0f;
+    g_debug.hitEntityY = 0.0f;
+    g_debug.hitDistance = 0.0f;
+
+    if (!g_window) return;
+    if (IsImGuiCapturingMouse()) return;
+
+    float mx = 0.0f, my = 0.0f;
+    bool inside = false;
+    GetClientMousePos(mx, my, inside);
+    if (!inside) return;
+
+    float worldX = 0.0f, worldY = 0.0f;
+    if (!ComputeMouseWorldPos(worldX, worldY)) return;
+    g_debug.mouseWorldX = worldX;
+    g_debug.mouseWorldY = worldY;
+
+    const float pickRadiusSq = g_pickRadiusWorld * g_pickRadiusWorld;
+    float bestDistSq = pickRadiusSq;
+    int bestSlot = -1;
+
+    for (unsigned int slot = 1; slot < kThingMaxSlots; ++slot) {
+        const unsigned char *thing = EntityPtr(slot);
+        unsigned short id = 0;
+        uint8_t mapid = 0;
+        std::memcpy(&id, thing, sizeof(id));
+        std::memcpy(&mapid, thing + 0x04, sizeof(mapid));
+        g_currentMapID = ReadUInt8(g_CameraRenderMapLayer);
+        if (id == 0 || mapid != g_currentMapID) continue;
+        float px = 0.0f, py = 0.0f;
+        std::memcpy(&px, thing + 0x2C, sizeof(px));
+        std::memcpy(&py, thing + 0x30, sizeof(py));
+        const float dx = px - worldX;
+        const float dy = py - worldY;
+        const float distSq = dx * dx + dy * dy;
+        if (distSq < bestDistSq) {
+            bestDistSq = distSq;
+            bestSlot = static_cast<int>(slot);
+            g_debug.hitEntityX = px;
+            g_debug.hitEntityY = py;
+            g_debug.hitDistance = std::sqrt(distSq);
+        }
+    }
+    g_hoveredSlot = bestSlot;
+}
+
+// ==================== 拖动 ====================
+void UpdateDragging()
+{
+    if (!g_initialized || !g_window) return;
+
+    const bool leftDown = IsLeftMouseDown();
+    const bool leftClicked = leftDown && !g_prevLeftDown;
+    g_prevLeftDown = leftDown;
+
+    float mx = 0.0f, my = 0.0f;
+    bool inside = false;
+    GetClientMousePos(mx, my, inside);
+    const bool mouseOnGame = inside && !IsImGuiCapturingMouse();
+
+    if (g_draggingSlot < 0 && g_dragEntity && leftClicked && mouseOnGame
+        && g_editTargetSlot < 0
+        && g_hoveredSlot >= 0 && g_entities[g_hoveredSlot].id != 0) {
+        g_dragStartMouseX = mx;
+        g_dragStartMouseY = my;
+        g_dragStartEntityX = g_entities[g_hoveredSlot].position[0];
+        g_dragStartEntityY = g_entities[g_hoveredSlot].position[1];
+        g_draggingSlot = g_hoveredSlot;
+    }
+
+    if (g_draggingSlot >= 0) {
+        if (leftDown) {
+            const double scale = EffectiveScale();
+            const float deltaScreenX = mx - g_dragStartMouseX;
+            const float deltaScreenY = my - g_dragStartMouseY;
+            Dr2cEntityView &entity = g_entities[g_draggingSlot];
+            entity.position[0] = g_dragStartEntityX + static_cast<float>(deltaScreenX / scale);
+            entity.position[1] = g_dragStartEntityY + static_cast<float>(deltaScreenY / scale);
+            QueueEntityWrite(static_cast<unsigned int>(g_draggingSlot),
+                             entity, DR2C_ENTITY_WRITE_POSITION);
+        } else {
+            ClearPendingEntityWrite();
+            g_draggingSlot = -1;
+        }
+    }
+}
+
+// ==================== 右键触发编辑 ====================
+void CheckRightClickToEdit()
+{
+    if (!g_window) return;
+    if (g_draggingSlot >= 0) return;
+    if (g_editTargetSlot >= 0) return;
+    if (IsImGuiCapturingMouse()) return;
+
+    const bool rightDown = IsRightMouseDown();
+    const bool rightClicked = rightDown && !g_prevRightDown;
+    g_prevRightDown = rightDown;
+
+    if (!rightClicked) return;
+    if (g_hoveredSlot < 0) return;
+    if (g_entities[g_hoveredSlot].id == 0) return;
+
+    g_editTargetSlot = g_hoveredSlot;
+    g_charBuf = CharacterView{};
+
+    // type == 1 且不是僵尸（zombietype == 0）才读 character
+    if (g_entities[g_hoveredSlot].type == 1) {
+        unsigned char *thingPtr = EntityPtr(static_cast<unsigned int>(g_hoveredSlot));
+        uint32_t zombietype = 0;
+        memcpy(&zombietype, thingPtr + 0x14C, 4);
+
+        uint32_t charid = 0;
+        memcpy(&charid, thingPtr + 0x148, 4);
+        g_charBuf.charid = charid;
+
+        if (zombietype == 0 && charid > 0 && charid < 256 && pGetCharacterData) {
+            void *charPtr = pGetCharacterData(charid);
+            if (charPtr) {
+                g_charBuf.charPtr = charPtr;
+                ReadCharacterFromPtr(reinterpret_cast<const unsigned char *>(charPtr),
+                                     g_charBuf);
+                g_charBuf.charid  = charid;
+                g_charBuf.charPtr = charPtr;
+            }
+        }
+    }
+
+    ImGui::OpenPopup("Entity Edit");
+}
+
+// ==================== 高亮 ====================
+void DrawEntityHighlight()
+{
+    float cw = 0.0f, ch = 0.0f;
+    if (!GetClientSize(cw, ch)) return;
+
+    const int slot = (g_draggingSlot >= 0) ? g_draggingSlot
+                     : (g_editTargetSlot >= 0) ? g_editTargetSlot
+                                               : g_hoveredSlot;
+    if (slot < 0 || slot >= static_cast<int>(kThingMaxSlots)) return;
+    const Dr2cEntityView &entity = g_entities[slot];
+    if (entity.id == 0) return;
+
+    float screenX = 0.0f, screenY = 0.0f;
+    if (!WorldToScreen(entity.position, screenX, screenY)) return;
+
+    ImU32 color = IM_COL32(255, 220, 80, 255);
+    if (g_draggingSlot == slot)        color = IM_COL32(255, 80, 80, 255);
+    else if (g_editTargetSlot == slot) color = IM_COL32(80, 200, 255, 255);
+
+    ImDrawList *fg = ImGui::GetForegroundDrawList();
+    const double scale = EffectiveScale();
+    const float halfSize = static_cast<float>(g_pickRadiusWorld * scale);
+    const float boxSize = halfSize < 18.0f ? 18.0f : halfSize;
+
+    fg->AddRect(ImVec2(screenX - boxSize, screenY - boxSize),
+                ImVec2(screenX + boxSize, screenY + boxSize),
+                color, 0.0f, 0, 2.5f);
+    fg->AddCircle(ImVec2(screenX, screenY), boxSize + 2.0f, color, 0, 1.5f);
+}
+
+// ==================== Debug 面板 ====================
+void DrawDebugPanel()
+{
+    if (!g_showDebugPanel){
+        return;
+    }
+
+    ImGui::SetNextWindowSize(ImVec2(380.0f, 300.0f), ImGuiCond_FirstUseEver);
+    ImGui::Begin("DR2C Debug", &g_showDebugPanel);
+
+    ImGui::Checkbox("Drag entity", &g_dragEntity);
     ImGui::SameLine();
-    ImGui::BeginChild("entity-details", ImVec2(0.0f, 0.0f), ImGuiChildFlags_Borders);
+    ImGui::Checkbox("Log to file", &g_logToFile);
 
-    static int s_lastSelected = -1;
-    if (s_lastSelected != g_selectedSlot) {
-        ClearPendingEntityWrite();
-        s_lastSelected = g_selectedSlot;
+    ImGui::SliderFloat("Pick radius (world)", &g_pickRadiusWorld, 2.0f, 64.0f, "%.1f");
+
+    if (ImGui::SliderInt("Game FrameRate", &g_fps, 1, 1024)){
+        pSetFrameRate(g_fps);
+    };
+
+    if (ImGui::InputInt("Current Map", &g_currentMapID)){
+        WriteInt(g_currentMapID, g_CameraRenderMapLayer);
     }
 
-    if (g_selectedSlot >= 0 && g_selectedSlot < 610
-        && g_entities[g_selectedSlot].id != 0) {
-        // 直接引用实时数据，UI 自动反映最新值
-        Dr2cEntityView &entity = g_entities[g_selectedSlot];
-        const unsigned int slot = static_cast<unsigned int>(g_selectedSlot);
+    ImGui::Separator();
+    ImGui::Text("moduleBase    = %p", reinterpret_cast<void*>(g_moduleBase));
+    ImGui::Text("g_ScreenScale = %.4f", g_debug.screenScaleRaw);
+    ImGui::Text("camera        = (%.2f, %.2f)", g_debug.cameraX, g_debug.cameraY);
+    ImGui::Text("mouse         = (%.1f, %.1f) %s",
+                g_debug.mouseX, g_debug.mouseY, g_debug.mouseInside ? "in" : "OUT");
+    ImGui::Text("hover=%d  edit=%d  drag=%d",
+                g_hoveredSlot, g_editTargetSlot, g_draggingSlot);
 
-        // 去掉 Address 显示
+    ImGui::Separator();
+    ImGui::TextUnformatted("Right-click entity to edit");
+
+    ImGui::End();
+}
+
+// ==================== 属性 / 资源名 ====================
+const char *kStatNames[13] = {
+    "Morale", "Attitude", "Composure", "Charm", "Wits", "Loyalty",
+    "Medical", "Mechanical", "Shooting", "Strength", "Dexterity",
+    "Fitness", "Vitality"
+};
+
+const char *kResourceNames[8] = {
+    "None", "Food", "Gas", "Medical", "Bullet", "Rifle", "Shell", "Junk"
+};
+
+// ==================== Character 编辑块 ====================
+void DrawCharacterSection()
+{
+    if (!g_charBuf.active || !g_charBuf.charPtr) {
+        ImGui::TextUnformatted("(no character attached)");
+        if (g_charBuf.charid != 0)
+            ImGui::Text("charid = %u", g_charBuf.charid);
+        return;
+    }
+
+    ImGui::Text("charPtr = %p   charid = %u", g_charBuf.charPtr, g_charBuf.charid);
+    ImGui::Separator();
+
+    ImGui::PushItemWidth(240.0f);
+
+    if (ImGui::InputText("Name", g_charBuf.name, sizeof(g_charBuf.name)))
+        WriteCharacter();
+    if (ImGui::InputInt("Health", &g_charBuf.health))
+        WriteCharacter();
+    if (ImGui::InputFloat("Speed Bonus", &g_charBuf.speed_bonus, 0.1f, 1.0f, "%.2f"))
+        WriteCharacter();
+
+    if (ImGui::TreeNode("Stats")) {
+        ImGui::Text("         Base  Bonus  Total");
+        for (int i = 0; i < 13; ++i) {
+            ImGui::PushID(i);
+            ImGui::Text("%-11s", kStatNames[i]);
+            ImGui::SameLine();
+            ImGui::PushItemWidth(60.0f);
+            bool changed = false;
+            changed |= ImGui::InputInt("##base",  &g_charBuf.baseStat[i],  0, 0);
+            ImGui::SameLine();
+            changed |= ImGui::InputInt("##bonus", &g_charBuf.bonusStat[i], 0, 0);
+            ImGui::PopItemWidth();
+            ImGui::SameLine();
+            ImGui::Text("%d", g_charBuf.baseStat[i] + g_charBuf.bonusStat[i]);
+            if (changed) WriteCharacter();
+            ImGui::PopID();
+        }
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Resources")) {
+        for (int i = 0; i < 8; ++i) {
+            ImGui::PushID(100 + i);
+            if (ImGui::InputInt(kResourceNames[i], &g_charBuf.resource[i]))
+                WriteCharacter();
+            ImGui::PopID();
+        }
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Weapons")) {
+        if (!g_weaponNamesLoaded) LoadWeaponNames();
+
+        for (int slotIdx = 0; slotIdx < 3; ++slotIdx) {
+            ImGui::PushID(200 + slotIdx);
+            ImGui::Text("Slot %d", slotIdx);
+            ImGui::SameLine();
+
+            int32_t curId = g_charBuf.weaponID[slotIdx];
+            const char *curName = "(empty)";
+            if (curId > 0 && curId < static_cast<int32_t>(g_weaponNames.size()))
+                curName = g_weaponNames[curId].c_str();
+
+            ImGui::PushItemWidth(180.0f);
+            bool changed = false;
+            if (ImGui::BeginCombo("##weapon", curName)) {
+                if (ImGui::Selectable("(empty)", curId == 0)) {
+                    g_charBuf.weaponID[slotIdx] = 0;
+                    changed = true;
+                }
+                ImGuiListClipper clipper;
+                clipper.Begin(static_cast<int>(g_weaponNames.size()));
+                while (clipper.Step()) {
+                    for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i) {
+                        bool selected = (curId == i);
+                        ImGui::PushID(i);
+                        if (ImGui::Selectable(g_weaponNames[i].c_str(), selected)) {
+                            g_charBuf.weaponID[slotIdx] = i;
+                            changed = true;
+                        }
+                        ImGui::PopID();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+            ImGui::PopItemWidth();
+
+            ImGui::SameLine();
+            ImGui::PushItemWidth(60.0f);
+            changed |= ImGui::InputInt("Stack", &g_charBuf.weaponStack[slotIdx], 0, 0);
+            ImGui::SameLine();
+            bool lockFlag = g_charBuf.weaponLock[slotIdx] != 0;
+            changed |= ImGui::Checkbox("Lock", &lockFlag);
+            g_charBuf.weaponLock[slotIdx] = lockFlag ? 1 : 0;
+            //changed |= ImGui::InputInt("Lock",  &g_charBuf.weaponLock[slotIdx],  0, 0);
+            ImGui::PopItemWidth();
+
+            if (changed) WriteCharacter();
+            ImGui::PopID();
+        }
+        ImGui::TreePop();
+    }
+
+    ImGui::PopItemWidth();
+}
+
+// ==================== Vehicle 编辑块 ====================
+void DrawVehicleSection(int slot)
+{
+    unsigned char *p = EntityPtr(static_cast<unsigned int>(slot));
+
+    int32_t chassis      = static_cast<int8_t>(p[0x208]);
+    int32_t chassisMax   = static_cast<int8_t>(p[0x209]);
+    int32_t engine       = static_cast<int8_t>(p[0x20A]);
+    int32_t engineMax    = static_cast<int8_t>(p[0x20B]);
+    int32_t armour       = static_cast<int8_t>(p[0x20C]);
+    int32_t armourMax    = static_cast<int8_t>(p[0x20D]);
+    int32_t carspeed     = static_cast<int8_t>(p[0x20E]);
+    int32_t carspeedMax  = static_cast<int8_t>(p[0x20F]);
+    int32_t repair = 0;
+    float   mpg    = 0.0f;
+    memcpy(&repair, p + 0x210, 4);
+    memcpy(&mpg,    p + 0x214, 4);
+
+    ImGui::PushItemWidth(120.0f);
+    bool changed = false;
+    changed |= ImGui::InputInt("Chassis", &chassis);
+    changed |= ImGui::InputInt("Chassis Max", &chassisMax);
+    changed |= ImGui::InputInt("Engine", &engine);
+    changed |= ImGui::InputInt("Engine Max", &engineMax);
+    changed |= ImGui::InputInt("Armour", &armour);
+    changed |= ImGui::InputInt("Armour Max", &armourMax);
+    changed |= ImGui::InputInt("Speed", &carspeed);
+    changed |= ImGui::InputInt("Speed Max", &carspeedMax);
+    changed |= ImGui::InputInt("Repair", &repair);
+    changed |= ImGui::InputFloat("MPG", &mpg, 0.1f, 1.0f, "%.2f");
+    ImGui::PopItemWidth();
+
+    if (changed) {
+        p[0x208] = static_cast<unsigned char>(static_cast<int8_t>(chassis));
+        p[0x209] = static_cast<unsigned char>(static_cast<int8_t>(chassisMax));
+        p[0x20A] = static_cast<unsigned char>(static_cast<int8_t>(engine));
+        p[0x20B] = static_cast<unsigned char>(static_cast<int8_t>(engineMax));
+        p[0x20C] = static_cast<unsigned char>(static_cast<int8_t>(armour));
+        p[0x20D] = static_cast<unsigned char>(static_cast<int8_t>(armourMax));
+        p[0x20E] = static_cast<unsigned char>(static_cast<int8_t>(carspeed));
+        p[0x20F] = static_cast<unsigned char>(static_cast<int8_t>(carspeedMax));
+        memcpy(p + 0x210, &repair, 4);
+        memcpy(p + 0x214, &mpg, 4);
+    }
+}
+
+// ==================== Item 编辑块 ====================
+void DrawItemSection(int slot)
+{
+    unsigned char *p = EntityPtr(static_cast<unsigned int>(slot));
+
+    int32_t amount = 0;
+    int32_t loot = static_cast<uint8_t>(p[0xE8]);
+    memcpy(&amount, p + 0xE4, 4);
+
+    ImGui::PushItemWidth(120.0f);
+    bool changed = false;
+    changed |= ImGui::InputInt("Amount", &amount);
+    //changed |= ImGui::InputInt("Loot", &loot);
+    const char *curLootName = (loot >= 0 && loot < 8) ? kResourceNames[loot] : "(invalid)";
+    if (ImGui::BeginCombo("Loot", curLootName)) {
+        for (int i = 0; i < 8; ++i) {
+            const bool selected = (loot == i);
+            ImGui::PushID(i);
+            if (ImGui::Selectable(kResourceNames[i], selected)) {
+                loot = i;
+                changed = true;
+            }
+            ImGui::PopID();
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::PopItemWidth();
+
+    if (changed) {
+        memcpy(p + 0xE4, &amount, 4);
+        p[0xE8] = static_cast<unsigned char>(loot);
+    }
+}
+
+// ==================== 编辑 Popup ====================
+void DrawEntityEditPopup()
+{
+    if (g_editTargetSlot < 0) return;
+
+    ImGui::SetNextWindowSize(ImVec2(380.0f, 500.0f), ImGuiCond_Appearing);
+
+    if (ImGui::BeginPopup("Entity Edit")) {
+        const int slot = g_editTargetSlot;
+        if (slot < 0 || slot >= static_cast<int>(kThingMaxSlots)
+            || g_entities[slot].id == 0) {
+            ImGui::TextUnformatted("(entity no longer exists)");
+            if (ImGui::Button("Close")) ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+            return;
+        }
+
+        Dr2cEntityView &entity = g_entities[slot];
+        const unsigned int uslot = static_cast<unsigned int>(slot);
+
         ImGui::Text("Slot %d   ID %u   Type %u / %u",
-                    g_selectedSlot, entity.id, entity.type, entity.subtype);
+                    slot, entity.id, entity.type, entity.subtype);
         ImGui::Separator();
 
-        int mapId = entity.mapId;
-        int spriteId = entity.spriteId;
-        bool noCollide = entity.noCollide != 0;
-        bool noPick = entity.noPick != 0;
-        bool unseen = entity.unseen != 0;
-        bool invisible = entity.invisible != 0;
-        bool noHit = entity.noHit != 0;
-        bool glow = entity.glow != 0;
-
-        if (ImGui::InputInt("Map", &mapId)) {
-            entity.mapId = static_cast<unsigned char>(mapId);
-            QueueEntityWrite(slot, entity, DR2C_ENTITY_WRITE_MAP);
+        if (ImGui::Button("Clone", ImVec2(80, 0))) CloneEntity(slot);
+        ImGui::SameLine();
+        if (ImGui::Button("Destroy", ImVec2(80, 0))) {
+            DestroyEntity(slot);
+            g_editTargetSlot = -1;
+            ClearPendingEntityWrite();
+            ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+            return;
         }
-        if (ImGui::InputFloat3("Velocity", entity.velocity))
-            QueueEntityWrite(slot, entity, DR2C_ENTITY_WRITE_VELOCITY);
-        if (ImGui::InputFloat3("Physics", entity.physics))
-            QueueEntityWrite(slot, entity, DR2C_ENTITY_WRITE_PHYSICS);
-        if (ImGui::InputInt("Hitpoints", &entity.hitpoints))
-            QueueEntityWrite(slot, entity, DR2C_ENTITY_WRITE_HITPOINTS);
-        if (ImGui::InputInt("Sprite", &spriteId)) {
-            entity.spriteId = static_cast<unsigned short>(spriteId);
-            QueueEntityWrite(slot, entity, DR2C_ENTITY_WRITE_SPRITE);
+        ImGui::SameLine();
+        if (ImGui::Button("Close", ImVec2(80, 0))) ImGui::CloseCurrentPopup();
+
+        ImGui::Separator();
+
+        // ---------- 实体字段 ----------
+        if (ImGui::CollapsingHeader("Entity", ImGuiTreeNodeFlags_None)) {
+            ImGui::PushItemWidth(240.0f);
+            int mapId = entity.mapId;
+            int spriteId = entity.spriteId;
+            bool noCollide = entity.noCollide != 0;
+            bool noPick = entity.noPick != 0;
+            bool unseen = entity.unseen != 0;
+            bool invisible = entity.invisible != 0;
+            bool noHit = entity.noHit != 0;
+            bool glow = entity.glow != 0;
+
+            if (ImGui::InputFloat3("Position", entity.position))
+                QueueEntityWrite(uslot, entity, DR2C_ENTITY_WRITE_POSITION);
+            if (ImGui::InputInt("Map", &mapId)) {
+                entity.mapId = static_cast<unsigned char>(mapId);
+                QueueEntityWrite(uslot, entity, DR2C_ENTITY_WRITE_MAP);
+            }
+            if (ImGui::InputFloat3("Velocity", entity.velocity))
+                QueueEntityWrite(uslot, entity, DR2C_ENTITY_WRITE_VELOCITY);
+            if (ImGui::InputFloat3("Physics", entity.physics))
+                QueueEntityWrite(uslot, entity, DR2C_ENTITY_WRITE_PHYSICS);
+            if (ImGui::InputInt("Hitpoints", &entity.hitpoints))
+                QueueEntityWrite(uslot, entity, DR2C_ENTITY_WRITE_HITPOINTS);
+            if (ImGui::InputInt("Sprite", &spriteId)) {
+                entity.spriteId = static_cast<unsigned short>(spriteId);
+                QueueEntityWrite(uslot, entity, DR2C_ENTITY_WRITE_SPRITE);
+            }
+            if (ImGui::InputScalar("AI state", ImGuiDataType_U32, &entity.aiState))
+                QueueEntityWrite(uslot, entity, DR2C_ENTITY_WRITE_AI);
+
+            bool flagsChanged = false;
+            flagsChanged |= ImGui::Checkbox("No collision", &noCollide);
+            ImGui::SameLine();
+            flagsChanged |= ImGui::Checkbox("No pickup", &noPick);
+            flagsChanged |= ImGui::Checkbox("Unseen", &unseen);
+            ImGui::SameLine();
+            flagsChanged |= ImGui::Checkbox("Invisible", &invisible);
+            flagsChanged |= ImGui::Checkbox("No hit", &noHit);
+            ImGui::SameLine();
+            flagsChanged |= ImGui::Checkbox("Glow", &glow);
+
+            entity.noCollide = static_cast<unsigned char>(noCollide);
+            entity.noPick    = static_cast<unsigned char>(noPick);
+            entity.unseen    = static_cast<unsigned char>(unseen);
+            entity.invisible = static_cast<unsigned char>(invisible);
+            entity.noHit     = static_cast<unsigned char>(noHit);
+            entity.glow      = static_cast<unsigned char>(glow);
+
+            if (flagsChanged)
+                QueueEntityWrite(uslot, entity, DR2C_ENTITY_WRITE_FLAGS);
+            ImGui::PopItemWidth();
         }
-        if (ImGui::InputScalar("AI state", ImGuiDataType_U32, &entity.aiState))
-            QueueEntityWrite(slot, entity, DR2C_ENTITY_WRITE_AI);
 
-        bool flagsChanged = false;
-        flagsChanged |= ImGui::Checkbox("No collision", &noCollide);
-        flagsChanged |= ImGui::Checkbox("No pickup", &noPick);
-        flagsChanged |= ImGui::Checkbox("Unseen", &unseen);
-        flagsChanged |= ImGui::Checkbox("Invisible", &invisible);
-        flagsChanged |= ImGui::Checkbox("No hit", &noHit);
-        flagsChanged |= ImGui::Checkbox("Glow", &glow);
+        // ---------- Character（type == 1)  ----------
+        if (entity.type == 1) {
+            if (ImGui::CollapsingHeader("Character", ImGuiTreeNodeFlags_None))
+                DrawCharacterSection();
+        }
 
-        entity.noCollide = static_cast<unsigned char>(noCollide);
-        entity.noPick = static_cast<unsigned char>(noPick);
-        entity.unseen = static_cast<unsigned char>(unseen);
-        entity.invisible = static_cast<unsigned char>(invisible);
-        entity.noHit = static_cast<unsigned char>(noHit);
-        entity.glow = static_cast<unsigned char>(glow);
+        // ---------- Item（type == 3 且 subtype == 1） ----------
+        if (entity.type == 3 && entity.subtype == 1) {
+            if (ImGui::CollapsingHeader("Item", ImGuiTreeNodeFlags_None))
+                DrawItemSection(slot);
+        }
 
-        if (flagsChanged)
-            QueueEntityWrite(slot, entity, DR2C_ENTITY_WRITE_FLAGS);
+        // ---------- Vehicle（type == 3 且 subtype == 3） ----------
+        if (entity.type == 3 && entity.subtype == 3) {
+            if (ImGui::CollapsingHeader("Vehicle", ImGuiTreeNodeFlags_None))
+                DrawVehicleSection(slot);
+        }
+
+        ImGui::EndPopup();
     } else {
-        ImGui::TextUnformatted("Select an active entity.");
+        g_editTargetSlot = -1;
+        g_charBuf.active = false;
+        ClearPendingEntityWrite();
     }
-
-    ImGui::EndChild();
-    ImGui::End();
 }
 
 } // namespace
 
+// ==================== 导出接口 ====================
+
+void CheckPanelHotkey()
+{
+    static bool prevInsert = false;
+    const bool curInsert = (GetAsyncKeyState(VK_INSERT) & 0x8000) != 0;
+    if (curInsert && !prevInsert) {
+        g_showDebugPanel = !g_showDebugPanel;
+    }
+    prevInsert = curInsert;
+}
+
 void QueueEntityWrite(unsigned int slot, const Dr2cEntityView &entity, unsigned int mask)
 {
-    if (slot >= 610u)
-        return;
+    if (slot >= kThingMaxSlots) return;
     g_pendingSlot = slot;
     g_pendingEntity = entity;
     g_pendingWriteMask |= mask;
@@ -306,8 +1006,9 @@ void ClearPendingEntityWrite()
 
 bool InitializeInternalUi(HWND window, HMODULE module)
 {
-    if (g_initialized || !window)
-        return g_initialized;
+    if (g_initialized || !window) return g_initialized;
+
+    CacheGameFunctions();
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -322,18 +1023,17 @@ bool InitializeInternalUi(HWND window, HMODULE module)
         ImGui::DestroyContext();
         return false;
     }
-
-    LoadEntityTextures(module);
     g_window = window;
     g_initialized = true;
+    LogInit(module);
+    g_fps = (int)pGetFrameRate();
     return true;
 }
 
 void ShutdownInternalUi()
 {
-    if (!g_initialized)
-        return;
-    ReleaseEntityTextures();
+    if (!g_initialized) return;
+    LogShutdown();
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
@@ -343,18 +1043,38 @@ void ShutdownInternalUi()
 
 void RenderInternalUi()
 {
-    if (!g_initialized)
-        return;
+    if (!g_initialized) return;
 
-    ++g_frameCount;
     UpdateEntityStats();
     ApplyPendingEntityWrite();
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    if (g_showWindow)
-        DrawEntityPanel();
+    RefreshDebug();
+    UpdateHoveredEntity();
+    UpdateDragging();
+    CheckRightClickToEdit();
+    CheckPanelHotkey();
+
+    static int s_lastHovered = -1;
+    if (s_lastHovered != g_hoveredSlot
+        && g_draggingSlot < 0 && g_editTargetSlot < 0) {
+        ClearPendingEntityWrite();
+        s_lastHovered = g_hoveredSlot;
+    }
+
+    DrawDebugPanel();
+    DrawEntityEditPopup();
+    DrawEntityHighlight();
+
+    if (g_logToFile && ++g_logFrameCounter >= 30) {
+        g_logFrameCounter = 0;
+        LogLine("[auto] eff=%.4f cam=(%.2f,%.2f) mouse=(%.1f,%.1f) in=%d hover=%d edit=%d drag=%d",
+                g_debug.effectiveScale, g_debug.cameraX, g_debug.cameraY,
+                g_debug.mouseX, g_debug.mouseY, g_debug.mouseInside ? 1 : 0,
+                g_hoveredSlot, g_editTargetSlot, g_draggingSlot);
+    }
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -368,182 +1088,3 @@ LRESULT HandleInternalWindowMessage(HWND window, UINT message, WPARAM wParam, LP
     }
     return 0;
 }
-
-namespace {
-
-void UpdateMapLayout()
-{
-    for (MapView &map : g_maps)
-        map = MapView();
-
-    int maxMap = 0;
-    for (const Dr2cEntityView &entity : g_entities) {
-        if (entity.id != 0 && entity.mapId < 64)
-            maxMap = (entity.mapId > maxMap) ? entity.mapId : maxMap;
-    }
-
-    for (int mapId = 0; mapId <= maxMap; ++mapId) {
-        const uintptr_t base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
-        const unsigned char *meta = reinterpret_cast<const unsigned char *>(
-            base + 0x46DBC0u + static_cast<uintptr_t>(mapId) * 0x34u);
-        int width = 0;
-        int height = 0;
-        int tileWidth = 0;
-        int tileHeight = 0;
-        std::memcpy(&width, meta + 0x08, sizeof(width));
-        std::memcpy(&height, meta + 0x0C, sizeof(height));
-        std::memcpy(&tileWidth, meta + 0x10, sizeof(tileWidth));
-        std::memcpy(&tileHeight, meta + 0x14, sizeof(tileHeight));
-        int pixelWidth = 0;
-        int pixelHeight = 0;
-        std::memcpy(&pixelWidth, meta + 0x20, sizeof(pixelWidth));
-        std::memcpy(&pixelHeight, meta + 0x24, sizeof(pixelHeight));
-        if (pixelWidth <= 0)
-            pixelWidth = width * tileWidth;
-        if (pixelHeight <= 0)
-            pixelHeight = height * tileHeight;
-        if (pixelWidth <= 0)
-            pixelWidth = 1024;
-        if (pixelHeight <= 0)
-            pixelHeight = 1024;
-        g_maps[mapId].visible = true;
-        g_maps[mapId].width = pixelWidth;
-        g_maps[mapId].height = pixelHeight;
-    }
-
-    const float gap = 36.0f;
-    const int columns = 3;
-    float cursorX = gap;
-    float cursorY = gap;
-    float rowHeight = 0.0f;
-    int column = 0;
-    for (int mapId = 0; mapId <= maxMap; ++mapId) {
-        if (!g_maps[mapId].visible)
-            continue;
-        g_maps[mapId].origin = ImVec2(cursorX, cursorY);
-        const float mapHeight = g_maps[mapId].height * g_mapZoom;
-        const float mapWidth = g_maps[mapId].width * g_mapZoom;
-        rowHeight = (mapHeight > rowHeight) ? mapHeight : rowHeight;
-        ++column;
-        if (column == columns) {
-            column = 0;
-            cursorX = gap;
-            cursorY += rowHeight + gap;
-            rowHeight = 0.0f;
-        } else {
-            cursorX += mapWidth + gap;
-        }
-    }
-}
-
-ImU32 EntityColor(const Dr2cEntityView &entity)
-{
-    switch (entity.type) {
-    case 1: return IM_COL32(80, 210, 120, 255);
-    case 2: return IM_COL32(230, 90, 80, 255);
-    case 3: return IM_COL32(240, 190, 70, 255);
-    case 4: return IM_COL32(120, 170, 245, 255);
-    default: return IM_COL32(210, 210, 210, 255);
-    }
-}
-
-void DrawMapCanvas()
-{
-    UpdateMapLayout();
-    ImGui::Text("Active entities: %u / 610", g_entityCount);
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(160.0f);
-    ImGui::SliderFloat("Zoom", &g_mapZoom, 0.15f, 1.25f, "%.2fx");
-
-    ImGui::BeginChild("entity-map-canvas", ImVec2(0.0f, 0.0f), ImGuiChildFlags_Borders,
-                  ImGuiWindowFlags_HorizontalScrollbar |
-                  ImGuiWindowFlags_NoMove |
-                  ImGuiWindowFlags_NoScrollWithMouse);
-    const ImVec2 canvasOrigin = ImGui::GetCursorScreenPos();
-    ImVec2 contentSize(2000.0f, 1400.0f);
-    for (const MapView &map : g_maps) {
-        if (!map.visible)
-            continue;
-        contentSize.x = (map.origin.x + map.width * g_mapZoom + 50.0f > contentSize.x)
-            ? map.origin.x + map.width * g_mapZoom + 50.0f : contentSize.x;
-        contentSize.y = (map.origin.y + map.height * g_mapZoom + 50.0f > contentSize.y)
-            ? map.origin.y + map.height * g_mapZoom + 50.0f : contentSize.y;
-    }
-    ImGui::InvisibleButton("##entity-canvas", contentSize,
-                           ImGuiButtonFlags_MouseButtonLeft);
-    const bool canvasHovered = ImGui::IsItemHovered();
-    const bool canvasActive  = ImGui::IsItemActive();
-
-    ImDrawList *draw = ImGui::GetWindowDrawList();
-    const ImVec2 mouse = ImGui::GetIO().MousePos;
-    const bool clicked = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
-    const bool dragging = ImGui::IsMouseDragging(ImGuiMouseButton_Left);
-
-    for (int mapId = 0; mapId < 64; ++mapId) {
-        const MapView &map = g_maps[mapId];
-        if (!map.visible)
-            continue;
-        const ImVec2 topLeft(canvasOrigin.x + map.origin.x, canvasOrigin.y + map.origin.y);
-        const ImVec2 bottomRight(topLeft.x + map.width * g_mapZoom,
-                                 topLeft.y + map.height * g_mapZoom);
-        draw->AddRectFilled(topLeft, bottomRight, IM_COL32(38, 45, 52, 230));
-        draw->AddRect(topLeft, bottomRight, IM_COL32(130, 150, 165, 255), 0.0f, 0, 2.0f);
-        char title[32] = {};
-        std::snprintf(title, sizeof(title), "Map %d", mapId);
-        draw->AddText(ImVec2(topLeft.x + 8.0f, topLeft.y + 6.0f),
-                      IM_COL32(230, 230, 230, 255), title);
-    }
-
-    for (unsigned int slot = 0; slot < 610u; ++slot) {
-        const Dr2cEntityView &entity = g_entities[slot];
-        if (entity.id == 0 || entity.mapId >= 64 || !g_maps[entity.mapId].visible)
-            continue;
-
-        const MapView &map = g_maps[entity.mapId];
-        const ImVec2 mapOrigin(canvasOrigin.x + map.origin.x,
-                               canvasOrigin.y + map.origin.y);
-        const ImVec2 center(mapOrigin.x + entity.position[0] * g_mapZoom,
-                            mapOrigin.y + entity.position[1] * g_mapZoom);
-
-        // 修复图标缩放
-        const float iconSize = 30.0f * g_mapZoom;
-        const float iconSizeClamped = (iconSize < 8.0f) ? 8.0f : (iconSize > 48.0f ? 48.0f : iconSize);
-
-        const ImVec2 iconMin(center.x - iconSizeClamped * 0.5f, center.y - iconSizeClamped * 0.5f);
-        const ImVec2 iconMax(center.x + iconSizeClamped * 0.5f, center.y + iconSizeClamped * 0.5f);
-
-        const GLuint texture = g_entityTextures[EntityTextureIndex(entity)];
-        if (texture != 0)
-            draw->AddImage(ImTextureRef(static_cast<ImTextureID>(texture)),
-                           iconMin, iconMax);
-        else
-            draw->AddCircleFilled(center, 6.0f, EntityColor(entity));
-
-        if (g_selectedSlot == static_cast<int>(slot))
-            draw->AddRect(iconMin, iconMax, IM_COL32(255, 255, 255, 255), 0.0f, 0, 2.0f);
-
-        const float dx = mouse.x - center.x;
-        const float dy = mouse.y - center.y;
-        const float hitRadius = iconSize * 0.5f + 5.0f;
-
-        if (canvasHovered && clicked && dx * dx + dy * dy < hitRadius * hitRadius) {
-            g_selectedSlot = static_cast<int>(slot);
-            g_dragSlot = static_cast<int>(slot);
-            g_dragOffset = ImVec2(mouse.x - center.x, mouse.y - center.y);
-            ImGui::SetNextFrameWantCaptureMouse(true);   // 新增
-        }
-
-        if (canvasActive && dragging && g_dragSlot == static_cast<int>(slot)) {
-            Dr2cEntityView moved = entity;
-            moved.position[0] = (mouse.x - g_dragOffset.x - mapOrigin.x) / g_mapZoom;
-            moved.position[1] = (mouse.y - g_dragOffset.y - mapOrigin.y) / g_mapZoom;
-            QueueEntityWrite(slot, moved, DR2C_ENTITY_WRITE_POSITION);
-            ImGui::SetNextFrameWantCaptureMouse(true);   // 新增
-        }
-    }
-    if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
-        g_dragSlot = -1;
-    ImGui::EndChild();
-}
-
-} // namespace

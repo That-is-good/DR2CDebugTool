@@ -1,254 +1,200 @@
-# DR2CInternalOverlay
+# DeathRoad to Canada Internal Overlay
 
-基于 **ImGui + OpenGL3 + Win32 + MinHook** 的 32 位 Windows 游戏内部覆盖层 / 调试工具。  
-通过 DLL 注入目标进程后，可在游戏内显示调试面板，并对实体、角色、物品、车辆等数据进行实时查看与修改。
+一个基于 ImGui + MinHook 的 **DR2C 进程内覆盖层（Internal Overlay）**。
 
-> 本项目中的游戏函数地址与全局变量地址均为硬编码 RVA，仅适配特定游戏版本。版本不匹配时可能导致崩溃或修改无效。
+通过 Hook `opengl32!wglSwapBuffers`，在游戏自己的 OpenGL 上下文里绘制调试 / 编辑面板，不依赖外挂注入器、不需要外部窗口，也不需要 overlay 分层。可以在运行时查看并修改实体、角色、物品、车辆等数据。
+
+界面支持**中英文实时切换**，语言选择会落盘到 DLL 同目录的 `.ini`。
 
 ---
 
-## 功能特性
+## 功能一览
 
-- ImGui 内部调试面板，`Insert` 键显示 / 隐藏
-- 实体悬停检测与屏幕高亮
-- 右键点击实体打开编辑弹窗
-- 支持拖动实体位置
-- 实体字段编辑：
-  - 位置、速度、物理
-  - 地图、血量、精灵、AI 状态
-  - No collision / No pickup / Unseen / Invisible / No hit / Glow
-- 角色编辑（`type == 1` 且非僵尸）：
-  - 名称、生命、速度加成
-  - 13 项属性：Base / Bonus / Total
-  - 8 种资源
-  - 3 个武器槽：武器选择、Stack、Lock
-- 物品编辑（`type == 3 && subtype == 1`）：
-  - Amount、Loot 类型
-- 车辆编辑（`type == 3 && subtype == 3`）：
-  - Chassis、Engine、Armour、Speed、Repair、MPG 等
-- 实体克隆与销毁
-- 游戏帧率修改
-- 当前地图层读写
-- 日志输出到 DLL 同目录同名 `.log` 文件
+### 覆盖层
+- Hook `wglSwapBuffers`，在游戏渲染帧上直接叠加 ImGui 界面
+- 拦截游戏窗口的 `WndProc`，输入由 ImGui 优先消费
+- 全部 32 位，与游戏同进程
 
-![图片1](./ReadmeImg/A.png)
-![图片2](./ReadmeImg/B.png)
----
+### 实体（Thing）
+- 鼠标悬停拾取实体，屏幕空间高亮框 / 圆环
+- **按住左键拖拽**移动实体（世界坐标实时写回）
+- **右键点击实体**打开编辑窗口
+- 可编辑字段：
+  - 地图 ID
+  - 位置 / 速度
+  - 物理参数（质量 / 摩擦 / 弹性）
+  - 生命值 / 精灵 ID / AI 状态
+  - 标志位：不碰撞、不可拾取、未看见、隐身、不受伤、发光
+- 一键 **Clone** / **Destroy**
 
-## 构建要求
+### 角色（type == 1）
+- 姓名、生命、速度加成
+- 13 项属性（基础值 / 加成值 / 合计）
+- 8 项资源（食物、汽油、医疗、子弹、步枪弹、炮弹、废料…）
+- 6 个武器槽：武器名下拉框（从游戏武器表读取）+ 堆叠数 + 锁定
+- **Control Human** 一键把该实体设为当前操控角色
 
-- Windows
-- CMake >= 3.19
-- **32 位 MinGW-w64 工具链**
-  - 例如 `i686-w64-mingw32-gcc` / `i686-w64-mingw32-g++`
-  - 或 MSYS2 的 `mingw32` 环境
-- C++17
-- 依赖库：
-  - **ImGui 1.92.9b**，放置于 `imgui-1.92.9b/`
-  - **MinHook**，放置于 `MinHook/`
-    - 需要 `MinHook/include/MinHook.h`
-    - 需要 32 位静态库 `MinHook/lib/MinHook.a`
-- 系统链接库：
-  - `opengl32`
-  - `gdi32`
-  - `user32`
-  - `dwmapi`
+### 物品（type == 3, subtype == 1）
+- 数量、掉落资源类型（下拉框，与资源名表一致）
 
-> CMake 会检查 `CMAKE_SIZEOF_VOID_P`，如果不是 4 字节会直接报错：  
-> `DR2CInternalOverlay must be built with a 32-bit MinGW toolchain`
+### 车辆（type == 3, subtype == 3）
+- 底盘 / 引擎 / 装甲 / 速度（当前值 + 上限）
+- 修理值、MPG
+
+### 其他
+- 实时显示模块基址、屏幕缩放、相机坐标、鼠标坐标、悬停 / 编辑 / 拖拽槽位
+- 可调拾取半径
+- 可在面板里直接修改游戏帧率、当前地图层
+- 可选日志输出到 DLL 同目录 `.log`
+
+![展示](./ReadmeImg/Total.png)
 
 ---
 
 ## 目录结构
 
-```text
+```
 .
 ├── CMakeLists.txt
-├── dllmain.cpp
-├── imgui_ui.cpp
+├── dllmain.cpp            # DLL 入口：Hook wglSwapBuffers、挂接 WndProc
+├── imgui_ui.cpp           # 覆盖层主逻辑：面板、拾取、拖拽、编辑器
 ├── imgui_ui.h
-├── imgui-1.92.9b/    -- 自行下载
-│   ├── imgui.cpp
-│   ├── imgui_draw.cpp
-│   ├── imgui_tables.cpp
-│   ├── imgui_widgets.cpp
-│   └── backends/
-│       ├── imgui_impl_win32.cpp
-│       └── imgui_impl_opengl3.cpp
-└── MinHook/
-    ├── include/
-    │   └── MinHook.h
-    └── lib/
-        └── MinHook.a
+├── translation.cpp        # 中英文词条表与查表
+├── translation.h
+├── dr2c_memory.h          # 地址/指针读写封装（Address / Load / Store / AsFn…）
+├── dr2c_offsets.h         # 游戏偏移与结构常量（唯一来源）
+├── imgui-1.92.9b/         # Dear ImGui 源码 （自行下载）
+└── MinHook/               # MinHook 头文件 + lib/MinHook.a
 ```
+
+> 所有游戏偏移、结构大小、槽位数量、字符串长度**只在 `dr2c_offsets.h` 中声明**，其他文件一律通过 `Offset::*` 引用。
 
 ---
 
-## 构建方法
+## 构建
 
-### 1. 准备依赖
+### 环境要求
+- **32 位 MinGW 工具链**（i686-w64-mingw32-g++ 等），CMake 会强制检查 `CMAKE_SIZEOF_VOID_P == 4`
+- CMake ≥ 3.19
+- C++17
 
-确保以下目录存在：
-
-```text
-imgui-1.92.9b/
-MinHook/
-```
-
-其中 `MinHook/lib/MinHook.a` 必须是 32 位版本。
-
-### 2. 生成并编译
+### 步骤
 
 ```bash
-mkdir build
-cd build
-
-cmake -G "MinGW Makefiles" \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_C_COMPILER=i686-w64-mingw32-gcc \
-  -DCMAKE_CXX_COMPILER=i686-w64-mingw32-g++ \
-  ..
-
-cmake --build . --config Release
+cmake -B build -G "MinGW Makefiles" -DCMAKE_CXX_COMPILER=i686-w64-mingw32-g++
+cmake --build build -j
 ```
 
-如果使用 MSYS2 MinGW 32-bit 环境，也可以：
+产物：
 
-```bash
-mkdir build
-cd build
-
-cmake -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release ..
-mingw32-make -j
 ```
-
-构建成功后输出：
-
-```text
 build/bin/DR2CInternalOverlay.dll
 ```
 
----
-
-## 使用方法
-
-1. 启动 32 位目标游戏。
-2. 使用任意 DLL 注入器将 `DR2CInternalOverlay.dll` 注入游戏进程。
-3. 按 `Insert` 切换调试面板显示状态。
-4. 将鼠标移动到游戏内实体上，可看到高亮框。
-5. 右键点击实体，打开 `Entity Edit` 编辑弹窗。
-6. 勾选 `Drag entity` 后，可按住左键拖动实体。
-7. 可在调试面板中修改：
-   - Pick radius
-   - Game FrameRate
-   - Current Map
-   - Log to file
-8. 勾选 `Log to file` 后，日志会写入 DLL 同目录下的同名 `.log` 文件。
+编译选项：`-O2 -Wall -Wextra -fno-exceptions -fno-rtti`，静态链接 libgcc / libstdc++，因此运行时不依赖 MinGW 运行时 DLL。
 
 ---
 
-## 快捷键
+## 使用
 
-| 快捷键 | 功能 |
-|---|---|
+1. 将 `DR2CInternalOverlay.dll` 注入到游戏进程（任意注入方式均可）
+2. 启动时 DLL 会等待 `opengl32.dll` 加载完成，然后 Hook `wglSwapBuffers`
+3. 首次渲染时挂接游戏窗口，初始化 ImGui，界面即出现
+
+### 快捷键
+
+| 按键 | 功能 |
+| --- | --- |
 | `Insert` | 显示 / 隐藏调试面板 |
-| 鼠标右键 | 编辑悬停实体 |
-| 鼠标左键 | 勾选 `Drag entity` 后拖动实体 |
+| 鼠标左键拖拽 | 移动悬停的实体（需先勾选 "Drag entity"） |
+| 鼠标右键点击实体 | 打开实体编辑窗口 |
+
+### 面板说明
+
+- **Drag entity** — 开启拖拽模式
+- **Log to file** — 每 30 帧写入一条状态日志
+- **Pick radius (world)** — 鼠标拾取半径（世界单位）
+- **Game FrameRate** — 直接调用游戏 `SetFrameRate`
+- **Current Map** — 读写当前地图层
+- **Language** — `English` / `中文`
 
 ---
 
-## 调试面板说明
+## 语言与字体
 
-- `Drag entity`：允许左键拖动实体。
-- `Log to file`：将调试信息输出到日志文件。
-- `Pick radius (world)`：实体拾取半径。
-- `Game FrameRate`：读取 / 修改游戏帧率。
-- `Current Map`：读取 / 修改当前地图层。
-- 调试信息：
-  - moduleBase
-  - g_ScreenScale
-  - camera
-  - mouse
-  - hover / edit / drag 槽位
+- 词条以**英文原文**为 key（类似 Qt 的 `tr()`），使用 `Tr("...")` 取当前语言文本
+- 未收录的 key 会原样返回英文，因此漏翻不会崩
+- 中文依赖系统 CJK 字体，按以下顺序尝试加载：
 
----
+  ```
+  simhei.ttf → msyh.ttc → msyh.ttf → msyhl.ttc → Deng.ttf → simsun.ttc
+  ```
 
-## 实体编辑弹窗
+- **未找到中文字体时，"中文"选项会被禁用**，避免出现方块字
+- 语言设置保存在 **DLL 同目录**的 `.ini`：
 
-右键实体后打开，主要包含：
+  ```ini
+  language=zh
+  ```
 
-- `Entity`
-  - Position
-  - Map
-  - Velocity
-  - Physics
-  - Hitpoints
-  - Sprite
-  - AI state
-  - No collision / No pickup / Unseen / Invisible / No hit / Glow
-- `Character`
-  - 仅当 `type == 1` 且非僵尸时显示
-  - 可编辑名称、生命、速度加成、属性、资源、武器
-- `Item`
-  - 仅当 `type == 3 && subtype == 1` 时显示
-  - 可编辑 Amount、Loot
-- `Vehicle`
-  - 仅当 `type == 3 && subtype == 3` 时显示
-  - 可编辑底盘、引擎、装甲、速度、维修、MPG 等
-- `Clone`
-  - 复制当前实体
-- `Destroy`
-  - 销毁当前实体
-- `Close`
-  - 关闭弹窗
+- 日志（如启用）保存在 DLL 同目录的 `.log`
 
 ---
 
-## 导出接口
+## 开发提示
 
-`imgui_ui.cpp` 对外提供以下接口，供 `dllmain.cpp` 或钩子代码调用：
+### 地址与内存访问
+
+`dr2c_memory.h` 提供统一入口，禁止裸指针乱飞：
 
 ```cpp
-bool InitializeInternalUi(HWND window, HMODULE module);
-void ShutdownInternalUi();
-void RenderInternalUi();
-LRESULT HandleInternalWindowMessage(HWND window, UINT message, WPARAM wParam, LPARAM lParam);
-void CheckPanelHotkey();
+Address base = Addr(GetModuleHandleW(nullptr));
+auto fn = AsFn<fn_GetCharacterData_t>(base + Offset::Fn::GetCharacterData);
 
-void QueueEntityWrite(unsigned int slot, const Dr2cEntityView &entity, unsigned int mask);
-void ApplyPendingEntityWrite();
-void ClearPendingEntityWrite();
+std::uint16_t id = Load<std::uint16_t>(base + Offset::Thing::Id);
+Store<std::uint8_t>(base + Offset::Thing::MapId, 3);
 ```
 
-典型集成方式：
+### 实体地址
 
-- 在 OpenGL 渲染循环中调用 `RenderInternalUi()`
-- 在窗口消息过程中调用 `HandleInternalWindowMessage(...)`
-- 在 DLL 初始化时调用 `InitializeInternalUi(...)`
-- 在 DLL 卸载时调用 `ShutdownInternalUi()`
+```cpp
+Address EntityAddress(SlotIndex slot) {
+    return g_moduleBase + Offset::Global::ThingPool
+         + slot * Offset::Thing::Stride;
+}
+```
+
+### 写回实体的两种方式
+
+- **拖拽** / 编辑器中的逐字段修改 → `QueueEntityWrite(slot, entity, mask)`
+- 下一帧 `ApplyPendingEntityWrite()` 会把写入同步回游戏内存，并立即回读刷新缓存
+
+### ImGui 窗口 ID 稳定技巧
+
+面板标题会随语言变化，因此所有 `Begin` / `OpenPopup` 使用 **`"显示名###固定ID"`** 形式：
+
+```cpp
+snprintf(buffer, sizeof(buffer), "%s###dr2c_entity_edit", Tr("Entity Edit"));
+```
+
+这样切换语言时窗口位置、大小、弹窗状态都不会丢。
 
 ---
 
-## 注意事项
+## 已知限制
 
-- 必须使用 32 位 MinGW 构建，否则 CMake 会报错。
-- 游戏内地址为硬编码 RVA，仅适配特定版本。
-- 目标游戏需要以 OpenGL 渲染。
-- `MinHook.a` 必须为 32 位静态库。
-- 建议在修改前备份存档。
-- 本项目仅供学习、调试和单机修改使用。
-- 使用风险自负。
+- 只 Hook 到当前活动窗口的 `WndProc`；若游戏重建窗口，需要重新注入
+- CJK 字体来自系统字体目录，若系统无任何中文字体则只能使用英文界面
+
+---
+
+## 致谢
+
+- [Dear ImGui](https://github.com/ocornut/imgui) — 界面库
+- [MinHook](https://github.com/TsudaKageyu/minhook) — API Hook 库
 
 ---
 
 ## 免责声明
 
-本项目仅供技术学习与研究。  
-作者不对任何因使用本工具导致的存档损坏、游戏崩溃或其他损失负责。
-
----
-
-## 许可证
-
-未指定许可证。  
-如需开源发布，请自行补充 `LICENSE` 文件。
+本项目仅用于**单机游戏调试、学习与个人存档研究**。请在自行承担风险的前提下使用。

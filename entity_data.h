@@ -1,23 +1,25 @@
 #ifndef DR2C_INTERNAL_ENTITY_DATA_H
 #define DR2C_INTERNAL_ENTITY_DATA_H
 
+#include <cstdint>
+
 struct Dr2cEntityView {
-    unsigned short id = 0;
-    unsigned char type = 0;
-    unsigned char subtype = 0;
-    unsigned char mapId = 0;
-    unsigned char noCollide = 0;
-    unsigned char noPick = 0;
-    unsigned char unseen = 0;
-    unsigned char invisible = 0;
+    std::uint16_t id = 0;
+    std::uint8_t  type = 0;
+    std::uint8_t  subtype = 0;
+    std::uint8_t  mapId = 0;
+    std::uint8_t  noCollide = 0;
+    std::uint8_t  noPick = 0;
+    std::uint8_t  unseen = 0;
+    std::uint8_t  invisible = 0;
     float position[3] = {};
     float velocity[3] = {};
-    float physics[3] = {};
-    unsigned char glow = 0;
-    unsigned short spriteId = 0;
-    int hitpoints = 0;
-    unsigned char noHit = 0;
-    unsigned int aiState = 0;
+    float physics[3] = {};          // thing: mass / friction / bounce_friction
+    std::uint8_t  glow = 0;
+    std::uint16_t spriteId = 0;
+    std::int32_t  hitpoints = 0;
+    std::uint8_t  noHit = 0;
+    std::uint32_t aiState = 0;
 };
 
 enum Dr2cEntityWriteMask {

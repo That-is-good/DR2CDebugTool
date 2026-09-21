@@ -2,13 +2,16 @@
 #include <gl/GL.h>
 
 #include "../MinHook/include/MinHook.h"
+#include "dr2c_memory.h"
 #include "imgui_ui.h"
 
 namespace {
 
+using namespace dr2c;
+
 using WglSwapBuffers = BOOL (WINAPI *)(HDC);
 WglSwapBuffers g_originalSwapBuffers = nullptr;
-void *g_swapTarget = nullptr;
+Address g_swapTarget = 0;                      // 统一用 dr2c::Address 表示裸地址
 HWND g_window = nullptr;
 WNDPROC g_originalWindowProc = nullptr;
 HANDLE g_initThread = nullptr;
@@ -59,10 +62,10 @@ DWORD WINAPI InitializeThread(LPVOID)
 
     if (MH_Initialize() != MH_OK)
         return 0;
-    g_swapTarget = reinterpret_cast<void *>(target);
-    if (MH_CreateHook(g_swapTarget, reinterpret_cast<void *>(&HookedSwapBuffers),
+    g_swapTarget = FnAddr(target);
+    if (MH_CreateHook(Ptr(g_swapTarget), AsPtr<void>(FnAddr(&HookedSwapBuffers)),
                       reinterpret_cast<void **>(&g_originalSwapBuffers)) != MH_OK
-        || MH_EnableHook(g_swapTarget) != MH_OK) {
+        || MH_EnableHook(Ptr(g_swapTarget)) != MH_OK) {
         MH_Uninitialize();
         return 0;
     }
@@ -82,9 +85,9 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID)
             CloseHandle(g_initThread);
     } else if (reason == DLL_PROCESS_DETACH) {
         if (g_swapTarget) {
-            MH_DisableHook(g_swapTarget);
-            MH_RemoveHook(g_swapTarget);
-            g_swapTarget = nullptr;
+            MH_DisableHook(Ptr(g_swapTarget));
+            MH_RemoveHook(Ptr(g_swapTarget));
+            g_swapTarget = 0;
         }
         if (g_window && g_originalWindowProc)
             SetWindowLongPtrW(g_window, GWLP_WNDPROC,

@@ -3,91 +3,103 @@
 #include "imgui.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_win32.h"
+#include "dr2c_memory.h"
+#include "dr2c_offsets.h"
+#include "translation.h"
 #include <windows.h>
 #include <cstring>
 #include <cmath>
+#include <cstdint>
+#include <cfloat>
 #include <cstdio>
 #include <fstream>
 #include <vector>
 #include <string>
+
+using namespace dr2c;
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
     HWND window, UINT message, WPARAM wParam, LPARAM lParam);
 
 namespace {
 
-// ==================== 模块基址 + 函数指针（一次缓存） ====================
-uintptr_t g_moduleBase = 0;
+using SlotIndex = int;
 
-using fn_AllocateEntity_t   = uintptr_t(__cdecl*)(uint8_t);
-using fn_FreeThing_t        = void(__cdecl*)(uintptr_t);
-using fn_GetCharacterData_t = void*(__cdecl*)(uint32_t);
-using fn_GetFrameRate       = uint32_t(__cdecl*)();
-using fn_SetFrameRate       = uint32_t(__cdecl*)(uint32_t);
-using fn_GetCurrentMapLayer = uint32_t(__cdecl*)();
-using fn_SetCurrentMapLayer = uint32_t(__cdecl*)(uint32_t);
+// ==================== 模块基址 + 函数指针（一次缓存） ====================
+// 地址统一为 dr2c::Address（见 dr2c_memory.h），偏移统一取自 dr2c_offsets.h
+Address g_moduleBase = 0;
+
+using fn_AllocateEntity_t   = Address(__cdecl*)(std::uint8_t);
+using fn_FreeThing_t        = void(__cdecl*)(Address);
+using fn_GetCharacterData_t = Address(__cdecl*)(std::uint32_t);
+using fn_GetFrameRate       = std::uint32_t(__cdecl*)();
+using fn_SetFrameRate       = std::uint32_t(__cdecl*)(std::uint32_t);
+// using fn_GetCurrentMapLayer = std::uint32_t(__cdecl*)();
+// using fn_SetCurrentMapLayer = std::uint32_t(__cdecl*)(std::uint32_t);
+using fn_SetCurrentPlayerThing = void(__cdecl*)(Address);
 
 fn_AllocateEntity_t   pAllocateEntity   = nullptr;
 fn_FreeThing_t        pFreeThing        = nullptr;
 fn_GetCharacterData_t pGetCharacterData = nullptr;
 fn_GetFrameRate       pGetFrameRate     = nullptr;
 fn_SetFrameRate       pSetFrameRate     = nullptr;
+fn_SetCurrentPlayerThing pSetCurrentPlayerThing = nullptr;
 // fn_GetCurrentMapLayer pGetCurrentMapLayer = nullptr;
 // fn_SetCurrentMapLayer pSetCurrentMapLayer = nullptr;
 
 
 void CacheGameFunctions()
 {
-    g_moduleBase      = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
-    pAllocateEntity   = reinterpret_cast<fn_AllocateEntity_t>  (g_moduleBase + 0x52710u);
-    pFreeThing        = reinterpret_cast<fn_FreeThing_t>       (g_moduleBase + 0x52AA0u);
-    pGetCharacterData = reinterpret_cast<fn_GetCharacterData_t>(g_moduleBase + 0x28AE0u);
-    pGetFrameRate     = reinterpret_cast<fn_GetFrameRate>      (g_moduleBase + 0x04C50u);
-    pSetFrameRate     = reinterpret_cast<fn_SetFrameRate>      (g_moduleBase + 0x04B30u);
-    // pGetCurrentMapLayer     = reinterpret_cast<fn_GetCurrentMapLayer>      (g_moduleBase + 0x07D2E0u);
-    // pSetCurrentMapLayer     = reinterpret_cast<fn_SetCurrentMapLayer>      (g_moduleBase + 0x07D310u);
+    g_moduleBase      = Addr(GetModuleHandleW(nullptr));
+    pAllocateEntity   = AsFn<fn_AllocateEntity_t>  (g_moduleBase + Offset::Fn::AllocateEntity);
+    pFreeThing        = AsFn<fn_FreeThing_t>       (g_moduleBase + Offset::Fn::FreeThing);
+    pGetCharacterData = AsFn<fn_GetCharacterData_t>(g_moduleBase + Offset::Fn::GetCharacterData);
+    pGetFrameRate     = AsFn<fn_GetFrameRate>      (g_moduleBase + Offset::Fn::GetFrameRate);
+    pSetFrameRate     = AsFn<fn_SetFrameRate>      (g_moduleBase + Offset::Fn::SetFrameRate);
+    pSetCurrentPlayerThing = AsFn<fn_SetCurrentPlayerThing>(g_moduleBase + Offset::Fn::SetCurrentPlayerThing);
+    // pGetCurrentMapLayer     = AsFn<fn_GetCurrentMapLayer>(g_moduleBase + 0x07D2E0u);
+    // pSetCurrentMapLayer     = AsFn<fn_SetCurrentMapLayer>(g_moduleBase + 0x07D310u);
 }
 
-// ==================== 直接读全局值 ====================
-constexpr uintptr_t kThingPoolRva   = 0x5632E0u;
-constexpr uintptr_t kCameraXRva     = 0x610340u;
-constexpr uintptr_t kCameraYRva     = 0x610344u;
-constexpr uintptr_t kScreenScaleRva = 0x0D14ACu;
-constexpr uintptr_t kWeaponPoolRva  = 0x4E0080u;
-constexpr uintptr_t g_CameraRenderMapLayer  = 0x5D6294u;
-constexpr uintptr_t kThingStride    = 0x304u;
-constexpr uintptr_t kWeaponStride   = 0x1C4u;
-constexpr unsigned int kThingMaxSlots = 610u;
-constexpr unsigned int kWeaponMaxCount = 0x401u;
+// ==================== 槽位数量 ====================
+// 全部偏移/大小/数量只在 dr2c_offsets.h 中声明，这里只做短别名
+constexpr SlotIndex kThingMaxSlots  = Offset::Thing::MaxSlots;
+constexpr SlotIndex kWeaponMaxCount = Offset::Weapon::MaxCount;
 
-inline unsigned char *EntityPtr(unsigned int slot)
+// 实体槽位 -> 内存地址（唯一入口）
+inline Address EntityAddress(SlotIndex slot)
 {
-    return reinterpret_cast<unsigned char *>(g_moduleBase + kThingPoolRva + slot * kThingStride);
+    return g_moduleBase + Offset::Global::ThingPool
+           + static_cast<Address>(slot) * Offset::Thing::Stride;
 }
 
-inline float ReadFloat(uintptr_t rva)
+// 实体槽位 -> 字节指针（仅用于按偏移访问字段）
+inline BytePtr EntityBytes(SlotIndex slot)
 {
-    return *reinterpret_cast<const float *>(g_moduleBase + rva);
+    return Ptr(EntityAddress(slot));
 }
 
-inline uint8_t ReadUInt8(uintptr_t rva)
+// ==================== 模块内全局量读写（宽度由 T 决定） ====================
+template <typename T> inline T ReadRva(Rva rva)
 {
-    return *reinterpret_cast<const uint8_t *>(g_moduleBase + rva);
+    return Load<T>(g_moduleBase + rva);
 }
 
-inline void WriteInt(uint32_t data, uintptr_t rva){
-    std::memcpy((unsigned char*)(g_moduleBase + rva), &data, sizeof(uint32_t));
+template <typename T> inline void WriteRva(Rva rva, T value)
+{
+    Store<T>(g_moduleBase + rva, value);
 }
 
 // ==================== 全局状态 ====================
 HWND g_window = nullptr;
+HMODULE g_module = nullptr;           // DLL 自身句柄（用于定位同目录 .log / .ini）
 bool g_initialized = false;
 bool g_showDebugPanel = true;
 bool g_dragEntity = false;
 
-int  g_hoveredSlot = -1;
-int  g_editTargetSlot = -1;
-int  g_draggingSlot = -1;
+SlotIndex g_hoveredSlot = -1;
+SlotIndex g_editTargetSlot = -1;
+SlotIndex g_draggingSlot = -1;
 int  g_fps = 60;
 int  g_currentMapID = 0;
 
@@ -121,18 +133,28 @@ std::ofstream g_logFile;
 bool g_logToFile = false;
 int g_logFrameCounter = 0;
 
+// ==================== DLL 同目录文件路径（.log / .ini 唯一来源） ====================
+bool BuildDllSidecarPath(HMODULE module, const char *extension, char *outPath, std::size_t outSize)
+{
+    if (!module || !extension || !outPath || outSize == 0) return false;
+
+    DWORD len = GetModuleFileNameA(module, outPath, static_cast<DWORD>(outSize));
+    if (len == 0 || static_cast<std::size_t>(len) >= outSize) return false;
+
+    char *dot = strrchr(outPath, '.');
+    char *sep = strrchr(outPath, '\\');
+    if (dot && (!sep || dot > sep)) *dot = 0;
+
+    const std::size_t used = strlen(outPath);
+    if (used + strlen(extension) + 1 > outSize) return false;
+    snprintf(outPath + used, outSize - used, "%s", extension);
+    return true;
+}
+
 void LogInit(HMODULE module)
 {
     char path[MAX_PATH] = {};
-    DWORD len = GetModuleFileNameA(module, path, MAX_PATH);
-    if (len == 0 || len >= MAX_PATH) return;
-    char *dot = strrchr(path, '.');
-    char *sep = strrchr(path, '\\');
-    if (dot && (!sep || dot > sep)) *dot = 0;
-    const size_t used = strlen(path);
-    if (used + 4 < MAX_PATH) {
-        snprintf(path + used, MAX_PATH - used, ".log");
-    }
+    if (!BuildDllSidecarPath(module, ".log", path, sizeof(path))) return;
     g_logFile.open(path, std::ios::out | std::ios::trunc);
     if (g_logFile.is_open())
         g_logFile << "=== DR2C overlay log ===" << std::endl;
@@ -158,9 +180,44 @@ void LogLine(const char *fmt, ...)
     g_logFile.flush();
 }
 
+// ==================== 语言设置（DLL 同目录 .ini） ====================
+constexpr const char *kSettingsExtension = ".ini";
+constexpr const char *kLanguageKey       = "language=";
+
+void LoadLanguageSetting(HMODULE module)
+{
+    char path[MAX_PATH] = {};
+    if (!BuildDllSidecarPath(module, kSettingsExtension, path, sizeof(path))) return;
+
+    FILE *file = fopen(path, "rb");
+    if (!file) return;
+
+    const std::size_t keyLen = strlen(kLanguageKey);
+    char line[128];
+    while (fgets(line, sizeof(line), file)) {
+        if (strncmp(line, kLanguageKey, keyLen) != 0) continue;
+        char *value = line + keyLen;
+        value[strcspn(value, "\r\n")] = 0;
+        Dr2cSetLanguage(Dr2cParseLanguage(value, DR2C_LANGUAGE_ENGLISH));
+        break;
+    }
+    fclose(file);
+}
+
+void SaveLanguageSetting(HMODULE module)
+{
+    char path[MAX_PATH] = {};
+    if (!BuildDllSidecarPath(module, kSettingsExtension, path, sizeof(path))) return;
+
+    FILE *file = fopen(path, "wb");
+    if (!file) return;
+    fprintf(file, "%s%s\n", kLanguageKey, Dr2cLanguageToString(Dr2cGetLanguage()));
+    fclose(file);
+}
+
 double EffectiveScale()
 {
-    float s = ReadFloat(kScreenScaleRva);
+    float s = ReadRva<float>(Offset::Global::ScreenScale);
     if (!(s > 0.5f && s < 32.0f)) s = 4.0f;
     return static_cast<double>(s);
 }
@@ -220,165 +277,166 @@ bool WorldToScreen(const float world[3], float &outScreenX, float &outScreenY)
 
 void RefreshDebug()
 {
-    g_debug.screenScaleRaw = ReadFloat(kScreenScaleRva);
-    g_debug.cameraX = ReadFloat(kCameraXRva);
-    g_debug.cameraY = ReadFloat(kCameraYRva);
+    g_debug.screenScaleRaw = ReadRva<float>(Offset::Global::ScreenScale);
+    g_debug.cameraX = ReadRva<float>(Offset::Global::CameraX);
+    g_debug.cameraY = ReadRva<float>(Offset::Global::CameraY);
     GetClientMousePos(g_debug.mouseX, g_debug.mouseY, g_debug.mouseInside);
     g_debug.effectiveScale = static_cast<float>(EffectiveScale());
-    g_currentMapID = ReadUInt8(g_CameraRenderMapLayer);
+    g_currentMapID = ReadRva<std::uint8_t>(Offset::Global::MapLayer);
 }
 
 // ==================== 实体读写 ====================
 Dr2cEntityView g_entities[kThingMaxSlots] = {};
 Dr2cEntityView g_pendingEntity = {};
-unsigned int g_pendingSlot = 0;
+SlotIndex g_pendingSlot = 0;
 volatile LONG g_pendingEntityWrite = 0;
 bool g_keepEntityWrite = false;
 unsigned int g_pendingWriteMask = 0;
 
-void ReadEntity(unsigned int slot, Dr2cEntityView &entity)
+void ReadEntity(SlotIndex slot, Dr2cEntityView &entity)
 {
-    const unsigned char *p = EntityPtr(slot);
-    std::memcpy(&entity.id, p + 0x00, sizeof(entity.id));
-    entity.type    = p[0x02];
-    entity.subtype = p[0x03];
-    entity.mapId   = p[0x04];
-    entity.noCollide = p[0x0D];
-    entity.noPick    = p[0x11];
-    entity.unseen    = p[0x12];
-    entity.invisible = p[0x13];
-    std::memcpy(entity.position, p + 0x2C, sizeof(entity.position));
-    std::memcpy(entity.velocity, p + 0x38, sizeof(entity.velocity));
-    std::memcpy(entity.physics,  p + 0x58, sizeof(entity.physics));
-    entity.glow = p[0x70];
-    std::memcpy(&entity.spriteId, p + 0xD8, sizeof(entity.spriteId));
-    std::memcpy(&entity.hitpoints, p + 0x254, sizeof(entity.hitpoints));
-    entity.noHit = p[0x27A];
-    std::memcpy(&entity.aiState, p + 0x288, sizeof(entity.aiState));
+    const Address base = EntityAddress(slot);
+    entity.id        = Load<std::uint16_t>(base + Offset::Thing::Id);
+    entity.type      = Load<std::uint8_t>(base + Offset::Thing::Type);
+    entity.subtype   = Load<std::uint8_t>(base + Offset::Thing::Subtype);
+    entity.mapId     = Load<std::uint8_t>(base + Offset::Thing::MapId);
+    entity.noCollide = Load<std::uint8_t>(base + Offset::Thing::NoCollide);
+    entity.noPick    = Load<std::uint8_t>(base + Offset::Thing::NoPick);
+    entity.unseen    = Load<std::uint8_t>(base + Offset::Thing::Unseen);
+    entity.invisible = Load<std::uint8_t>(base + Offset::Thing::Invisible);
+    LoadArray(base + Offset::Thing::Position, entity.position);
+    LoadArray(base + Offset::Thing::Velocity, entity.velocity);
+    LoadArray(base + Offset::Thing::Physics,  entity.physics);
+    entity.glow      = Load<std::uint8_t>(base + Offset::Thing::Glow);
+    entity.spriteId  = Load<std::uint16_t>(base + Offset::Thing::SpriteId);
+    entity.hitpoints = Load<std::int32_t>(base + Offset::Thing::Hitpoints);
+    entity.noHit     = Load<std::uint8_t>(base + Offset::Thing::NoHit);
+    entity.aiState   = Load<std::uint32_t>(base + Offset::Thing::AiState);
 }
 
-void WriteEntity(unsigned int slot, const Dr2cEntityView &entity, unsigned int mask)
+void WriteEntity(SlotIndex slot, const Dr2cEntityView &entity, unsigned int mask)
 {
-    unsigned char *p = EntityPtr(slot);
+    const Address base = EntityAddress(slot);
     if (mask & DR2C_ENTITY_WRITE_MAP)
-        std::memcpy(p + 0x04, &entity.mapId, sizeof(entity.mapId));
+        Store<std::uint8_t>(base + Offset::Thing::MapId, entity.mapId);
     if (mask & DR2C_ENTITY_WRITE_FLAGS) {
-        std::memcpy(p + 0x0D, &entity.noCollide, sizeof(entity.noCollide));
-        std::memcpy(p + 0x11, &entity.noPick, sizeof(entity.noPick));
-        std::memcpy(p + 0x12, &entity.unseen, sizeof(entity.unseen));
-        std::memcpy(p + 0x13, &entity.invisible, sizeof(entity.invisible));
-        std::memcpy(p + 0x70, &entity.glow, sizeof(entity.glow));
-        std::memcpy(p + 0x27A, &entity.noHit, sizeof(entity.noHit));
+        Store<std::uint8_t>(base + Offset::Thing::NoCollide, entity.noCollide);
+        Store<std::uint8_t>(base + Offset::Thing::NoPick,    entity.noPick);
+        Store<std::uint8_t>(base + Offset::Thing::Unseen,    entity.unseen);
+        Store<std::uint8_t>(base + Offset::Thing::Invisible, entity.invisible);
+        Store<std::uint8_t>(base + Offset::Thing::Glow,      entity.glow);
+        Store<std::uint8_t>(base + Offset::Thing::NoHit,     entity.noHit);
     }
     if (mask & DR2C_ENTITY_WRITE_POSITION)
-        std::memcpy(p + 0x2C, entity.position, sizeof(entity.position));
+        StoreArray(base + Offset::Thing::Position, entity.position);
     if (mask & DR2C_ENTITY_WRITE_VELOCITY)
-        std::memcpy(p + 0x38, entity.velocity, sizeof(entity.velocity));
+        StoreArray(base + Offset::Thing::Velocity, entity.velocity);
     if (mask & DR2C_ENTITY_WRITE_PHYSICS)
-        std::memcpy(p + 0x58, entity.physics, sizeof(entity.physics));
+        StoreArray(base + Offset::Thing::Physics, entity.physics);
     if (mask & DR2C_ENTITY_WRITE_SPRITE)
-        std::memcpy(p + 0xD8, &entity.spriteId, sizeof(entity.spriteId));
+        Store<std::uint16_t>(base + Offset::Thing::SpriteId, entity.spriteId);
     if (mask & DR2C_ENTITY_WRITE_HITPOINTS)
-        std::memcpy(p + 0x254, &entity.hitpoints, sizeof(entity.hitpoints));
+        Store<std::int32_t>(base + Offset::Thing::Hitpoints, entity.hitpoints);
     if (mask & DR2C_ENTITY_WRITE_AI)
-        std::memcpy(p + 0x288, &entity.aiState, sizeof(entity.aiState));
+        Store<std::uint32_t>(base + Offset::Thing::AiState, entity.aiState);
 }
 
 void UpdateEntityStats()
 {
-    for (unsigned int i = 0; i < kThingMaxSlots; ++i)
+    for (SlotIndex i = 0; i < kThingMaxSlots; ++i)
         ReadEntity(i, g_entities[i]);
 }
 
 // ==================== 复制 / 销毁 ====================
-void CloneEntity(int slot)
+void CloneEntity(SlotIndex slot)
 {
-    if (slot < 0 || slot >= static_cast<int>(kThingMaxSlots)) return;
+    if (slot < 0 || slot >= kThingMaxSlots) return;
     if (g_entities[slot].id == 0 || !pAllocateEntity) return;
 
-    unsigned char *src = EntityPtr(static_cast<unsigned int>(slot));
-    uintptr_t dst = pAllocateEntity(g_entities[slot].type);
+    const Address src = EntityAddress(slot);
+    const Address dst = pAllocateEntity(g_entities[slot].type);
     if (!dst) return;
 
     // 从 +0x02 复制到末尾，保留新分配的 id
-    std::memcpy(reinterpret_cast<void *>(dst + 0x02),
-                src + 0x02,
-                kThingStride - 0x02);
+    std::memcpy(Ptr(dst + 0x02), Ptr(src + 0x02), Offset::Thing::Stride - 0x02);
 }
 
-void DestroyEntity(int slot)
+void DestroyEntity(SlotIndex slot)
 {
-    if (slot < 0 || slot >= static_cast<int>(kThingMaxSlots)) return;
+    if (slot < 0 || slot >= kThingMaxSlots) return;
     if (g_entities[slot].id == 0 || !pFreeThing) return;
-    pFreeThing(reinterpret_cast<uintptr_t>(EntityPtr(static_cast<unsigned int>(slot))));
+    pFreeThing(EntityAddress(slot));
 }
 
 // ==================== Character 读写 ====================
 struct CharacterView {
     bool     active = false;
-    void*    charPtr = nullptr;
-    uint32_t charid  = 0;
+    Address  charPtr = 0;                                   // 角色数据地址
+    std::uint32_t charid = 0;
 
-    char name[40]        = {};
-    char perk[40]        = {};
-    char trait[40]       = {};
-    char description[120]= {};
+    char name[Offset::Char::NameLength]               = {};
+    char perk[Offset::Char::PerkLength]               = {};
+    char trait[Offset::Char::TraitLength]             = {};
+    char description[Offset::Char::DescriptionLength] = {};
 
-    int32_t female = 0;
-    int32_t pet    = 0;
-    int32_t health = 0;
-    float   speed_bonus = 0.0f;
+    std::int32_t female = 0;
+    std::int32_t pet    = 0;
+    std::int32_t health = 0;
+    float        speed_bonus = 0.0f;
 
-    int32_t baseStat[13]  = {};
-    int32_t bonusStat[13] = {};
+    std::int32_t baseStat[Offset::Char::StatCount]  = {};
+    std::int32_t bonusStat[Offset::Char::StatCount] = {};
 
-    int32_t resource[8] = {};
+    std::int32_t resource[Offset::Char::ResourceCount] = {};
 
-    int32_t weaponStack[3] = {};
-    int32_t weaponID[3]    = {};
-    int32_t weaponLock[3]  = {};
+    std::int32_t weaponStack[Offset::Char::WeaponSlotCount] = {};
+    std::int32_t weaponID[Offset::Char::WeaponSlotCount]    = {};
+    std::int32_t weaponLock[Offset::Char::WeaponSlotCount]  = {};
 };
 
 CharacterView g_charBuf;
 
-void WriteStringAt(unsigned char *p, const char *src, size_t maxLen)
+void WriteStringAt(BytePtr p, const char *src, std::size_t maxLen)
 {
-    memset(p, 0, maxLen);
-    size_t len = 0;
+    std::memset(p, 0, maxLen);
+    std::size_t len = 0;
     while (len < maxLen && src[len] != 0) ++len;
-    if (len > 0) memcpy(p, src, len);
+    if (len > 0) std::memcpy(p, src, len);
 }
 
-void ReadCharacterFromPtr(const unsigned char *p, CharacterView &v)
+void ReadCharacterFromPtr(Address charAddress, CharacterView &v)
 {
-    if (!p) { v.active = false; return; }
+    if (!charAddress) { v.active = false; return; }
 
-    memcpy(v.name, p + 0x1C, 40);          v.name[39] = 0;
-    memcpy(v.perk, p + 0x44, 40);          v.perk[39] = 0;
-    memcpy(v.trait, p + 0x6C, 40);         v.trait[39] = 0;
-    memcpy(v.description, p + 0x144, 120); v.description[119] = 0;
+    LoadArray(charAddress + Offset::Char::Name,        v.name);
+    LoadArray(charAddress + Offset::Char::Perk,        v.perk);
+    LoadArray(charAddress + Offset::Char::Trait,       v.trait);
+    LoadArray(charAddress + Offset::Char::Description, v.description);
+    v.name[sizeof(v.name) - 1]               = 0;
+    v.perk[sizeof(v.perk) - 1]               = 0;
+    v.trait[sizeof(v.trait) - 1]             = 0;
+    v.description[sizeof(v.description) - 1] = 0;
 
-    int16_t female = 0, pet = 0;
-    memcpy(&female, p + 0x94, 2);
-    memcpy(&pet,    p + 0x96, 2);
-    v.female = female;
-    v.pet    = pet;
+    v.female = Load<std::int16_t>(charAddress + Offset::Char::Female);
+    v.pet    = Load<std::int16_t>(charAddress + Offset::Char::Pet);
+    v.health = Load<std::int32_t>(charAddress + Offset::Char::Health);
+    v.speed_bonus = Load<float>(charAddress + Offset::Char::SpeedBonus);
 
-    memcpy(&v.health,      p + 0x140, 4);
-    memcpy(&v.speed_bonus, p + 0x1F0, 4);
-
-    for (int i = 0; i < 13; ++i) {
-        v.baseStat[i]  = static_cast<int8_t>(p[0x1C9 + i]);
-        v.bonusStat[i] = static_cast<int8_t>(p[0x1E3 + i]);
+    for (int i = 0; i < Offset::Char::StatCount; ++i) {
+        v.baseStat[i]  = Load<std::int8_t>(charAddress + Offset::Char::BaseStat + i);
+        v.bonusStat[i] = Load<std::int8_t>(charAddress + Offset::Char::BonusStat + i);
     }
 
-    for (int i = 0; i < 8; ++i)
-        memcpy(&v.resource[i], p + 0x288 + i * 4, 4);
+    for (int i = 0; i < Offset::Char::ResourceCount; ++i)
+        v.resource[i] = Load<std::int32_t>(charAddress + Offset::Char::Resource
+                                           + static_cast<Address>(i) * sizeof(std::int32_t));
 
-    for (int i = 0; i < 3; ++i) {
-        memcpy(&v.weaponStack[i], p + 0x2B0 + i * 12 + 0, 4);
-        memcpy(&v.weaponID[i],    p + 0x2B0 + i * 12 + 4, 4);
-        memcpy(&v.weaponLock[i],  p + 0x2B0 + i * 12 + 8, 4);
+    for (int i = 0; i < Offset::Char::WeaponSlotCount; ++i) {
+        const Address slotBase = charAddress + Offset::Char::WeaponSlot
+                                 + static_cast<Address>(i) * Offset::WeaponSlot::Size;
+        v.weaponStack[i] = Load<std::int32_t>(slotBase + Offset::WeaponSlot::Stack);
+        v.weaponID[i]    = Load<std::int32_t>(slotBase + Offset::WeaponSlot::Id);
+        v.weaponLock[i]  = Load<std::int32_t>(slotBase + Offset::WeaponSlot::Lock);
     }
 
     v.active = true;
@@ -387,33 +445,34 @@ void ReadCharacterFromPtr(const unsigned char *p, CharacterView &v)
 void WriteCharacter()
 {
     if (!g_charBuf.active || !g_charBuf.charPtr) return;
-    unsigned char *p = reinterpret_cast<unsigned char *>(g_charBuf.charPtr);
+    const Address p = g_charBuf.charPtr;
 
-    WriteStringAt(p + 0x1C,  g_charBuf.name,  40);
-    WriteStringAt(p + 0x44,  g_charBuf.perk,  40);
-    WriteStringAt(p + 0x6C,  g_charBuf.trait, 40);
-    WriteStringAt(p + 0x144, g_charBuf.description, 120);
+    WriteStringAt(Ptr(p + Offset::Char::Name),        g_charBuf.name,        Offset::Char::NameLength);
+    WriteStringAt(Ptr(p + Offset::Char::Perk),        g_charBuf.perk,        Offset::Char::PerkLength);
+    WriteStringAt(Ptr(p + Offset::Char::Trait),       g_charBuf.trait,       Offset::Char::TraitLength);
+    WriteStringAt(Ptr(p + Offset::Char::Description), g_charBuf.description, Offset::Char::DescriptionLength);
 
-    int16_t female = static_cast<int16_t>(g_charBuf.female);
-    int16_t pet    = static_cast<int16_t>(g_charBuf.pet);
-    memcpy(p + 0x94, &female, 2);
-    memcpy(p + 0x96, &pet,    2);
+    Store<std::int16_t>(p + Offset::Char::Female, static_cast<std::int16_t>(g_charBuf.female));
+    Store<std::int16_t>(p + Offset::Char::Pet,    static_cast<std::int16_t>(g_charBuf.pet));
+    Store<std::int32_t>(p + Offset::Char::Health, g_charBuf.health);
+    Store<float>(p + Offset::Char::SpeedBonus, g_charBuf.speed_bonus);
 
-    memcpy(p + 0x140, &g_charBuf.health, 4);
-    memcpy(p + 0x1F0, &g_charBuf.speed_bonus, 4);
-
-    for (int i = 0; i < 13; ++i) {
-        p[0x1C9 + i] = static_cast<uint8_t>(static_cast<int8_t>(g_charBuf.baseStat[i]));
-        p[0x1E3 + i] = static_cast<uint8_t>(static_cast<int8_t>(g_charBuf.bonusStat[i]));
+    for (int i = 0; i < Offset::Char::StatCount; ++i) {
+        Store<std::int8_t>(p + Offset::Char::BaseStat  + i, static_cast<std::int8_t>(g_charBuf.baseStat[i]));
+        Store<std::int8_t>(p + Offset::Char::BonusStat + i, static_cast<std::int8_t>(g_charBuf.bonusStat[i]));
     }
 
-    for (int i = 0; i < 8; ++i)
-        memcpy(p + 0x288 + i * 4, &g_charBuf.resource[i], 4);
+    for (int i = 0; i < Offset::Char::ResourceCount; ++i)
+        Store<std::int32_t>(p + Offset::Char::Resource
+                            + static_cast<Address>(i) * sizeof(std::int32_t),
+                            g_charBuf.resource[i]);
 
-    for (int i = 0; i < 3; ++i) {
-        memcpy(p + 0x2B0 + i * 12 + 0, &g_charBuf.weaponStack[i], 4);
-        memcpy(p + 0x2B0 + i * 12 + 4, &g_charBuf.weaponID[i], 4);
-        memcpy(p + 0x2B0 + i * 12 + 8, &g_charBuf.weaponLock[i], 4);
+    for (int i = 0; i < Offset::Char::WeaponSlotCount; ++i) {
+        const Address slotBase = p + Offset::Char::WeaponSlot
+                                 + static_cast<Address>(i) * Offset::WeaponSlot::Size;
+        Store<std::int32_t>(slotBase + Offset::WeaponSlot::Stack, g_charBuf.weaponStack[i]);
+        Store<std::int32_t>(slotBase + Offset::WeaponSlot::Id,    g_charBuf.weaponID[i]);
+        Store<std::int32_t>(slotBase + Offset::WeaponSlot::Lock,  g_charBuf.weaponLock[i]);
     }
 }
 
@@ -424,12 +483,13 @@ bool g_weaponNamesLoaded = false;
 void LoadWeaponNames()
 {
     g_weaponNames.clear();
-    g_weaponNames.reserve(kWeaponMaxCount);
+    g_weaponNames.reserve(static_cast<std::size_t>(kWeaponMaxCount));
 
-    for (unsigned int i = 0; i < kWeaponMaxCount; ++i) {
-        const char *namePtr = reinterpret_cast<const char *>(
-            g_moduleBase + kWeaponPoolRva + i * kWeaponStride);
-        size_t len = strnlen(namePtr, 40);
+    for (SlotIndex i = 0; i < kWeaponMaxCount; ++i) {
+        const char *namePtr = AsConstPtr<char>(
+            g_moduleBase + Offset::Global::WeaponPool
+            + static_cast<Address>(i) * Offset::Weapon::Stride);
+        std::size_t len = strnlen(namePtr, Offset::Weapon::NameLength);
         if (len == 0) break;
         std::string name(namePtr, len);
         if (name == "UNDEFINED") break;
@@ -464,25 +524,22 @@ void UpdateHoveredEntity()
 
     const float pickRadiusSq = g_pickRadiusWorld * g_pickRadiusWorld;
     float bestDistSq = pickRadiusSq;
-    int bestSlot = -1;
+    SlotIndex bestSlot = -1;
 
-    for (unsigned int slot = 1; slot < kThingMaxSlots; ++slot) {
-        const unsigned char *thing = EntityPtr(slot);
-        unsigned short id = 0;
-        uint8_t mapid = 0;
-        std::memcpy(&id, thing, sizeof(id));
-        std::memcpy(&mapid, thing + 0x04, sizeof(mapid));
-        g_currentMapID = ReadUInt8(g_CameraRenderMapLayer);
+    for (SlotIndex slot = 1; slot < kThingMaxSlots; ++slot) {
+        const Address thing = EntityAddress(slot);
+        const std::uint16_t id    = Load<std::uint16_t>(thing + Offset::Thing::Id);
+        const std::uint8_t  mapid = Load<std::uint8_t>(thing + Offset::Thing::MapId);
+        g_currentMapID = ReadRva<std::uint8_t>(Offset::Global::MapLayer);
         if (id == 0 || mapid != g_currentMapID) continue;
-        float px = 0.0f, py = 0.0f;
-        std::memcpy(&px, thing + 0x2C, sizeof(px));
-        std::memcpy(&py, thing + 0x30, sizeof(py));
+        const float px = Load<float>(thing + Offset::Thing::Position);
+        const float py = Load<float>(thing + Offset::Thing::Position + sizeof(float));
         const float dx = px - worldX;
         const float dy = py - worldY;
         const float distSq = dx * dx + dy * dy;
         if (distSq < bestDistSq) {
             bestDistSq = distSq;
-            bestSlot = static_cast<int>(slot);
+            bestSlot = slot;
             g_debug.hitEntityX = px;
             g_debug.hitEntityY = py;
             g_debug.hitDistance = std::sqrt(distSq);
@@ -523,8 +580,7 @@ void UpdateDragging()
             Dr2cEntityView &entity = g_entities[g_draggingSlot];
             entity.position[0] = g_dragStartEntityX + static_cast<float>(deltaScreenX / scale);
             entity.position[1] = g_dragStartEntityY + static_cast<float>(deltaScreenY / scale);
-            QueueEntityWrite(static_cast<unsigned int>(g_draggingSlot),
-                             entity, DR2C_ENTITY_WRITE_POSITION);
+            QueueEntityWrite(g_draggingSlot, entity, DR2C_ENTITY_WRITE_POSITION);
         } else {
             ClearPendingEntityWrite();
             g_draggingSlot = -1;
@@ -533,6 +589,14 @@ void UpdateDragging()
 }
 
 // ==================== 右键触发编辑 ====================
+// 弹窗标题：显示文本随语言变化，### 之后的 ID 固定，保证 OpenPopup / BeginPopup 永远匹配
+const char *EntityEditPopupId()
+{
+    static char buffer[96];
+    snprintf(buffer, sizeof(buffer), "%s###dr2c_entity_edit", Tr("Entity Edit"));
+    return buffer;
+}
+
 void CheckRightClickToEdit()
 {
     if (!g_window) return;
@@ -551,29 +615,24 @@ void CheckRightClickToEdit()
     g_editTargetSlot = g_hoveredSlot;
     g_charBuf = CharacterView{};
 
-    // type == 1 且不是僵尸（zombietype == 0）才读 character
+    // type == 1
     if (g_entities[g_hoveredSlot].type == 1) {
-        unsigned char *thingPtr = EntityPtr(static_cast<unsigned int>(g_hoveredSlot));
-        uint32_t zombietype = 0;
-        memcpy(&zombietype, thingPtr + 0x14C, 4);
-
-        uint32_t charid = 0;
-        memcpy(&charid, thingPtr + 0x148, 4);
+        const Address thing = EntityAddress(g_hoveredSlot);
+        const std::uint32_t charid     = Load<std::uint32_t>(thing + Offset::Thing::CharId);
         g_charBuf.charid = charid;
 
-        if (zombietype == 0 && charid > 0 && charid < 256 && pGetCharacterData) {
-            void *charPtr = pGetCharacterData(charid);
-            if (charPtr) {
-                g_charBuf.charPtr = charPtr;
-                ReadCharacterFromPtr(reinterpret_cast<const unsigned char *>(charPtr),
-                                     g_charBuf);
+        if (charid > 0 && charid < 256 && pGetCharacterData) {
+            const Address charAddress = pGetCharacterData(charid);
+            if (charAddress) {
+                g_charBuf.charPtr = charAddress;
+                ReadCharacterFromPtr(charAddress, g_charBuf);
                 g_charBuf.charid  = charid;
-                g_charBuf.charPtr = charPtr;
+                g_charBuf.charPtr = charAddress;
             }
         }
     }
 
-    ImGui::OpenPopup("Entity Edit");
+    ImGui::OpenPopup(EntityEditPopupId());
 }
 
 // ==================== 高亮 ====================
@@ -582,10 +641,10 @@ void DrawEntityHighlight()
     float cw = 0.0f, ch = 0.0f;
     if (!GetClientSize(cw, ch)) return;
 
-    const int slot = (g_draggingSlot >= 0) ? g_draggingSlot
-                     : (g_editTargetSlot >= 0) ? g_editTargetSlot
-                                               : g_hoveredSlot;
-    if (slot < 0 || slot >= static_cast<int>(kThingMaxSlots)) return;
+    const SlotIndex slot = (g_draggingSlot >= 0) ? g_draggingSlot
+                          : (g_editTargetSlot >= 0) ? g_editTargetSlot
+                                                    : g_hoveredSlot;
+    if (slot < 0 || slot >= kThingMaxSlots) return;
     const Dr2cEntityView &entity = g_entities[slot];
     if (entity.id == 0) return;
 
@@ -614,25 +673,45 @@ void DrawDebugPanel()
         return;
     }
 
+    // 标题随语言变化，### 之后的 ID 固定（切换语言不会丢窗口位置/大小）
+    char title[128];
+    snprintf(title, sizeof(title), "%s###dr2c_debug", Tr("DR2C Debug"));
+
     ImGui::SetNextWindowSize(ImVec2(380.0f, 300.0f), ImGuiCond_FirstUseEver);
-    ImGui::Begin("DR2C Debug", &g_showDebugPanel);
+    ImGui::Begin(title, &g_showDebugPanel);
 
-    ImGui::Checkbox("Drag entity", &g_dragEntity);
+    ImGui::Checkbox(Tr("Drag entity"), &g_dragEntity);
     ImGui::SameLine();
-    ImGui::Checkbox("Log to file", &g_logToFile);
+    ImGui::Checkbox(Tr("Log to file"), &g_logToFile);
 
-    ImGui::SliderFloat("Pick radius (world)", &g_pickRadiusWorld, 2.0f, 64.0f, "%.1f");
+    ImGui::SliderFloat(Tr("Pick radius (world)"), &g_pickRadiusWorld, 2.0f, 64.0f, "%.1f");
 
-    if (ImGui::SliderInt("Game FrameRate", &g_fps, 1, 1024)){
+    if (ImGui::SliderInt(Tr("Game FrameRate"), &g_fps, 1, 1024)){
         pSetFrameRate(g_fps);
     };
 
-    if (ImGui::InputInt("Current Map", &g_currentMapID)){
-        WriteInt(g_currentMapID, g_CameraRenderMapLayer);
+    if (ImGui::InputInt(Tr("Current Map"), &g_currentMapID)){
+        WriteRva<std::uint32_t>(Offset::Global::MapLayer,
+                                static_cast<std::uint8_t>(g_currentMapID));
+    }
+
+    // ---------------- 语言切换（中英文） ----------------
+    int languageIndex = static_cast<int>(Dr2cGetLanguage());
+    const bool cjkFontReady = Dr2cIsCjkFontAvailable();
+    if (!cjkFontReady)
+        ImGui::BeginDisabled();
+    if (ImGui::Combo(Tr("Language"), &languageIndex, u8"English\0中文\0")) {
+        Dr2cSetLanguage(static_cast<Dr2cLanguage>(languageIndex));
+        SaveLanguageSetting(g_module);
+    }
+    if (!cjkFontReady) {
+        ImGui::EndDisabled();
+        ImGui::SameLine();
+        ImGui::TextUnformatted(Tr("(CJK font not found)"));
     }
 
     ImGui::Separator();
-    ImGui::Text("moduleBase    = %p", reinterpret_cast<void*>(g_moduleBase));
+    ImGui::Text("moduleBase    = %p", AsPtr<void>(g_moduleBase));
     ImGui::Text("g_ScreenScale = %.4f", g_debug.screenScaleRaw);
     ImGui::Text("camera        = (%.2f, %.2f)", g_debug.cameraX, g_debug.cameraY);
     ImGui::Text("mouse         = (%.1f, %.1f) %s",
@@ -641,49 +720,85 @@ void DrawDebugPanel()
                 g_hoveredSlot, g_editTargetSlot, g_draggingSlot);
 
     ImGui::Separator();
-    ImGui::TextUnformatted("Right-click entity to edit");
+    ImGui::TextUnformatted(Tr("Right-click entity to edit"));
 
     ImGui::End();
 }
 
 // ==================== 属性 / 资源名 ====================
-const char *kStatNames[13] = {
+const char *kStatNames[Offset::Char::StatCount] = {
     "Morale", "Attitude", "Composure", "Charm", "Wits", "Loyalty",
     "Medical", "Mechanical", "Shooting", "Strength", "Dexterity",
     "Fitness", "Vitality"
 };
 
-const char *kResourceNames[8] = {
+const char *kResourceNames[Offset::Char::ResourceCount] = {
     "None", "Food", "Gas", "Medical", "Bullet", "Rifle", "Shell", "Junk"
 };
 
+// ==================== 布局小工具 ====================
+const char *GroupWithFields(const char *group, const char *field0,
+                            const char *field1, const char *field2)
+{
+    static char buffer[192];
+    snprintf(buffer, sizeof(buffer), "%s (%s / %s / %s)", group, field0, field1, field2);
+    return buffer;
+}
+
+const char *FieldList3(const char *field0, const char *field1, const char *field2)
+{
+    static char buffer[192];
+    snprintf(buffer, sizeof(buffer), "%s / %s / %s", field0, field1, field2);
+    return buffer;
+}
+
+float TwoColumnItemWidth(const char *label0, const char *label1)
+{
+    const ImGuiStyle &style = ImGui::GetStyle();
+    const float avail = ImGui::GetContentRegionAvail().x;
+    const float labels = ImGui::CalcTextSize(label0).x + ImGui::CalcTextSize(label1).x;
+    const float each = (avail - labels - style.ItemSpacing.x * 2.0f) * 0.5f;
+    return each > 60.0f ? each : 60.0f;
+}
+
 // ==================== Character 编辑块 ====================
-void DrawCharacterSection()
+void DrawCharacterSection(SlotIndex slot)
 {
     if (!g_charBuf.active || !g_charBuf.charPtr) {
-        ImGui::TextUnformatted("(no character attached)");
+        ImGui::TextUnformatted(Tr("(no character attached)"));
         if (g_charBuf.charid != 0)
             ImGui::Text("charid = %u", g_charBuf.charid);
         return;
     }
 
-    ImGui::Text("charPtr = %p   charid = %u", g_charBuf.charPtr, g_charBuf.charid);
+    ImGui::Text("charPtr = %p   charid = %u", AsPtr<void>(g_charBuf.charPtr), g_charBuf.charid);
     ImGui::Separator();
 
     ImGui::PushItemWidth(240.0f);
-
-    if (ImGui::InputText("Name", g_charBuf.name, sizeof(g_charBuf.name)))
-        WriteCharacter();
-    if (ImGui::InputInt("Health", &g_charBuf.health))
-        WriteCharacter();
-    if (ImGui::InputFloat("Speed Bonus", &g_charBuf.speed_bonus, 0.1f, 1.0f, "%.2f"))
+    const bool nameChanged = ImGui::InputText(Tr("Name"), g_charBuf.name, sizeof(g_charBuf.name));
+    ImGui::PopItemWidth();
+    if (nameChanged)
         WriteCharacter();
 
-    if (ImGui::TreeNode("Stats")) {
-        ImGui::Text("         Base  Bonus  Total");
-        for (int i = 0; i < 13; ++i) {
+    bool valuesChanged = false;
+    ImGui::SetNextItemWidth(TwoColumnItemWidth(Tr("Health"), Tr("Speed Bonus")));
+    valuesChanged |= ImGui::InputInt(Tr("Health"), &g_charBuf.health);
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(TwoColumnItemWidth(Tr("Health"), Tr("Speed Bonus")));
+    valuesChanged |= ImGui::InputFloat(Tr("Speed Bonus"), &g_charBuf.speed_bonus, 0.0f, 0.0f, "%.2f");
+    if (valuesChanged)
+        WriteCharacter();
+
+    if (ImGui::Button(Tr("Control Human"))){
+        if (!g_charBuf.active || !g_charBuf.charPtr) return;
+        pSetCurrentPlayerThing(EntityAddress(slot));
+    }
+
+    if (ImGui::TreeNode(Tr("Stats"))) {
+        ImGui::TextUnformatted(Tr("         Base  Bonus  Total"));
+        for (int i = 0; i < Offset::Char::StatCount; ++i) {
             ImGui::PushID(i);
-            ImGui::Text("%-11s", kStatNames[i]);
+            ImGui::Text("%-11s", Tr(kStatNames[i]));
             ImGui::SameLine();
             ImGui::PushItemWidth(60.0f);
             bool changed = false;
@@ -699,33 +814,33 @@ void DrawCharacterSection()
         ImGui::TreePop();
     }
 
-    if (ImGui::TreeNode("Resources")) {
-        for (int i = 0; i < 8; ++i) {
+    if (ImGui::TreeNode(Tr("Resources"))) {
+        for (int i = 0; i < Offset::Char::ResourceCount; ++i) {
             ImGui::PushID(100 + i);
-            if (ImGui::InputInt(kResourceNames[i], &g_charBuf.resource[i]))
+            if (ImGui::InputInt(Tr(kResourceNames[i]), &g_charBuf.resource[i]))
                 WriteCharacter();
             ImGui::PopID();
         }
         ImGui::TreePop();
     }
 
-    if (ImGui::TreeNode("Weapons")) {
+    if (ImGui::TreeNode(Tr("Weapons"))) {
         if (!g_weaponNamesLoaded) LoadWeaponNames();
 
-        for (int slotIdx = 0; slotIdx < 3; ++slotIdx) {
+        for (int slotIdx = 0; slotIdx < Offset::Char::WeaponSlotCount; ++slotIdx) {
             ImGui::PushID(200 + slotIdx);
-            ImGui::Text("Slot %d", slotIdx);
+            ImGui::Text(Tr("Slot %d"), slotIdx);
             ImGui::SameLine();
 
-            int32_t curId = g_charBuf.weaponID[slotIdx];
-            const char *curName = "(empty)";
-            if (curId > 0 && curId < static_cast<int32_t>(g_weaponNames.size()))
+            std::int32_t curId = g_charBuf.weaponID[slotIdx];
+            const char *curName = Tr("(empty)");
+            if (curId > 0 && curId < static_cast<std::int32_t>(g_weaponNames.size()))
                 curName = g_weaponNames[curId].c_str();
 
             ImGui::PushItemWidth(180.0f);
             bool changed = false;
             if (ImGui::BeginCombo("##weapon", curName)) {
-                if (ImGui::Selectable("(empty)", curId == 0)) {
+                if (ImGui::Selectable(Tr("(empty)"), curId == 0)) {
                     g_charBuf.weaponID[slotIdx] = 0;
                     changed = true;
                 }
@@ -748,10 +863,10 @@ void DrawCharacterSection()
 
             ImGui::SameLine();
             ImGui::PushItemWidth(60.0f);
-            changed |= ImGui::InputInt("Stack", &g_charBuf.weaponStack[slotIdx], 0, 0);
+            changed |= ImGui::InputInt(Tr("Stack"), &g_charBuf.weaponStack[slotIdx], 0, 0);
             ImGui::SameLine();
             bool lockFlag = g_charBuf.weaponLock[slotIdx] != 0;
-            changed |= ImGui::Checkbox("Lock", &lockFlag);
+            changed |= ImGui::Checkbox(Tr("Lock"), &lockFlag);
             g_charBuf.weaponLock[slotIdx] = lockFlag ? 1 : 0;
             //changed |= ImGui::InputInt("Lock",  &g_charBuf.weaponLock[slotIdx],  0, 0);
             ImGui::PopItemWidth();
@@ -761,75 +876,72 @@ void DrawCharacterSection()
         }
         ImGui::TreePop();
     }
-
-    ImGui::PopItemWidth();
 }
 
 // ==================== Vehicle 编辑块 ====================
 void DrawVehicleSection(int slot)
 {
-    unsigned char *p = EntityPtr(static_cast<unsigned int>(slot));
+    const Address p = EntityAddress(slot);
 
-    int32_t chassis      = static_cast<int8_t>(p[0x208]);
-    int32_t chassisMax   = static_cast<int8_t>(p[0x209]);
-    int32_t engine       = static_cast<int8_t>(p[0x20A]);
-    int32_t engineMax    = static_cast<int8_t>(p[0x20B]);
-    int32_t armour       = static_cast<int8_t>(p[0x20C]);
-    int32_t armourMax    = static_cast<int8_t>(p[0x20D]);
-    int32_t carspeed     = static_cast<int8_t>(p[0x20E]);
-    int32_t carspeedMax  = static_cast<int8_t>(p[0x20F]);
-    int32_t repair = 0;
-    float   mpg    = 0.0f;
-    memcpy(&repair, p + 0x210, 4);
-    memcpy(&mpg,    p + 0x214, 4);
+    std::int32_t chassis     = Load<std::int8_t>(p + Offset::Vehicle::Chassis);
+    std::int32_t chassisMax  = Load<std::int8_t>(p + Offset::Vehicle::ChassisMax);
+    std::int32_t engine      = Load<std::int8_t>(p + Offset::Vehicle::Engine);
+    std::int32_t engineMax   = Load<std::int8_t>(p + Offset::Vehicle::EngineMax);
+    std::int32_t armour      = Load<std::int8_t>(p + Offset::Vehicle::Armour);
+    std::int32_t armourMax   = Load<std::int8_t>(p + Offset::Vehicle::ArmourMax);
+    std::int32_t carspeed    = Load<std::int8_t>(p + Offset::Vehicle::Speed);
+    std::int32_t carspeedMax = Load<std::int8_t>(p + Offset::Vehicle::SpeedMax);
+    std::int32_t repair      = Load<std::int32_t>(p + Offset::Vehicle::Repair);
+    float        mpg         = Load<float>(p + Offset::Vehicle::Mpg);
 
     ImGui::PushItemWidth(120.0f);
     bool changed = false;
-    changed |= ImGui::InputInt("Chassis", &chassis);
-    changed |= ImGui::InputInt("Chassis Max", &chassisMax);
-    changed |= ImGui::InputInt("Engine", &engine);
-    changed |= ImGui::InputInt("Engine Max", &engineMax);
-    changed |= ImGui::InputInt("Armour", &armour);
-    changed |= ImGui::InputInt("Armour Max", &armourMax);
-    changed |= ImGui::InputInt("Speed", &carspeed);
-    changed |= ImGui::InputInt("Speed Max", &carspeedMax);
-    changed |= ImGui::InputInt("Repair", &repair);
-    changed |= ImGui::InputFloat("MPG", &mpg, 0.1f, 1.0f, "%.2f");
+    changed |= ImGui::InputInt(Tr("Chassis"), &chassis);
+    changed |= ImGui::InputInt(Tr("Chassis Max"), &chassisMax);
+    changed |= ImGui::InputInt(Tr("Engine"), &engine);
+    changed |= ImGui::InputInt(Tr("Engine Max"), &engineMax);
+    changed |= ImGui::InputInt(Tr("Armour"), &armour);
+    changed |= ImGui::InputInt(Tr("Armour Max"), &armourMax);
+    changed |= ImGui::InputInt(Tr("Speed"), &carspeed);
+    changed |= ImGui::InputInt(Tr("Speed Max"), &carspeedMax);
+    changed |= ImGui::InputInt(Tr("Repair"), &repair);
+    changed |= ImGui::InputFloat(Tr("MPG"), &mpg, 0.0f, 0.0f, "%.2f");
     ImGui::PopItemWidth();
 
     if (changed) {
-        p[0x208] = static_cast<unsigned char>(static_cast<int8_t>(chassis));
-        p[0x209] = static_cast<unsigned char>(static_cast<int8_t>(chassisMax));
-        p[0x20A] = static_cast<unsigned char>(static_cast<int8_t>(engine));
-        p[0x20B] = static_cast<unsigned char>(static_cast<int8_t>(engineMax));
-        p[0x20C] = static_cast<unsigned char>(static_cast<int8_t>(armour));
-        p[0x20D] = static_cast<unsigned char>(static_cast<int8_t>(armourMax));
-        p[0x20E] = static_cast<unsigned char>(static_cast<int8_t>(carspeed));
-        p[0x20F] = static_cast<unsigned char>(static_cast<int8_t>(carspeedMax));
-        memcpy(p + 0x210, &repair, 4);
-        memcpy(p + 0x214, &mpg, 4);
+        Store<std::int8_t>(p + Offset::Vehicle::Chassis,    static_cast<std::int8_t>(chassis));
+        Store<std::int8_t>(p + Offset::Vehicle::ChassisMax, static_cast<std::int8_t>(chassisMax));
+        Store<std::int8_t>(p + Offset::Vehicle::Engine,     static_cast<std::int8_t>(engine));
+        Store<std::int8_t>(p + Offset::Vehicle::EngineMax,  static_cast<std::int8_t>(engineMax));
+        Store<std::int8_t>(p + Offset::Vehicle::Armour,     static_cast<std::int8_t>(armour));
+        Store<std::int8_t>(p + Offset::Vehicle::ArmourMax,  static_cast<std::int8_t>(armourMax));
+        Store<std::int8_t>(p + Offset::Vehicle::Speed,      static_cast<std::int8_t>(carspeed));
+        Store<std::int8_t>(p + Offset::Vehicle::SpeedMax,   static_cast<std::int8_t>(carspeedMax));
+        Store<std::int32_t>(p + Offset::Vehicle::Repair, repair);
+        Store<float>(p + Offset::Vehicle::Mpg, mpg);
     }
 }
 
 // ==================== Item 编辑块 ====================
-void DrawItemSection(int slot)
+void DrawItemSection(SlotIndex slot)
 {
-    unsigned char *p = EntityPtr(static_cast<unsigned int>(slot));
+    const Address p = EntityAddress(slot);
 
-    int32_t amount = 0;
-    int32_t loot = static_cast<uint8_t>(p[0xE8]);
-    memcpy(&amount, p + 0xE4, 4);
+    std::int32_t amount = Load<std::int32_t>(p + Offset::Item::Amount);
+    std::int32_t loot   = Load<std::uint8_t>(p + Offset::Item::Loot);
 
     ImGui::PushItemWidth(120.0f);
     bool changed = false;
-    changed |= ImGui::InputInt("Amount", &amount);
+    changed |= ImGui::InputInt(Tr("Amount"), &amount);
     //changed |= ImGui::InputInt("Loot", &loot);
-    const char *curLootName = (loot >= 0 && loot < 8) ? kResourceNames[loot] : "(invalid)";
-    if (ImGui::BeginCombo("Loot", curLootName)) {
-        for (int i = 0; i < 8; ++i) {
+    const char *curLootName = (loot >= 0 && loot < Offset::Char::ResourceCount)
+                                  ? Tr(kResourceNames[loot])
+                                  : Tr("(invalid)");
+    if (ImGui::BeginCombo(Tr("Loot"), curLootName)) {
+        for (int i = 0; i < Offset::Char::ResourceCount; ++i) {
             const bool selected = (loot == i);
             ImGui::PushID(i);
-            if (ImGui::Selectable(kResourceNames[i], selected)) {
+            if (ImGui::Selectable(Tr(kResourceNames[i]), selected)) {
                 loot = i;
                 changed = true;
             }
@@ -840,8 +952,8 @@ void DrawItemSection(int slot)
     ImGui::PopItemWidth();
 
     if (changed) {
-        memcpy(p + 0xE4, &amount, 4);
-        p[0xE8] = static_cast<unsigned char>(loot);
+        Store<std::int32_t>(p + Offset::Item::Amount, amount);
+        Store<std::uint8_t>(p + Offset::Item::Loot, static_cast<std::uint8_t>(loot));
     }
 }
 
@@ -852,26 +964,25 @@ void DrawEntityEditPopup()
 
     ImGui::SetNextWindowSize(ImVec2(380.0f, 500.0f), ImGuiCond_Appearing);
 
-    if (ImGui::BeginPopup("Entity Edit")) {
-        const int slot = g_editTargetSlot;
-        if (slot < 0 || slot >= static_cast<int>(kThingMaxSlots)
+    if (ImGui::BeginPopup(EntityEditPopupId())) {
+        const SlotIndex slot = g_editTargetSlot;
+        if (slot < 0 || slot >= kThingMaxSlots
             || g_entities[slot].id == 0) {
-            ImGui::TextUnformatted("(entity no longer exists)");
-            if (ImGui::Button("Close")) ImGui::CloseCurrentPopup();
+            ImGui::TextUnformatted(Tr("(entity no longer exists)"));
+            if (ImGui::Button(Tr("Close"))) ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
             return;
         }
 
         Dr2cEntityView &entity = g_entities[slot];
-        const unsigned int uslot = static_cast<unsigned int>(slot);
 
-        ImGui::Text("Slot %d   ID %u   Type %u / %u",
+        ImGui::Text(Tr("Slot %d   ID %u   Type %u / %u"),
                     slot, entity.id, entity.type, entity.subtype);
         ImGui::Separator();
 
-        if (ImGui::Button("Clone", ImVec2(80, 0))) CloneEntity(slot);
+        if (ImGui::Button(Tr("Clone"), ImVec2(80, 0))) CloneEntity(slot);
         ImGui::SameLine();
-        if (ImGui::Button("Destroy", ImVec2(80, 0))) {
+        if (ImGui::Button(Tr("Destroy"), ImVec2(80, 0))) {
             DestroyEntity(slot);
             g_editTargetSlot = -1;
             ClearPendingEntityWrite();
@@ -880,15 +991,47 @@ void DrawEntityEditPopup()
             return;
         }
         ImGui::SameLine();
-        if (ImGui::Button("Close", ImVec2(80, 0))) ImGui::CloseCurrentPopup();
+        if (ImGui::Button(Tr("Close"), ImVec2(80, 0))) ImGui::CloseCurrentPopup();
 
         ImGui::Separator();
 
         // ---------- 实体字段 ----------
-        if (ImGui::CollapsingHeader("Entity", ImGuiTreeNodeFlags_None)) {
-            ImGui::PushItemWidth(240.0f);
+        if (ImGui::CollapsingHeader(Tr("Entity"), ImGuiTreeNodeFlags_None)) {
+            // 区域 ID
             int mapId = entity.mapId;
-            int spriteId = entity.spriteId;
+            ImGui::TextUnformatted(Tr("Map"));
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            if (ImGui::InputInt("##map_id", &mapId)) {
+                entity.mapId = static_cast<unsigned char>(mapId);
+                QueueEntityWrite(slot, entity, DR2C_ENTITY_WRITE_MAP);
+            }
+            if (ImGui::InputFloat3(Tr("Position"), entity.position))
+                QueueEntityWrite(slot, entity, DR2C_ENTITY_WRITE_POSITION);
+            if (ImGui::InputFloat3(Tr("Velocity"), entity.velocity))
+                QueueEntityWrite(slot, entity, DR2C_ENTITY_WRITE_VELOCITY);
+
+            ImGui::TextUnformatted(GroupWithFields(Tr("Physics"), Tr("Mass"),
+                                                  Tr("Friction"), Tr("Bounce")));
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            if (ImGui::InputFloat3("##physics", entity.physics))
+                QueueEntityWrite(slot, entity, DR2C_ENTITY_WRITE_PHYSICS);
+
+            int entityNumbers[3] = {
+                entity.hitpoints,
+                static_cast<int>(entity.spriteId),
+                static_cast<int>(entity.aiState)
+            };
+            ImGui::TextUnformatted(FieldList3(Tr("Hitpoints"), Tr("Sprite"), Tr("AI state")));
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            if (ImGui::InputInt3("##entity_numbers", entityNumbers)) {
+                entity.hitpoints = entityNumbers[0];
+                entity.spriteId  = static_cast<unsigned short>(entityNumbers[1]);
+                entity.aiState   = static_cast<std::uint32_t>(entityNumbers[2]);
+                QueueEntityWrite(slot, entity, DR2C_ENTITY_WRITE_HITPOINTS
+                                              | DR2C_ENTITY_WRITE_SPRITE
+                                              | DR2C_ENTITY_WRITE_AI);
+            }
+
             bool noCollide = entity.noCollide != 0;
             bool noPick = entity.noPick != 0;
             bool unseen = entity.unseen != 0;
@@ -896,35 +1039,17 @@ void DrawEntityEditPopup()
             bool noHit = entity.noHit != 0;
             bool glow = entity.glow != 0;
 
-            if (ImGui::InputFloat3("Position", entity.position))
-                QueueEntityWrite(uslot, entity, DR2C_ENTITY_WRITE_POSITION);
-            if (ImGui::InputInt("Map", &mapId)) {
-                entity.mapId = static_cast<unsigned char>(mapId);
-                QueueEntityWrite(uslot, entity, DR2C_ENTITY_WRITE_MAP);
-            }
-            if (ImGui::InputFloat3("Velocity", entity.velocity))
-                QueueEntityWrite(uslot, entity, DR2C_ENTITY_WRITE_VELOCITY);
-            if (ImGui::InputFloat3("Physics", entity.physics))
-                QueueEntityWrite(uslot, entity, DR2C_ENTITY_WRITE_PHYSICS);
-            if (ImGui::InputInt("Hitpoints", &entity.hitpoints))
-                QueueEntityWrite(uslot, entity, DR2C_ENTITY_WRITE_HITPOINTS);
-            if (ImGui::InputInt("Sprite", &spriteId)) {
-                entity.spriteId = static_cast<unsigned short>(spriteId);
-                QueueEntityWrite(uslot, entity, DR2C_ENTITY_WRITE_SPRITE);
-            }
-            if (ImGui::InputScalar("AI state", ImGuiDataType_U32, &entity.aiState))
-                QueueEntityWrite(uslot, entity, DR2C_ENTITY_WRITE_AI);
-
             bool flagsChanged = false;
-            flagsChanged |= ImGui::Checkbox("No collision", &noCollide);
+            flagsChanged |= ImGui::Checkbox(Tr("No collision"), &noCollide);
             ImGui::SameLine();
-            flagsChanged |= ImGui::Checkbox("No pickup", &noPick);
-            flagsChanged |= ImGui::Checkbox("Unseen", &unseen);
+            flagsChanged |= ImGui::Checkbox(Tr("No pickup"), &noPick);
             ImGui::SameLine();
-            flagsChanged |= ImGui::Checkbox("Invisible", &invisible);
-            flagsChanged |= ImGui::Checkbox("No hit", &noHit);
+            flagsChanged |= ImGui::Checkbox(Tr("Unseen"), &unseen);
+            flagsChanged |= ImGui::Checkbox(Tr("Invisible"), &invisible);
             ImGui::SameLine();
-            flagsChanged |= ImGui::Checkbox("Glow", &glow);
+            flagsChanged |= ImGui::Checkbox(Tr("No hit"), &noHit);
+            ImGui::SameLine();
+            flagsChanged |= ImGui::Checkbox(Tr("Glow"), &glow);
 
             entity.noCollide = static_cast<unsigned char>(noCollide);
             entity.noPick    = static_cast<unsigned char>(noPick);
@@ -934,25 +1059,24 @@ void DrawEntityEditPopup()
             entity.glow      = static_cast<unsigned char>(glow);
 
             if (flagsChanged)
-                QueueEntityWrite(uslot, entity, DR2C_ENTITY_WRITE_FLAGS);
-            ImGui::PopItemWidth();
+                QueueEntityWrite(slot, entity, DR2C_ENTITY_WRITE_FLAGS);
         }
 
         // ---------- Character（type == 1)  ----------
         if (entity.type == 1) {
-            if (ImGui::CollapsingHeader("Character", ImGuiTreeNodeFlags_None))
-                DrawCharacterSection();
+            if (ImGui::CollapsingHeader(Tr("Character"), ImGuiTreeNodeFlags_None))
+                DrawCharacterSection(slot);
         }
 
         // ---------- Item（type == 3 且 subtype == 1） ----------
         if (entity.type == 3 && entity.subtype == 1) {
-            if (ImGui::CollapsingHeader("Item", ImGuiTreeNodeFlags_None))
+            if (ImGui::CollapsingHeader(Tr("Item"), ImGuiTreeNodeFlags_None))
                 DrawItemSection(slot);
         }
 
         // ---------- Vehicle（type == 3 且 subtype == 3） ----------
         if (entity.type == 3 && entity.subtype == 3) {
-            if (ImGui::CollapsingHeader("Vehicle", ImGuiTreeNodeFlags_None))
+            if (ImGui::CollapsingHeader(Tr("Vehicle"), ImGuiTreeNodeFlags_None))
                 DrawVehicleSection(slot);
         }
 
@@ -978,9 +1102,9 @@ void CheckPanelHotkey()
     prevInsert = curInsert;
 }
 
-void QueueEntityWrite(unsigned int slot, const Dr2cEntityView &entity, unsigned int mask)
+void QueueEntityWrite(SlotIndex slot, const Dr2cEntityView &entity, unsigned int mask)
 {
-    if (slot >= kThingMaxSlots) return;
+    if (slot < 0 || slot >= kThingMaxSlots) return;
     g_pendingSlot = slot;
     g_pendingEntity = entity;
     g_pendingWriteMask |= mask;
@@ -1004,6 +1128,34 @@ void ClearPendingEntityWrite()
     InterlockedExchange(&g_pendingEntityWrite, 0);
 }
 
+// ==================== 界面字体（含中文） ====================
+constexpr float kUiFontSize = 16.0f;
+
+bool LoadUiFont()
+{
+    ImGuiIO &io = ImGui::GetIO();
+    static const char *kFontCandidates[] = {
+        "C:\\Windows\\Fonts\\simhei.ttf",  // 黑体
+        "C:\\Windows\\Fonts\\msyh.ttc",    // 微软雅黑
+        "C:\\Windows\\Fonts\\msyh.ttf",
+        "C:\\Windows\\Fonts\\msyhl.ttc",   // 微软雅黑 Light
+        "C:\\Windows\\Fonts\\Deng.ttf",    // 等线
+        "C:\\Windows\\Fonts\\simsun.ttc",  // 宋体
+    };
+
+    for (const char *fontPath : kFontCandidates) {
+        if (GetFileAttributesA(fontPath) == INVALID_FILE_ATTRIBUTES)
+            continue;
+        ImFontConfig config;
+        config.FontNo = 0;                 // .ttc 字体集合取第一个字面
+        if (io.Fonts->AddFontFromFileTTF(fontPath, kUiFontSize, &config) != nullptr)
+            return true;
+    }
+
+    io.Fonts->AddFontDefault();
+    return false;
+}
+
 bool InitializeInternalUi(HWND window, HMODULE module)
 {
     if (g_initialized || !window) return g_initialized;
@@ -1017,6 +1169,9 @@ bool InitializeInternalUi(HWND window, HMODULE module)
     ImGui::StyleColorsDark();
     ImGui::GetStyle().ScaleAllSizes(1.0f);
 
+    // 必须在后端初始化前加载字体
+    Dr2cSetCjkFontAvailable(LoadUiFont());
+
     if (!ImGui_ImplWin32_Init(window) || !ImGui_ImplOpenGL3_Init("#version 130")) {
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplWin32_Shutdown();
@@ -1024,8 +1179,11 @@ bool InitializeInternalUi(HWND window, HMODULE module)
         return false;
     }
     g_window = window;
+    g_module = module;
     g_initialized = true;
     LogInit(module);
+    // 字体就绪后再读语言设置（没有中文字体时不会切到中文）
+    LoadLanguageSetting(module);
     g_fps = (int)pGetFrameRate();
     return true;
 }

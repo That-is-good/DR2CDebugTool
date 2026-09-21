@@ -9,7 +9,7 @@ bool InitializeInternalUi(HWND window, HMODULE module);
 void ShutdownInternalUi();
 void RenderInternalUi();
 LRESULT HandleInternalWindowMessage(HWND window, UINT message, WPARAM wParam, LPARAM lParam);
-void QueueEntityWrite(unsigned int slot, const Dr2cEntityView &entity, unsigned int mask);
+void QueueEntityWrite(int slot, const Dr2cEntityView &entity, unsigned int mask);
 void ApplyPendingEntityWrite();
 void ClearPendingEntityWrite();
 

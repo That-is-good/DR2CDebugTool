@@ -31,6 +31,8 @@
 - 当前地图层读写
 - 日志输出到 DLL 同目录同名 `.log` 文件
 
+![图片1](./ReadmeImg/A.png)
+![图片2](./ReadmeImg/B.png)
 ---
 
 ## 构建要求

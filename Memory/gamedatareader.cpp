@@ -17,20 +17,23 @@ void GameDataReader::setModuleBase(quint64 moduleBase)
     m_moduleBase = moduleBase;
 }
 
-void GameDataReader::SetOffset(QList<quint64> offset){
-    m_thingPoolBase = offset[0];
-    m_weaponPoolBase = offset[1];
-    m_missionStateBase = offset[2];
-    // 角色池嵌入在 mission_state 中 (missionStateBase + 0xC0)，非独立池
-    m_charPoolBase = m_missionStateBase + 0xC0;
-    m_mapLayerMetaBase = offset[3];
-}
+void GameDataReader::setLayout(const GameResolver::Layout &layout)
+{
+    m_layout = layout;
+    if (!layout.valid)
+        return;
 
-void GameDataReader::SetSize(QList<quint32> size){
-    THING_SIZE = size[0];
-    CHARACTER_SIZE = size[1];
-    WEAPON_SIZE = size[2];
-    MAP_META_SIZE = size[3];
+    m_thingPoolBase = layout.thingPoolRva;
+    m_weaponPoolBase = layout.weaponPoolRva;
+    m_missionStateBase = layout.missionStateRva;
+    m_charPoolBase = layout.characterPoolRva;
+    m_mapLayerMetaBase = layout.mapLayerMetaRva;
+    m_currentMapIdBase = layout.currentMapIdRva;
+    m_lastEntityIdBase = layout.nextThingIdRva;
+    THING_SIZE = layout.thingStride;
+    CHARACTER_SIZE = layout.characterStride;
+    MAP_META_SIZE = layout.mapMetaStride;
+    WEAPON_SIZE = layout.weaponStride;
 }
 
 void GameDataReader::SetLength(QList<quint16> length){
@@ -54,7 +57,7 @@ quint64 GameDataReader::calcWeaponAddress(qint32 index) const
 
 bool GameDataReader::isAttached() const
 {
-    return m_memMgr && m_memMgr->isAttached();
+    return m_layout.valid && m_memMgr && m_memMgr->isAttached();
 }
 
 // ==================== 辅助 ====================

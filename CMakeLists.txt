@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.19)
 project(DR2CDebugTool LANGUAGES CXX)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets LinguistTools)
+include(CTest)
 
 qt_standard_project_setup()
 
@@ -14,6 +15,8 @@ qt_add_executable(DR2CDebugTool
     #resources.qrc
     Memory/memorymanager.h
     Memory/memorymanager.cpp
+    Memory/gameresolver.h
+    Memory/gameresolver.cpp
     Memory/gamedatareader.h
     Memory/gamedatareader.cpp
     Delegates/spinboxdelegate.h

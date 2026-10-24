@@ -49,7 +49,7 @@ A game memory debugging/modification tool for *Death Road to Canada*, built with
   Customizable refresh interval (default 500 ms); data is synchronized automatically. Refresh is paused while editing to avoid interfering with input.
 
 - **Configuration Persistence**  
-  All memory offsets, refresh frequency, language preferences, etc. are saved in `config.json`, making it easy to adjust quickly after game updates.
+  Refresh frequency, language preferences, and other user settings are saved in `config.json`. Game function and global addresses are resolved from code signatures instead of fixed configuration offsets.
 
 ---
 
@@ -91,11 +91,11 @@ A game memory debugging/modification tool for *Death Road to Canada*, built with
 5. The tool begins automatic data refresh and enables the UI controls.
 
 ### Configure Memory Offsets
-If a game update causes data reads to fail, click the **"Settings"** button to open the offset dialog:  
-- Configure the start offset, structure size, and maximum count for **Characters**, **Entities**, **Weapons**, and **Global** separately.  
+Click **"Settings"** to adjust pool counts, refresh frequency, and UI language. Game functions and global addresses are resolved from code signatures when attaching. If a signature is missing or ambiguous, the tool rejects the attach rather than using stale addresses.  
+- Adjust the maximum counts for **Characters**, **Entities**, and **Weapons**.  
 - Adjust the global refresh interval (milliseconds).  
 - Switch the UI language (choose "System" or any loaded translation file; currently includes Chinese, English, and Japanese, and can be extended). A restart is required for the language change.
-- Changes take effect immediately after saving; no restart is required for offsets.
+- Unsupported builds require updated and verified signatures; do not reuse fixed addresses from another build.
 
 ### Character Operations
 - In the **"Character"** tab, select a character from the drop-down list.  

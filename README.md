@@ -30,7 +30,7 @@ Each language version contains detailed feature descriptions, usage guides, proj
 - **Global Resources** – adjust 8 resource types (food, gas, medical, etc.) and manage 15 storage weapon slots
 - **Script Console** – send in‑game script commands (supports UTF‑8 characters)
 - **Auto Refresh** – customisable refresh interval (default 500 ms); automatically pauses while editing to avoid conflicts
-- **Persistent Configuration** – offsets, refresh rate, and language preferences saved in `config.json` for easy migration across game updates
+- **Persistent Configuration** – refresh rate and language preferences saved in `config.json`; game functions and global addresses are resolved from code signatures
 
 🖼️ Screenshots
 
@@ -50,7 +50,7 @@ Each language version contains detailed feature descriptions, usage guides, proj
 - Qt 6.5+ (components: `Core`, `Widgets`, `LinguistTools`)
 
 ### Build
-Download source files and upack.
+Download source files.
 Open `CMakeLists.txt` with Qt Creator, select a kit with Qt 6.5+, and click “Build”.  
 The executable will be generated under `build/Release/` or `build/`.
 

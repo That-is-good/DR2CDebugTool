@@ -20,6 +20,12 @@ MemoryManager::~MemoryManager()
     detachProcess();
 }
 
+bool MemoryManager::hasFunction(GameResolver::Function function) const
+{
+    return m_gameLayout.valid &&
+        m_gameLayout.functionRvas[static_cast<size_t>(function)] != 0;
+}
+
 void MemoryManager::queryModuleBase()
 {
 #ifdef Q_OS_WIN
@@ -29,6 +35,104 @@ void MemoryManager::queryModuleBase()
     if (EnumProcessModules(m_handle, hMods, sizeof(hMods), &cbNeeded)) {
         m_moduleBase = reinterpret_cast<quint64>(hMods[0]);
     }
+#endif
+}
+
+bool MemoryManager::resolveGameLayout()
+{
+    m_gameLayout = GameResolver::Layout{};
+#ifdef Q_OS_WIN
+    if (!m_handle || !m_moduleBase) {
+        m_gameLayout.error = QStringLiteral("无法读取目标进程主模块。");
+        return false;
+    }
+
+    IMAGE_DOS_HEADER dosHeader{};
+    if (!readMemory(m_moduleBase, &dosHeader, sizeof(dosHeader)) ||
+        dosHeader.e_magic != IMAGE_DOS_SIGNATURE || dosHeader.e_lfanew <= 0) {
+        m_gameLayout.error = QStringLiteral("目标进程不是有效的 PE 模块。");
+        return false;
+    }
+
+    const quint64 ntAddress = m_moduleBase + static_cast<quint32>(dosHeader.e_lfanew);
+    DWORD signature = 0;
+    IMAGE_FILE_HEADER fileHeader{};
+    IMAGE_OPTIONAL_HEADER32 optionalHeader{};
+    if (!readMemory(ntAddress, &signature, sizeof(signature)) ||
+        signature != IMAGE_NT_SIGNATURE ||
+        !readMemory(ntAddress + sizeof(signature), &fileHeader, sizeof(fileHeader)) ||
+        !readMemory(ntAddress + sizeof(signature) + sizeof(fileHeader),
+                    &optionalHeader, sizeof(optionalHeader)) ||
+        fileHeader.Machine != IMAGE_FILE_MACHINE_I386 ||
+        optionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR32_MAGIC ||
+        optionalHeader.SizeOfImage == 0 ||
+        fileHeader.NumberOfSections == 0 ||
+        fileHeader.NumberOfSections > 96) {
+        m_gameLayout.error = QStringLiteral("目标模块格式不受支持（需要 32 位 x86 PE）。");
+        return false;
+    }
+
+    const quint64 sectionTableAddress = ntAddress + sizeof(signature) +
+        sizeof(fileHeader) + fileHeader.SizeOfOptionalHeader;
+    QByteArray sectionHeaders(static_cast<qsizetype>(fileHeader.NumberOfSections) *
+                                  sizeof(IMAGE_SECTION_HEADER), '\0');
+    if (!readMemory(sectionTableAddress, sectionHeaders.data(),
+                    static_cast<quint64>(sectionHeaders.size()))) {
+        m_gameLayout.error = QStringLiteral("无法读取目标模块节表。");
+        return false;
+    }
+
+    IMAGE_SECTION_HEADER textSection{};
+    bool foundText = false;
+    for (quint16 i = 0; i < fileHeader.NumberOfSections; ++i) {
+        IMAGE_SECTION_HEADER section{};
+        memcpy(&section, sectionHeaders.constData() +
+                    static_cast<qsizetype>(i) * sizeof(section), sizeof(section));
+        if (memcmp(section.Name, ".text", 5) == 0 &&
+            (section.Characteristics & IMAGE_SCN_MEM_EXECUTE) != 0) {
+            textSection = section;
+            foundText = true;
+            break;
+        }
+    }
+
+    const quint32 sectionSize = qMax(textSection.Misc.VirtualSize, textSection.SizeOfRawData);
+    if (!foundText || sectionSize == 0 || sectionSize > 32u * 1024u * 1024u ||
+        static_cast<quint64>(textSection.VirtualAddress) + sectionSize >
+            optionalHeader.SizeOfImage) {
+        m_gameLayout.error = QStringLiteral("目标模块缺少有效的可执行代码节。");
+        return false;
+    }
+
+    QByteArray executableSection(static_cast<qsizetype>(sectionSize), '\0');
+    if (!readMemory(m_moduleBase + textSection.VirtualAddress, executableSection.data(),
+                    sectionSize)) {
+        m_gameLayout.error = QStringLiteral("无法读取目标模块代码节用于特征码解析。");
+        return false;
+    }
+
+    if (!GameResolver::resolve(executableSection, textSection.VirtualAddress,
+                               optionalHeader.ImageBase, optionalHeader.SizeOfImage,
+                               &m_gameLayout))
+        return false;
+
+    quint32 characterPoolAddress = 0;
+    if (!readMemory(m_moduleBase + m_gameLayout.characterPoolPointerRva,
+                    &characterPoolAddress, sizeof(characterPoolAddress)) ||
+        characterPoolAddress < m_moduleBase ||
+        static_cast<quint64>(characterPoolAddress) - m_moduleBase >=
+            m_gameLayout.imageSize) {
+        m_gameLayout.valid = false;
+        m_gameLayout.error = QStringLiteral("角色池运行时指针无效；为避免错误读写，已拒绝附加。");
+        return false;
+    }
+    m_gameLayout.characterPoolRva =
+        static_cast<quint32>(static_cast<quint64>(characterPoolAddress) - m_moduleBase);
+
+    return true;
+#else
+    m_gameLayout.error = QStringLiteral("仅支持 Windows 平台。");
+    return false;
 #endif
 }
 
@@ -100,6 +204,13 @@ bool MemoryManager::attachProcess(const QString &processName)
     }
 
     queryModuleBase();
+    if (!m_moduleBase || !resolveGameLayout()) {
+        const QString error = m_gameLayout.error.isEmpty()
+            ? QStringLiteral("无法解析目标程序布局。") : m_gameLayout.error;
+        detachProcess();
+        emit attachError(error);
+        return false;
+    }
     m_attached = true;
     emit processAttached();
     return true;
@@ -135,6 +246,13 @@ bool MemoryManager::attachProcessById(quint32 pid)
     }
 
     queryModuleBase();
+    if (!m_moduleBase || !resolveGameLayout()) {
+        const QString error = m_gameLayout.error.isEmpty()
+            ? QStringLiteral("无法解析目标程序布局。") : m_gameLayout.error;
+        detachProcess();
+        emit attachError(error);
+        return false;
+    }
     m_attached = true;
     emit processAttached();
     return true;
@@ -157,6 +275,7 @@ void MemoryManager::detachProcess()
     m_processId = 0;
     m_processName.clear();
     m_moduleBase = 0;
+    m_gameLayout = GameResolver::Layout{};
     emit processDetached();
 }
 
@@ -276,10 +395,17 @@ bool MemoryManager::FreeRemoteMemory(quint64 remoteAddr) const
 }
 
 // ==================== 通用远程函数调用 ====================
-bool MemoryManager::CallFunction(quint64 funcRva, const QVector<quint64> &args, quint64 *retValue) const
+bool MemoryManager::CallFunction(GameResolver::Function function,
+                                 const QVector<quint64> &args,
+                                 quint64 *retValue) const
 {
 #ifdef Q_OS_WIN
-    if (!m_handle) return false;
+    if (!m_handle || !m_gameLayout.valid)
+        return false;
+
+    const quint32 funcRva = m_gameLayout.functionRvas[static_cast<size_t>(function)];
+    if (!funcRva)
+        return false;
 
     quint64 funcAddr = m_moduleBase + funcRva;
     int argCount = args.size();
@@ -500,7 +626,7 @@ bool MemoryManager::CallFunction(quint64 funcRva, const QVector<quint64> &args, 
 
     return true;
 #else
-    Q_UNUSED(funcRva);
+    Q_UNUSED(function);
     Q_UNUSED(args);
     Q_UNUSED(retValue);
     return false;
@@ -520,7 +646,7 @@ bool MemoryManager::ScriptEvaluateStringSafe(const QString &script) const
     QVector<quint64> args;
     args.append(remoteString);
 
-    bool result = CallFunction(0x08FB60, args);
+    bool result = CallFunction(GameResolver::Function::ScriptEvaluateStringSafe, args);
 
     // 释放远程字符串内存
     FreeRemoteMemory(remoteString);
@@ -539,7 +665,7 @@ bool MemoryManager::FreeThing(quint64 curThingPtr) const
     QVector<quint64> args;
     args.append(curThingPtr);
     
-    return CallFunction(0x052aa0, args);
+    return CallFunction(GameResolver::Function::FreeThing, args);
 #else
     Q_UNUSED(curThingPtr);
     return false;
@@ -554,7 +680,7 @@ quint64 MemoryManager::AllocateEntity(qint8 type) const
     QVector<quint64> args;
     args.append(type);
     
-    if (!CallFunction(0x052710, args, &thingPtr))
+    if (!CallFunction(GameResolver::Function::AllocateEntity, args, &thingPtr))
         return 0;
     return thingPtr;
 #else
@@ -571,7 +697,7 @@ quint64 MemoryManager::AllocateThing(qint8 subtype) const
     QVector<quint64> args;
     args.append(subtype);
     
-    if (!CallFunction(0x06deb0, args, &thingPtr))
+    if (!CallFunction(GameResolver::Function::AllocateThing, args, &thingPtr))
         return 0;
     return thingPtr;
 #else
@@ -585,7 +711,8 @@ quint32 MemoryManager::AllocateCharacterSlot() const
 #ifdef Q_OS_WIN
     if (!m_handle) return 0;
     quint64 characterPtr = 0;
-    if (!CallFunction(0x029a10, QVector<quint64>(), &characterPtr))
+    if (!CallFunction(GameResolver::Function::AllocateCharacterSlot,
+                      QVector<quint64>(), &characterPtr))
         return 0;
     return static_cast<quint32>(characterPtr);
 #else
@@ -600,7 +727,7 @@ bool MemoryManager::Assigncharactertothing(quint64 addr, quint32 charid) const{
     args.append(addr);
     args.append(charid);
     
-    return CallFunction(0x05c440, args);
+    return CallFunction(GameResolver::Function::AssignCharacterToThing, args);
 #else
     Q_UNUSED(addr);
     Q_UNUSED(charid);
@@ -614,7 +741,7 @@ bool MemoryManager::SwitchActiveTileLayer(quint8 mapid) const{
     QVector<quint64> args;
     args.append(mapid);
     
-    return CallFunction(0x0548F0, args);
+    return CallFunction(GameResolver::Function::SwitchActiveTileLayer, args);
 #else
     Q_UNUSED(mapid);
     return false;
@@ -628,13 +755,12 @@ bool MemoryManager::SetCurrentPlayerThing(quint64 curThingPtr) const
     QVector<quint64> args;
     args.append(curThingPtr);
     
-    return CallFunction(0x054a20, args);
+    return CallFunction(GameResolver::Function::SetCurrentPlayerThing, args);
 #else
     Q_UNUSED(curThingPtr);
     return false;
 #endif
 }
-
 
 // bool MemoryManager::RecruitCharacter(quint32 charId, quint8 location) const
 // {

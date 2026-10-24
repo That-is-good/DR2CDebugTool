@@ -6,8 +6,11 @@
 #include <QList>
 #include <QVariantMap>
 #include <QProcess>
+#include <QImage>
+#include <QPixmap>
 
 #include "base.h"
+#include "gameresolver.h"
 
 class MemoryManager : public QObject
 {
@@ -29,6 +32,8 @@ public:
 
     // 主模块基址
     quint64 moduleBaseAddress() const { return m_moduleBase; }
+    const GameResolver::Layout &gameLayout() const { return m_gameLayout; }
+    bool hasFunction(GameResolver::Function function) const;
 
     // 内存读写
     bool readMemory(quint64, void*, quint64) const;
@@ -54,7 +59,8 @@ public:
     bool FreeRemoteMemory(quint64 remoteAddr) const;
 
     // 调用函数
-    bool CallFunction(quint64, const QVector<quint64>&, quint64 *retValue = nullptr) const;
+    bool CallFunction(GameResolver::Function, const QVector<quint64>&,
+                      quint64 *retValue = nullptr) const;
 
     bool ScriptEvaluateStringSafe(const QString&) const;
     bool FreeThing(quint64) const;
@@ -73,11 +79,13 @@ signals:
 
 private:
     void queryModuleBase();
+    bool resolveGameLayout();
 
     bool m_attached = false;
     quint32 m_processId = 0;
     QString m_processName;
     quint64 m_moduleBase = 0;
+    GameResolver::Layout m_gameLayout;
     void *m_handle = nullptr; // HANDLE
 };
 

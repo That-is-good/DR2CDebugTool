@@ -19,8 +19,7 @@ public:
     explicit GameDataReader(MemoryManager *memMgr, QObject *parent = nullptr);
 
     void setModuleBase(quint64);
-    void SetOffset(QList<quint64>);
-    void SetSize(QList<quint32>);
+    void setLayout(const GameResolver::Layout &);
     void SetLength(QList<quint16>);
 
     // ---- 辅助 ----
@@ -72,21 +71,21 @@ signals:
 private:
     MemoryManager *m_memMgr;
 
-    quint64 m_currentMapIdBase = 0x46DBA4;
-    quint64 m_lastEntityIdBase = 0x3CCD24;
-    quint64 m_mapLayerMetaBase = 0x46DBC0;
-    quint32 MAP_META_SIZE = 0x34;
+    quint64 m_currentMapIdBase = 0;
+    quint64 m_lastEntityIdBase = 0;
+    quint64 m_mapLayerMetaBase = 0;
+    quint32 MAP_META_SIZE = 0;
 
-    quint64 m_thingPoolBase = 0x5632E0;
-    // 角色池嵌入在 mission_state 中 (missionStateBase + 0xC0)，索引0不存储角色
-    quint64 m_charPoolBase = 0x5E22F8;
-    quint64 m_weaponPoolBase = 0x4E0080;
-    quint64 m_missionStateBase = 0x5E2238;
+    quint64 m_thingPoolBase = 0;
+    quint64 m_charPoolBase = 0;
+    quint64 m_weaponPoolBase = 0;
+    quint64 m_missionStateBase = 0;
     quint64 m_moduleBase = 0;
+    GameResolver::Layout m_layout;
 
-    quint32 THING_SIZE = 0x304;
-    quint32 CHARACTER_SIZE = 0x2e0;
-    quint32 WEAPON_SIZE = 0x1c4;
+    quint32 THING_SIZE = 0;
+    quint32 CHARACTER_SIZE = 0;
+    quint32 WEAPON_SIZE = 0;
 
     quint16 THING_LENGTH = 610;
     quint16 CHARACTER_LENGTH = 255;

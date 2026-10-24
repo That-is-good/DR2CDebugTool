@@ -303,15 +303,26 @@ void MainWindow::setupConnections()
     connect(m_memMgr, &MemoryManager::processAttached, this, [this]() {
         quint64 base = m_memMgr->moduleBaseAddress();
         m_gameData->setModuleBase(base);
+        m_gameData->setLayout(m_memMgr->gameLayout());
         statusBar()->showMessage(QString(tr("已附加: %1 (PID: %2) 模块基址: 0x%3"))
             .arg(m_memMgr->attachedProcessName())
             .arg(m_memMgr->attachedProcessId())
             .arg(base, 0, 16));
+        if (!m_memMgr->gameLayout().warning.isEmpty()) {
+            statusBar()->showMessage(m_memMgr->gameLayout().warning, 10000);
+        }
         refreshAll();
         m_refreshTimer->start();
         setControlsEnabled(true);
+        const bool scriptAvailable =
+            m_memMgr->hasFunction(GameResolver::Function::ScriptEvaluateStringSafe);
+        ui->cmdplainTextEdit->setEnabled(scriptAvailable);
+        if (!scriptAvailable)
+            ui->cmdplainTextEdit->setToolTip(tr("此游戏构建未能识别脚本执行函数。"));
     });
     connect(m_memMgr, &MemoryManager::processDetached, this, [this]() {
+        m_gameData->setModuleBase(0);
+        m_gameData->setLayout(GameResolver::Layout{});
         statusBar()->showMessage(tr("已分离"));
         setControlsEnabled(false);
         m_refreshTimer->stop();
@@ -499,8 +510,6 @@ void MainWindow::setupMissionWeaponTable()
 // ==================== 设置 / 进程 ====================
 void MainWindow::setBase()
 {
-    m_gameData->SetOffset(setting->GetOffset());
-    m_gameData->SetSize(setting->GetSize());
     m_gameData->SetLength(setting->GetLength());
     m_refreshTimer->setInterval(setting->GetUpdateFrequency());
 }
@@ -1136,6 +1145,7 @@ void MainWindow::refreshEntityView()
             || m_thingImageTypeCache[slot] != th.type[0]
             || m_thingImageSubTypeCache[slot] != th.type[1]) {
             QPixmap pixmap;
+
             const QVector<QPixmap> *randomPixmaps = nullptr;
             const int iconIdx = iconIndexForThing(th);
             if (iconIdx == 1)
@@ -1273,7 +1283,10 @@ void MainWindow::onEntityMenu(const QPoint &pos){
         entitytableViewMenu.addAction(tr("修改物理"), this, [this, selAddrs]() { onEditEntityPhysics(selAddrs); });
         entitytableViewMenu.addAction(tr("修改其他"), this, [this, selAddrs]() { onEditEntityOther(selAddrs); });
         entitytableViewMenu.addSeparator();
-        entitytableViewMenu.addAction(tr("销毁"), this, [this, selAddrs]() { onDestoryEntity(selAddrs); });
+        QAction *destroyAction = entitytableViewMenu.addAction(
+            tr("销毁"), this, [this, selAddrs]() { onDestoryEntity(selAddrs); });
+        destroyAction->setEnabled(
+            m_memMgr->hasFunction(GameResolver::Function::FreeThing));
         entitytableViewMenu.addAction(tr("传送至中心"), this, [this, selAddrs]() { onTeleportToTarget(selAddrs); });
         entitytableViewMenu.addAction(tr("随机交换"), this, [this, selAddrs]() { onSwapEntityPositions(selAddrs); });
         entitytableViewMenu.addAction(tr("克隆"), this, [this, selAddrs]() { onCloneEntity(selAddrs); });
@@ -1592,6 +1605,10 @@ void MainWindow::onDestoryEntity(const QList<quint64> &addrs)
 
 quint64 MainWindow::onSpawnEntity(uint type){
     if (type < 1 || type > 9 || !isAttached()) return -1;
+    if (type == 1 && !m_memMgr->hasFunction(GameResolver::Function::FreeThing)) {
+        statusBar()->showMessage(tr("此游戏构建未能识别实体释放函数，已禁用人类生成以避免留下未清理实体"));
+        return -1;
+    }
 
     quint64 thingPtr = 0;
     if (type == 1){
@@ -1606,7 +1623,11 @@ quint64 MainWindow::onSpawnEntity(uint type){
             statusBar()->showMessage(tr("生成实体失败: 角色池已满"));
             return -1;
         }
-        m_memMgr->Assigncharactertothing(thingPtr, charSlot);
+        if (!m_memMgr->Assigncharactertothing(thingPtr, charSlot)) {
+            m_memMgr->FreeThing(thingPtr);
+            statusBar()->showMessage(tr("生成实体失败: 无法绑定角色数据"));
+            return -1;
+        }
     }
     else if (type < 5){
         thingPtr = m_memMgr->AllocateEntity(type > 4 ? 3 : type);

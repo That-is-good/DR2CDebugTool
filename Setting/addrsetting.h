@@ -19,18 +19,9 @@ public:
     ~AddrSetting();
     void RefreshText();
 
-    QList<quint64> GetOffset();
-    QList<quint32> GetSize();
     QList<quint16> GetLength();
     quint16 GetUpdateFrequency();
 
-    /*
-    void SetOffset(QList<quint64>);
-    void SetSize(QList<quint32>);
-    void SetLength(QList<quint16>);
-    void SetUpdateFrequency(quint16);
-    */
-   
     // 配置文件保存/读取
     void saveToFile(const QString &filePath) const;
     void loadFromFile(const QString &filePath);
@@ -44,21 +35,11 @@ private:
 
     Ui::AddrSetting *ui;
 
-    quint32 Charasize = 0x2E0;
     quint16 Charalength = 255;
 
-    quint64 Entityoffset = 0x5632E0;
-    quint32 Entitysize = 0x304;
     quint16 Entitylength = 610;
 
-    quint64 Weaponoffset = 0x4E0080;
-    quint32 Weaponsize = 0x1C4;
     quint16 Weaponlength = 1024;
-
-    quint64 Missonoffset = 0x5E2238;
-
-    quint64 Areaoffset = 0x46DBC0;
-    quint32 Areasize = 0x34;
 
     quint16 UpdateFrequency = 500;
 

@@ -146,6 +146,18 @@ ThingData GameDataReader::readThing(quint64 addr)
     m_memMgr->read<quint16>(addr + 0xD8, data.spriteid);
     m_memMgr->read<qint32>(addr + 0x254, data.hitpoints);
     m_memMgr->read<quint32>(addr + 0x288, data.ai_state);
+    m_memMgr->read<qint32>(addr + 0xE4, data.amount);
+    m_memMgr->read<quint8>(addr + 0xE8, data.loot);
+    m_memMgr->read<qint8>(addr + 0x208, data.chassis);
+    m_memMgr->read<qint8>(addr + 0x209, data.chassis_max);
+    m_memMgr->read<qint8>(addr + 0x20A, data.engine);
+    m_memMgr->read<qint8>(addr + 0x20B, data.engine_max);
+    m_memMgr->read<qint8>(addr + 0x20C, data.armour);
+    m_memMgr->read<qint8>(addr + 0x20D, data.armour_max);
+    m_memMgr->read<qint8>(addr + 0x20E, data.speed);
+    m_memMgr->read<qint8>(addr + 0x20F, data.speed_max);
+    m_memMgr->read<qint32>(addr + 0x210, data.repair);
+    m_memMgr->read<float>(addr + 0x214, data.mpg);
 
     data.addr = addr;
 
@@ -186,6 +198,18 @@ QList<ThingData> GameDataReader::readAllThings()
         memcpy(&data.spriteid, p + 0xD8, sizeof(quint16));
         memcpy(&data.hitpoints, p + 0x254, sizeof(qint32));
         memcpy(&data.ai_state, p + 0x288, sizeof(quint32));
+        memcpy(&data.amount, p + 0xE4, sizeof(qint32));
+        data.loot = p[0xE8];
+        data.chassis = static_cast<qint8>(p[0x208]);
+        data.chassis_max = static_cast<qint8>(p[0x209]);
+        data.engine = static_cast<qint8>(p[0x20A]);
+        data.engine_max = static_cast<qint8>(p[0x20B]);
+        data.armour = static_cast<qint8>(p[0x20C]);
+        data.armour_max = static_cast<qint8>(p[0x20D]);
+        data.speed = static_cast<qint8>(p[0x20E]);
+        data.speed_max = static_cast<qint8>(p[0x20F]);
+        memcpy(&data.repair, p + 0x210, sizeof(qint32));
+        memcpy(&data.mpg, p + 0x214, sizeof(float));
 
         data.addr = m_moduleBase + m_thingPoolBase + static_cast<quint64>(i) * THING_SIZE;
 
@@ -217,6 +241,21 @@ bool GameDataReader::writeThing(quint64 addr, const ThingData &data)
     ok &= m_memMgr->write<quint16>(addr + 0xD8, data.spriteid);
     ok &= m_memMgr->write<qint32>(addr + 0x254, data.hitpoints);
     ok &= m_memMgr->write<quint32>(addr + 0x288, data.ai_state);
+    if (data.type[0] == 3 && data.type[1] == 1) {
+        ok &= m_memMgr->write<qint32>(addr + 0xE4, data.amount);
+        ok &= m_memMgr->write<quint8>(addr + 0xE8, data.loot);
+    } else if (data.type[0] == 3 && data.type[1] == 3) {
+        ok &= m_memMgr->write<qint8>(addr + 0x208, data.chassis);
+        ok &= m_memMgr->write<qint8>(addr + 0x209, data.chassis_max);
+        ok &= m_memMgr->write<qint8>(addr + 0x20A, data.engine);
+        ok &= m_memMgr->write<qint8>(addr + 0x20B, data.engine_max);
+        ok &= m_memMgr->write<qint8>(addr + 0x20C, data.armour);
+        ok &= m_memMgr->write<qint8>(addr + 0x20D, data.armour_max);
+        ok &= m_memMgr->write<qint8>(addr + 0x20E, data.speed);
+        ok &= m_memMgr->write<qint8>(addr + 0x20F, data.speed_max);
+        ok &= m_memMgr->write<qint32>(addr + 0x210, data.repair);
+        ok &= m_memMgr->write<float>(addr + 0x214, data.mpg);
+    }
 
     return ok;
 }

@@ -18,6 +18,7 @@
 #include <QPair>
 #include <QDir>
 #include <QRandomGenerator>
+#include <limits>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -146,6 +147,8 @@ bool MainWindow::isAttached() const
 
 int MainWindow::selectedCharacterIndex() const
 {
+    if (ui->charaSelcomboBox->currentIndex() < 0)
+        return -1;
     return ui->charaSelcomboBox->currentData().toInt();
 }
 
@@ -1467,6 +1470,8 @@ void MainWindow::onEditEntityOther(const QList<quint64> &addrs)
 {
     if (addrs.isEmpty() || !isAttached()) return;
     ThingData cur = m_gameData->readThing(addrs.first());
+    const bool editVehicle = cur.type[0] == 3 && cur.type[1] == 3;
+    const bool editLoot = cur.type[0] == 3 && cur.type[1] == 1;
 
     QDialog dlg(this);
     dlg.setWindowTitle(tr("修改其他"));
@@ -1487,6 +1492,67 @@ void MainWindow::onEditEntityOther(const QList<quint64> &addrs)
     ai->setValue(static_cast<int>(cur.ai_state));
     form->addRow(tr("AI状态"), ai);
 
+    QSpinBox *chassis = nullptr;
+    QSpinBox *chassisMax = nullptr;
+    QSpinBox *engine = nullptr;
+    QSpinBox *engineMax = nullptr;
+    QSpinBox *armour = nullptr;
+    QSpinBox *armourMax = nullptr;
+    QSpinBox *speed = nullptr;
+    QSpinBox *speedMax = nullptr;
+    QSpinBox *repair = nullptr;
+    QDoubleSpinBox *mpg = nullptr;
+    QSpinBox *amount = nullptr;
+    QComboBox *loot = nullptr;
+
+    if (editVehicle) {
+        auto makeVehiclePart = [&dlg, form](const QString &label, qint8 value) {
+            QSpinBox *spin = new QSpinBox(&dlg);
+            spin->setRange(-128, 127);
+            spin->setValue(value);
+            form->addRow(label, spin);
+            return spin;
+        };
+        chassis = makeVehiclePart(tr("底盘"), cur.chassis);
+        chassisMax = makeVehiclePart(tr("底盘上限"), cur.chassis_max);
+        engine = makeVehiclePart(tr("引擎"), cur.engine);
+        engineMax = makeVehiclePart(tr("引擎上限"), cur.engine_max);
+        armour = makeVehiclePart(tr("装甲"), cur.armour);
+        armourMax = makeVehiclePart(tr("装甲上限"), cur.armour_max);
+        speed = makeVehiclePart(tr("速度"), cur.speed);
+        speedMax = makeVehiclePart(tr("速度上限"), cur.speed_max);
+
+        repair = new QSpinBox(&dlg);
+        repair->setRange(std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
+        repair->setValue(cur.repair);
+        form->addRow(tr("修理值"), repair);
+
+        mpg = new QDoubleSpinBox(&dlg);
+        mpg->setDecimals(2);
+        mpg->setRange(-65535.0, 65535.0);
+        mpg->setValue(cur.mpg);
+        form->addRow(tr("MPG"), mpg);
+    } else if (editLoot) {
+        amount = new QSpinBox(&dlg);
+        amount->setRange(std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
+        amount->setValue(cur.amount);
+        form->addRow(tr("数量"), amount);
+
+        loot = new QComboBox(&dlg);
+        const QStringList lootNames = {
+            tr("无"), tr("食物"), tr("汽油"), tr("医疗"),
+            tr("子弹"), tr("步枪弹"), tr("霰弹"), tr("废料")
+        };
+        for (int i = 0; i < lootNames.size(); ++i)
+            loot->addItem(lootNames[i], i);
+        const int lootIndex = loot->findData(cur.loot);
+        if (lootIndex >= 0)
+            loot->setCurrentIndex(lootIndex);
+        else
+            loot->setCurrentIndex(-1);
+        form->addRow(tr("战利品"), loot);
+    }
+
     QDialogButtonBox *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     connect(box, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     connect(box, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -1500,6 +1566,22 @@ void MainWindow::onEditEntityOther(const QList<quint64> &addrs)
                 th.hitpoints = hp->value();
                 th.spriteid = static_cast<quint16>(sprite->value());
                 th.ai_state = static_cast<quint32>(ai->value());
+                if (editVehicle && th.type[0] == 3 && th.type[1] == 3) {
+                    th.chassis = static_cast<qint8>(chassis->value());
+                    th.chassis_max = static_cast<qint8>(chassisMax->value());
+                    th.engine = static_cast<qint8>(engine->value());
+                    th.engine_max = static_cast<qint8>(engineMax->value());
+                    th.armour = static_cast<qint8>(armour->value());
+                    th.armour_max = static_cast<qint8>(armourMax->value());
+                    th.speed = static_cast<qint8>(speed->value());
+                    th.speed_max = static_cast<qint8>(speedMax->value());
+                    th.repair = repair->value();
+                    th.mpg = static_cast<float>(mpg->value());
+                } else if (editLoot && th.type[0] == 3 && th.type[1] == 1) {
+                    th.amount = amount->value();
+                    if (loot->currentIndex() >= 0)
+                        th.loot = static_cast<quint8>(loot->currentData().toUInt());
+                }
             });
         }
         //refreshEntityView();
@@ -1719,15 +1801,18 @@ void MainWindow::onRefreshTimerChara()
     const auto playerCharSlots = m_gameData->readMissionStatePlayerChar();
     QSet<quint32> playerCharSlotSet;
     for (quint32 charSlot : playerCharSlots)
-        if (charSlot != 0)
+        if (charSlot > 0 && charSlot <= static_cast<quint32>(m_charCache.size()))
             playerCharSlotSet.insert(charSlot);
 
-    // 构建当前角色列表：以角色ID(id[0])判断是否存在（名字可重复，ID唯一）
+    // Team slots are authoritative even when a character's own ID field is zero.
     QList<QPair<QString,int>> charList;
     for (int i = 0; i < m_charCache.size(); ++i) {
-        if (m_charCache[i].id[0] != 0) {
+        const bool teamMember = playerCharSlotSet.contains(static_cast<quint32>(i + 1));
+        if (m_charCache[i].id[0] != 0 || teamMember) {
             QString displayName = m_charCache[i].name;
-            if (playerCharSlotSet.contains(static_cast<quint32>(i + 1)))
+            if (displayName.trimmed().isEmpty())
+                displayName = tr("角色 %1").arg(i + 1);
+            if (teamMember)
                 displayName += QStringLiteral(" ★");
             charList.append(qMakePair(displayName, i));
         }
@@ -1735,22 +1820,31 @@ void MainWindow::onRefreshTimerChara()
 
     int curCharIdx = selectedCharacterIndex();
 
-    // 数量变化 → 重建下拉框
-    if (ui->charaSelcomboBox->count() != charList.size()) {
+    // Compare slot identities as well as count; a slot may be replaced without
+    // changing the number of characters.
+    bool rebuildCombo = ui->charaSelcomboBox->count() != charList.size();
+    for (int i = 0; !rebuildCombo && i < charList.size(); ++i)
+        rebuildCombo = ui->charaSelcomboBox->itemData(i).toInt() != charList[i].second;
+
+    if (rebuildCombo) {
         m_updatingUI = true;
         ui->charaSelcomboBox->blockSignals(true);
         ui->charaSelcomboBox->clear();
         for (const auto &p : charList)
             ui->charaSelcomboBox->addItem(p.first, p.second);
+        int selectedComboIndex = -1;
         for (int i = 0; i < ui->charaSelcomboBox->count(); ++i)
             if (ui->charaSelcomboBox->itemData(i).toInt() == curCharIdx) {
-                ui->charaSelcomboBox->setCurrentIndex(i);
+                selectedComboIndex = i;
                 break;
             }
+        if (selectedComboIndex < 0 && !charList.isEmpty())
+            selectedComboIndex = 0;
+        ui->charaSelcomboBox->setCurrentIndex(selectedComboIndex);
         ui->charaSelcomboBox->blockSignals(false);
         m_updatingUI = false;
     } else {
-        // 数量没变 → 按角色索引(itemData)匹配，仅更新名字文本，不重建
+        // 槽位顺序未变时，只需更新名字文本。
         m_updatingUI = true;
         ui->charaSelcomboBox->blockSignals(true);
         for (const auto &p : charList) {
@@ -1766,6 +1860,7 @@ void MainWindow::onRefreshTimerChara()
         m_updatingUI = false;
     }
 
+    curCharIdx = selectedCharacterIndex();
     if (curCharIdx >= 0 && curCharIdx < m_charCache.size())
         refreshCharacterData(curCharIdx);
 }

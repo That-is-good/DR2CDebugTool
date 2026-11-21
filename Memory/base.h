@@ -24,8 +24,19 @@ struct ThingData {
     quint8 glow = 0; // 0x70 发光
 
     quint16 spriteid; // 0xd8 精灵图ID
-    //qint32 amount; // 0xe4 数量
-    //quint8 loot; // 0xe8 战利品 数值对应Resources
+    qint32 amount = 0; // 0xe4 数量
+    quint8 loot = 0; // 0xe8 战利品
+
+    qint8 chassis = 0; // 0x208 载具底盘
+    qint8 chassis_max = 0; // 0x209
+    qint8 engine = 0; // 0x20a
+    qint8 engine_max = 0; // 0x20b
+    qint8 armour = 0; // 0x20c
+    qint8 armour_max = 0; // 0x20d
+    qint8 speed = 0; // 0x20e
+    qint8 speed_max = 0; // 0x20f
+    qint32 repair = 0; // 0x210
+    float mpg = 0.0f; // 0x214
 
     //quint32 charid = 0; // 0x148 角色ID
 

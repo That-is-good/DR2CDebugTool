@@ -33,6 +33,9 @@ GameLayout g_gameLayout;
 bool g_layoutValid = false;
 
 using fn_AllocateEntity_t   = Address(__cdecl*)(std::uint8_t);
+using fn_AllocateThing_t    = Address(__cdecl*)(std::uint8_t);
+using fn_AllocateCharacterSlot_t = std::uint32_t(__cdecl*)();
+using fn_AssignCharacterToThing_t = int(__cdecl*)(Address, std::uint32_t);
 using fn_FreeThing_t        = void(__cdecl*)(Address);
 using fn_GetCharacterData_t = Address(__cdecl*)(std::uint32_t);
 using fn_GetFrameRate       = std::uint32_t(__cdecl*)();
@@ -42,6 +45,9 @@ using fn_SetFrameRate       = std::uint32_t(__cdecl*)(std::uint32_t);
 using fn_SetCurrentPlayerThing = void(__cdecl*)(Address);
 
 fn_AllocateEntity_t   pAllocateEntity   = nullptr;
+fn_AllocateThing_t    pAllocateThing    = nullptr;
+fn_AllocateCharacterSlot_t pAllocateCharacterSlot = nullptr;
+fn_AssignCharacterToThing_t pAssignCharacterToThing = nullptr;
 fn_FreeThing_t        pFreeThing        = nullptr;
 fn_GetCharacterData_t pGetCharacterData = nullptr;
 fn_GetFrameRate       pGetFrameRate     = nullptr;
@@ -58,6 +64,11 @@ void CacheGameFunctions()
     if (!g_layoutValid)
         return;
     pAllocateEntity   = AsFn<fn_AllocateEntity_t>  (g_moduleBase + g_gameLayout.functionRvas[GameLayout::AllocateEntity]);
+    pAllocateThing    = AsFn<fn_AllocateThing_t>   (g_moduleBase + g_gameLayout.functionRvas[GameLayout::AllocateThing]);
+    pAllocateCharacterSlot = AsFn<fn_AllocateCharacterSlot_t>(
+        g_moduleBase + g_gameLayout.functionRvas[GameLayout::AllocateCharacterSlot]);
+    pAssignCharacterToThing = AsFn<fn_AssignCharacterToThing_t>(
+        g_moduleBase + g_gameLayout.functionRvas[GameLayout::AssignCharacterToThing]);
     pFreeThing        = g_gameLayout.functionRvas[GameLayout::FreeThing]
         ? AsFn<fn_FreeThing_t>(g_moduleBase + g_gameLayout.functionRvas[GameLayout::FreeThing])
         : nullptr;
@@ -128,6 +139,11 @@ bool g_dragEntity = false;
 SlotIndex g_hoveredSlot = -1;
 SlotIndex g_editTargetSlot = -1;
 SlotIndex g_draggingSlot = -1;
+float g_spawnPopupX = 0.0f;
+float g_spawnPopupY = 0.0f;
+float g_spawnWorldX = 0.0f;
+float g_spawnWorldY = 0.0f;
+std::uint8_t g_spawnMapId = 0;
 int  g_fps = 60;
 int  g_currentMapID = 0;
 
@@ -397,6 +413,61 @@ void DestroyEntity(SlotIndex slot)
     pFreeThing(EntityAddress(slot));
 }
 
+bool SpawnEntity(std::uint32_t type, const char **error)
+{
+    if (error)
+        *error = nullptr;
+    if (type < 1 || type > 9) {
+        if (error) *error = "Invalid entity type.";
+        return false;
+    }
+    if (type == 1 && (!pFreeThing || !pAllocateCharacterSlot ||
+                      !pAssignCharacterToThing)) {
+        if (error) *error = "Human spawning is unavailable in this game build.";
+        return false;
+    }
+    if ((type < 5 && !pAllocateEntity) || (type >= 5 && !pAllocateThing)) {
+        if (error) *error = "Entity allocation function is unavailable.";
+        return false;
+    }
+
+    Address thing = type < 5
+        ? pAllocateEntity(static_cast<std::uint8_t>(type))
+        : pAllocateThing(static_cast<std::uint8_t>(type - 5));
+    if (!thing) {
+        if (error) *error = "Entity allocation failed.";
+        return false;
+    }
+
+    const Address poolBase = g_moduleBase + g_gameLayout.thingPoolRva;
+    const Address poolSize = static_cast<Address>(g_gameLayout.thingStride)
+        * static_cast<Address>(kThingMaxSlots);
+    if (thing < poolBase || thing - poolBase >= poolSize ||
+        (thing - poolBase) % g_gameLayout.thingStride != 0) {
+        if (error) *error = "Allocator returned an address outside the entity pool.";
+        return false;
+    }
+
+    if (type == 1) {
+        const std::uint32_t characterId = pAllocateCharacterSlot();
+        if (!characterId) {
+            pFreeThing(thing);
+            if (error) *error = "Character pool is full.";
+            return false;
+        }
+        if (!pAssignCharacterToThing(thing, characterId)) {
+            pFreeThing(thing);
+            if (error) *error = "Failed to bind character data.";
+            return false;
+        }
+    }
+
+    Store<std::uint8_t>(thing + Offset::Thing::MapId, g_spawnMapId);
+    const float position[3] = {g_spawnWorldX, g_spawnWorldY, 0.0f};
+    StoreArray(thing + Offset::Thing::Position, position);
+    return true;
+}
+
 // ==================== Character 读写 ====================
 struct CharacterView {
     bool     active = false;
@@ -628,20 +699,37 @@ const char *EntityEditPopupId()
     return buffer;
 }
 
+const char *EntitySpawnPopupId()
+{
+    return "###dr2c_entity_spawn";
+}
+
 void CheckRightClickToEdit()
 {
     if (!g_window) return;
-    if (g_draggingSlot >= 0) return;
-    if (g_editTargetSlot >= 0) return;
-    if (IsImGuiCapturingMouse()) return;
 
     const bool rightDown = IsRightMouseDown();
     const bool rightClicked = rightDown && !g_prevRightDown;
     g_prevRightDown = rightDown;
 
     if (!rightClicked) return;
-    if (g_hoveredSlot < 0) return;
-    if (g_entities[g_hoveredSlot].id == 0) return;
+    if (g_draggingSlot >= 0 || g_editTargetSlot >= 0 || IsImGuiCapturingMouse())
+        return;
+
+    float mouseX = 0.0f, mouseY = 0.0f;
+    bool inside = false;
+    GetClientMousePos(mouseX, mouseY, inside);
+    if (!inside || !ComputeMouseWorldPos(g_spawnWorldX, g_spawnWorldY))
+        return;
+
+    g_spawnPopupX = mouseX;
+    g_spawnPopupY = mouseY;
+    g_spawnMapId = ReadCurrentMapId();
+
+    if (g_hoveredSlot < 0 || g_entities[g_hoveredSlot].id == 0) {
+        ImGui::OpenPopup(EntitySpawnPopupId());
+        return;
+    }
 
     g_editTargetSlot = g_hoveredSlot;
     g_charBuf = CharacterView{};
@@ -664,6 +752,41 @@ void CheckRightClickToEdit()
     }
 
     ImGui::OpenPopup(EntityEditPopupId());
+}
+
+void DrawEntitySpawnPopup()
+{
+    static const char *const entityNames[] = {
+        "Human", "Zombie", "Item", "Projectile", "Furniture",
+        "Pickup", "Weapon", "Vehicle", "Special Pickup"
+    };
+
+    ImGui::SetNextWindowPos(ImVec2(g_spawnPopupX, g_spawnPopupY), ImGuiCond_Appearing);
+    if (!ImGui::BeginPopup(EntitySpawnPopupId()))
+        return;
+
+    for (std::uint32_t i = 0; i < sizeof(entityNames) / sizeof(entityNames[0]); ++i) {
+        const bool humanUnavailable = i == 0 && !pFreeThing;
+        if (humanUnavailable)
+            ImGui::BeginDisabled();
+        if (ImGui::MenuItem(Tr(entityNames[i]))) {
+            const char *error = nullptr;
+            if (!SpawnEntity(i + 1, &error)) {
+                char message[256];
+                snprintf(message, sizeof(message),
+                         "DR2C Internal Overlay: %s\n",
+                         error ? error : "Entity creation failed.");
+                OutputDebugStringA(message);
+            } else {
+                LogLine("Spawned entity type=%u map=%u at=(%.2f,%.2f)",
+                        i + 1, g_spawnMapId, g_spawnWorldX, g_spawnWorldY);
+            }
+            ImGui::CloseCurrentPopup();
+        }
+        if (humanUnavailable)
+            ImGui::EndDisabled();
+    }
+    ImGui::EndPopup();
 }
 
 // ==================== 高亮 ====================
@@ -750,7 +873,7 @@ void DrawDebugPanel()
                 g_hoveredSlot, g_editTargetSlot, g_draggingSlot);
 
     ImGui::Separator();
-    ImGui::TextUnformatted(Tr("Right-click entity to edit"));
+    ImGui::TextUnformatted(Tr("Right-click entity to edit; empty ground to create"));
 
     ImGui::End();
 }
@@ -1264,6 +1387,7 @@ void RenderInternalUi()
 
     DrawDebugPanel();
     DrawEntityEditPopup();
+    DrawEntitySpawnPopup();
     DrawEntityHighlight();
 
     if (g_logToFile && ++g_logFrameCounter >= 30) {

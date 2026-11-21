@@ -5,6 +5,7 @@
 #include "imgui_impl_win32.h"
 #include "dr2c_memory.h"
 #include "dr2c_offsets.h"
+#include "dr2c_resolver.h"
 #include "translation.h"
 #include <windows.h>
 #include <cstring>
@@ -28,6 +29,8 @@ using SlotIndex = int;
 // ==================== 模块基址 + 函数指针（一次缓存） ====================
 // 地址统一为 dr2c::Address（见 dr2c_memory.h），偏移统一取自 dr2c_offsets.h
 Address g_moduleBase = 0;
+GameLayout g_gameLayout;
+bool g_layoutValid = false;
 
 using fn_AllocateEntity_t   = Address(__cdecl*)(std::uint8_t);
 using fn_FreeThing_t        = void(__cdecl*)(Address);
@@ -51,12 +54,21 @@ fn_SetCurrentPlayerThing pSetCurrentPlayerThing = nullptr;
 void CacheGameFunctions()
 {
     g_moduleBase      = Addr(GetModuleHandleW(nullptr));
-    pAllocateEntity   = AsFn<fn_AllocateEntity_t>  (g_moduleBase + Offset::Fn::AllocateEntity);
-    pFreeThing        = AsFn<fn_FreeThing_t>       (g_moduleBase + Offset::Fn::FreeThing);
-    pGetCharacterData = AsFn<fn_GetCharacterData_t>(g_moduleBase + Offset::Fn::GetCharacterData);
+    g_layoutValid = ResolveGameLayout(g_moduleBase, &g_gameLayout);
+    if (!g_layoutValid)
+        return;
+    pAllocateEntity   = AsFn<fn_AllocateEntity_t>  (g_moduleBase + g_gameLayout.functionRvas[GameLayout::AllocateEntity]);
+    pFreeThing        = g_gameLayout.functionRvas[GameLayout::FreeThing]
+        ? AsFn<fn_FreeThing_t>(g_moduleBase + g_gameLayout.functionRvas[GameLayout::FreeThing])
+        : nullptr;
+    pGetCharacterData = AsFn<fn_GetCharacterData_t>(
+        g_moduleBase + g_gameLayout.functionRvas[GameLayout::GetCharacterData]);
     pGetFrameRate     = AsFn<fn_GetFrameRate>      (g_moduleBase + Offset::Fn::GetFrameRate);
     pSetFrameRate     = AsFn<fn_SetFrameRate>      (g_moduleBase + Offset::Fn::SetFrameRate);
-    pSetCurrentPlayerThing = AsFn<fn_SetCurrentPlayerThing>(g_moduleBase + Offset::Fn::SetCurrentPlayerThing);
+    pSetCurrentPlayerThing = g_gameLayout.functionRvas[GameLayout::SetCurrentPlayerThing]
+        ? AsFn<fn_SetCurrentPlayerThing>(
+            g_moduleBase + g_gameLayout.functionRvas[GameLayout::SetCurrentPlayerThing])
+        : nullptr;
     // pGetCurrentMapLayer     = AsFn<fn_GetCurrentMapLayer>(g_moduleBase + 0x07D2E0u);
     // pSetCurrentMapLayer     = AsFn<fn_SetCurrentMapLayer>(g_moduleBase + 0x07D310u);
 }
@@ -69,8 +81,9 @@ constexpr SlotIndex kWeaponMaxCount = Offset::Weapon::MaxCount;
 // 实体槽位 -> 内存地址（唯一入口）
 inline Address EntityAddress(SlotIndex slot)
 {
-    return g_moduleBase + Offset::Global::ThingPool
-           + static_cast<Address>(slot) * Offset::Thing::Stride;
+    const std::uint32_t stride = g_layoutValid ? g_gameLayout.thingStride : Offset::Thing::Stride;
+    const std::uint32_t pool = g_layoutValid ? g_gameLayout.thingPoolRva : Offset::Global::ThingPool;
+    return g_moduleBase + pool + static_cast<Address>(slot) * stride;
 }
 
 // 实体槽位 -> 字节指针（仅用于按偏移访问字段）
@@ -88,6 +101,21 @@ template <typename T> inline T ReadRva(Rva rva)
 template <typename T> inline void WriteRva(Rva rva, T value)
 {
     Store<T>(g_moduleBase + rva, value);
+}
+
+inline std::uint8_t ReadCurrentMapId()
+{
+    return g_layoutValid
+        ? Load<std::uint8_t>(g_moduleBase + g_gameLayout.currentMapIdRva)
+        : ReadRva<std::uint8_t>(Offset::Global::MapLayer);
+}
+
+inline void WriteCurrentMapId(std::uint32_t value)
+{
+    if (g_layoutValid)
+        Store<std::uint32_t>(g_moduleBase + g_gameLayout.currentMapIdRva, value);
+    else
+        WriteRva<std::uint32_t>(Offset::Global::MapLayer, value);
 }
 
 // ==================== 全局状态 ====================
@@ -282,7 +310,7 @@ void RefreshDebug()
     g_debug.cameraY = ReadRva<float>(Offset::Global::CameraY);
     GetClientMousePos(g_debug.mouseX, g_debug.mouseY, g_debug.mouseInside);
     g_debug.effectiveScale = static_cast<float>(EffectiveScale());
-    g_currentMapID = ReadRva<std::uint8_t>(Offset::Global::MapLayer);
+    g_currentMapID = ReadCurrentMapId();
 }
 
 // ==================== 实体读写 ====================
@@ -358,7 +386,8 @@ void CloneEntity(SlotIndex slot)
     if (!dst) return;
 
     // 从 +0x02 复制到末尾，保留新分配的 id
-    std::memcpy(Ptr(dst + 0x02), Ptr(src + 0x02), Offset::Thing::Stride - 0x02);
+    const std::uint32_t stride = g_layoutValid ? g_gameLayout.thingStride : Offset::Thing::Stride;
+    std::memcpy(Ptr(dst + 0x02), Ptr(src + 0x02), stride - 0x02);
 }
 
 void DestroyEntity(SlotIndex slot)
@@ -487,8 +516,10 @@ void LoadWeaponNames()
 
     for (SlotIndex i = 0; i < kWeaponMaxCount; ++i) {
         const char *namePtr = AsConstPtr<char>(
-            g_moduleBase + Offset::Global::WeaponPool
-            + static_cast<Address>(i) * Offset::Weapon::Stride);
+            g_moduleBase
+            + (g_layoutValid ? g_gameLayout.weaponPoolRva : Offset::Global::WeaponPool)
+            + static_cast<Address>(i)
+            * (g_layoutValid ? g_gameLayout.weaponStride : Offset::Weapon::Stride));
         std::size_t len = strnlen(namePtr, Offset::Weapon::NameLength);
         if (len == 0) break;
         std::string name(namePtr, len);
@@ -530,7 +561,7 @@ void UpdateHoveredEntity()
         const Address thing = EntityAddress(slot);
         const std::uint16_t id    = Load<std::uint16_t>(thing + Offset::Thing::Id);
         const std::uint8_t  mapid = Load<std::uint8_t>(thing + Offset::Thing::MapId);
-        g_currentMapID = ReadRva<std::uint8_t>(Offset::Global::MapLayer);
+        g_currentMapID = ReadCurrentMapId();
         if (id == 0 || mapid != g_currentMapID) continue;
         const float px = Load<float>(thing + Offset::Thing::Position);
         const float py = Load<float>(thing + Offset::Thing::Position + sizeof(float));
@@ -691,8 +722,7 @@ void DrawDebugPanel()
     };
 
     if (ImGui::InputInt(Tr("Current Map"), &g_currentMapID)){
-        WriteRva<std::uint32_t>(Offset::Global::MapLayer,
-                                static_cast<std::uint8_t>(g_currentMapID));
+        WriteCurrentMapId(static_cast<std::uint32_t>(g_currentMapID));
     }
 
     // ---------------- 语言切换（中英文） ----------------
@@ -1161,6 +1191,16 @@ bool InitializeInternalUi(HWND window, HMODULE module)
     if (g_initialized || !window) return g_initialized;
 
     CacheGameFunctions();
+    if (!g_layoutValid) {
+        const char *reason = g_gameLayout.error
+            ? g_gameLayout.error : "unknown error";
+        char message[256];
+        snprintf(message, sizeof(message),
+                 "DR2C Internal Overlay: game layout resolution failed: %s\n",
+                 reason);
+        OutputDebugStringA(message);
+        return false;
+    }
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();

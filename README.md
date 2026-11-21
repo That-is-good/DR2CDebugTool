@@ -2,7 +2,7 @@
 
 一个基于 ImGui + MinHook 的 **DR2C 进程内覆盖层（Internal Overlay）**。
 
-通过 Hook `opengl32!wglSwapBuffers`，在游戏自己的 OpenGL 上下文里绘制调试 / 编辑面板，需要注入器注入dll。可以在运行时查看并修改实体、角色、物品、车辆等数据。
+通过 Hook `opengl32!wglSwapBuffers`，在游戏自己的 OpenGL 上下文里绘制调试 / 编辑面板，不依赖外挂注入器、不需要外部窗口，也不需要 overlay 分层。可以在运行时查看并修改实体、角色、物品、车辆等数据。
 
 界面支持**中英文实时切换**，语言选择会落盘到 DLL 同目录的 `.ini`。
 
@@ -62,12 +62,13 @@
 ├── translation.cpp        # 中英文词条表与查表
 ├── translation.h
 ├── dr2c_memory.h          # 地址/指针读写封装（Address / Load / Store / AsFn…）
-├── dr2c_offsets.h         # 游戏偏移与结构常量（唯一来源）
+├── dr2c_offsets.h         # 游戏结构字段偏移与常量
+├── dr2c_resolver.h/.cpp   # 启动时扫描游戏代码并解析版本相关地址
 ├── imgui-1.92.9b/         # Dear ImGui 源码 （自行下载）
 └── MinHook/               # MinHook 头文件 + lib/MinHook.a
 ```
 
-> 所有游戏偏移、结构大小、槽位数量、字符串长度**只在 `dr2c_offsets.h` 中声明**，其他文件一律通过 `Offset::*` 引用。
+> 结构字段偏移、槽位数量和字符串长度在 `dr2c_offsets.h` 中声明；实体池、武器池、地图 ID 及相关函数地址在启动时从游戏代码特征码解析。若无法安全解析，覆盖层会拒绝初始化，并将原因写入调试输出。
 
 ---
 

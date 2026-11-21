@@ -12,6 +12,7 @@ add_library(DR2CInternalOverlay SHARED
     dllmain.cpp
     imgui_ui.cpp
     translation.cpp
+    dr2c_resolver.cpp
     ${IMGUI_ROOT}/imgui.cpp
     ${IMGUI_ROOT}/imgui_draw.cpp
     ${IMGUI_ROOT}/imgui_tables.cpp

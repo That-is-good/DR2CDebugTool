@@ -115,14 +115,22 @@ Click **"Settings"** to adjust pool counts, refresh frequency, and UI language. 
   - If multiple entities are selected, most operations apply to all selected items.  
   - **"Set as Center"**: marks an entity as the target (used as the reference for later teleport/swap). The center entity is shown with a yellow circle marker.  
   - **"Flags"** submenu: batch enable/disable special properties (No Collision, Invisible, etc.). The displayed flag state is the logical AND of all selected entities.  
-  - **"Edit Position / Velocity / Physics / Other"**: opens a dialog for precise numeric adjustment. The dialog shows the current values of the first selected entity.  
+  - **"Edit Position / Velocity / Physics / Attributes"**: opens a dialog for precise numeric adjustment. The dialog shows the current values of the first selected entity.  
+    > "Edit Attributes" and "New Entity" share the same dialog. In edit mode the type is locked (cannot be switched); you can adjust the sprite, hitpoints, AI state, as well as pickup amount/loot and vehicle component stats.
   - **"Teleport to Center"**: moves selected entities to the center entity's coordinates.  
   - **"Random Swap"**: randomly swaps positions (including areas) among selected entities.  
   - **"Clone"**: duplicates selected entities at their current positions (if the type supports it).  
   - **"Destroy"**: completely removes entities.  
   - **"Set as Player Entity"**: sets the selected entity as the current player entity.  
-  - **"New"** submenu: spawns a new entity at the mouse position (type selectable).  
-    > **Note**: When spawning non-character entities such as **Items, Projectiles, Furniture, Pickups, Weapons, Vehicles, Special Pickups**, you usually need to set a valid **Sprite ID** as well; otherwise the entity will not display correctly in the game. Use the "Edit Other" dialog to assign a valid sprite ID to the newly spawned entity.  
+  - **"New Entity…"**: spawns a new entity at the mouse position. The dialog shows sprite thumbnails or a weapon list grouped by category (Human / Zombie / Item / Projectile / Furniture / Pickup / Weapon / Vehicle / Special Pickup), and lets you set hitpoints, amount/loot and vehicle attributes directly, so no further editing is needed after spawning.  
+
+    ![New Entity Dialog](new_entity.png)
+
+    > **Note**: Non-character entities are displayed based on their sprite. If you create them via scripts or other means, assign a valid **Sprite ID** (via the "Edit Attributes" dialog).
+    >
+    > **Pickups**: the game only allows picking up when `amount > 0` and `loot type != 0` (see interaction function `0x4658E0`). The dialog therefore offers no "none" loot option and always ensures an amount of at least 1.
+    >
+    > **Vehicles**: new vehicles default to a basic setup (chassis/engine/armour/speed = 1, repair 10, MPG 15) with 100 HP, and mass (`0x58`) is set to 1000, matching the game's own vehicle spawning. If the spawned vehicle still cannot be driven, the drivable state depends on mission-script data that the tool cannot reliably replicate.
   - **"Set Render Layer"**: sets the current area as the camera's render target. For example, after teleporting the player-controlled character to another area, use this function to set the new area as the render layer; otherwise the camera may stay stuck in the top-left corner.  
 - While dragging entities, automatic refresh is paused. On release, the new coordinates are written back and refresh resumes. This also applies to multi-selection dragging.
 

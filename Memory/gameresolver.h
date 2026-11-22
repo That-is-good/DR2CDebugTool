@@ -17,6 +17,7 @@ public:
         AssignCharacterToThing,
         SwitchActiveTileLayer,
         SetCurrentPlayerThing,
+        CreateWeaponEntity,
         Count
     };
 

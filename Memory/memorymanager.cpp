@@ -1,5 +1,7 @@
 #include "memorymanager.h"
 
+#include <QFileInfo>
+
 #ifdef Q_OS_WIN
 #include <windows.h>
 #include <tlhelp32.h>
@@ -36,6 +38,25 @@ void MemoryManager::queryModuleBase()
         m_moduleBase = reinterpret_cast<quint64>(hMods[0]);
     }
 #endif
+}
+
+QString MemoryManager::processImagePath() const
+{
+#ifdef Q_OS_WIN
+    if (!m_handle) return QString();
+    wchar_t buffer[MAX_PATH * 2] = {0};
+    DWORD size = static_cast<DWORD>(MAX_PATH * 2);
+    if (QueryFullProcessImageNameW(static_cast<HANDLE>(m_handle), 0, buffer, &size))
+        return QString::fromWCharArray(buffer, static_cast<int>(size));
+#endif
+    return QString();
+}
+
+QString MemoryManager::gameDirectory() const
+{
+    const QString path = processImagePath();
+    if (path.isEmpty()) return QString();
+    return QFileInfo(path).absolutePath();
 }
 
 bool MemoryManager::resolveGameLayout()
@@ -110,6 +131,8 @@ bool MemoryManager::resolveGameLayout()
         m_gameLayout.error = QStringLiteral("无法读取目标模块代码节用于特征码解析。");
         return false;
     }
+    m_codeSectionRva = textSection.VirtualAddress;
+    m_codeSectionSize = sectionSize;
 
     if (!GameResolver::resolve(executableSection, textSection.VirtualAddress,
                                optionalHeader.ImageBase, optionalHeader.SizeOfImage,
@@ -323,6 +346,17 @@ bool MemoryManager::writeMemory(quint64 address, const void *buffer, quint64 siz
     Q_UNUSED(size);
     return false;
 #endif
+}
+
+QByteArray MemoryManager::readCodeSection() const
+{
+    if (!m_codeSectionSize || !m_moduleBase)
+        return QByteArray();
+    QByteArray data(static_cast<qsizetype>(m_codeSectionSize), '\0');
+    if (!readMemory(m_moduleBase + m_codeSectionRva, data.data(),
+                    static_cast<quint64>(m_codeSectionSize)))
+        return QByteArray();
+    return data;
 }
 
 QString MemoryManager::readString(quint64 address, quint64 maxLen) const
@@ -720,7 +754,26 @@ quint32 MemoryManager::AllocateCharacterSlot() const
 #endif
 }
 
-bool MemoryManager::Assigncharactertothing(quint64 addr, quint32 charid) const{
+quint64 MemoryManager::CreateWeaponEntity(qint32 weaponId) const
+{
+#ifdef Q_OS_WIN
+    if (!m_handle || !hasFunction(GameResolver::Function::CreateWeaponEntity))
+        return 0;
+    quint64 thingPtr = 0;
+    QVector<quint64> args;
+    args.append(static_cast<quint64>(static_cast<qint32>(weaponId)));
+
+    if (!CallFunction(GameResolver::Function::CreateWeaponEntity, args, &thingPtr))
+        return 0;
+    return thingPtr;
+#else
+    Q_UNUSED(weaponId);
+    return 0;
+#endif
+}
+
+bool MemoryManager::Assigncharactertothing(quint64 addr, quint32 charid) const
+{
 #ifdef Q_OS_WIN
     if (!m_handle) return false;
     QVector<quint64> args;

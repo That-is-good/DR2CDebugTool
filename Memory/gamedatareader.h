@@ -5,11 +5,19 @@
 #include <QString>
 #include <QStringList>
 #include <QList>
+#include <QVector>
 
 #include "memorymanager.h"
 
 class MemoryManager;
 
+// 武器池中的一项。spriteId 取自 WeaponPool[i] + 0xF4（CreateWeaponEntity 用它
+// 写入实体的 0x98 字段），可直接用于精灵图预览。
+struct WeaponInfo {
+    qint32 index = 0;
+    QString name;
+    quint16 spriteId = 0;
+};
 
 class GameDataReader : public QObject
 {
@@ -59,6 +67,7 @@ public:
 
     // ---- 武器池 ----
     QStringList readAllWeaponNames() const;
+    QVector<WeaponInfo> readAllWeaponInfo() const;
     QString readWeaponName(qint32 index) const;
     qint32 maxWeapons() const { return WEAPON_LENGTH; }
     quint64 calcWeaponAddress(qint32 index) const;

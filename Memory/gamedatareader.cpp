@@ -509,6 +509,39 @@ QString GameDataReader::readWeaponName(qint32 index) const
     return m_memMgr->readString(addr, 40);
 }
 
+QVector<WeaponInfo> GameDataReader::readAllWeaponInfo() const
+{
+    QVector<WeaponInfo> result;
+    if (!isAttached() || !m_moduleBase || WEAPON_SIZE == 0) return result;
+
+    const qint64 poolSize = static_cast<qint64>(maxWeapons()) * WEAPON_SIZE;
+    QByteArray pool(poolSize, '\0');
+    if (!m_memMgr->readMemory(m_moduleBase + m_weaponPoolBase, pool.data(), poolSize))
+        return result;
+
+    const quint8 *base = reinterpret_cast<const quint8*>(pool.constData());
+    for (qint32 i = 0; i < maxWeapons(); ++i) {
+        const char *namePtr = reinterpret_cast<const char*>(base + static_cast<qint64>(i) * WEAPON_SIZE);
+        const qint64 len = qstrnlen(namePtr, 40);
+        if (len == 0) break;
+        const QString name = QString::fromUtf8(namePtr, static_cast<qint32>(len));
+        if (name == "UNDEFINED") break;
+
+        // WeaponPool[i] + 0xF4：CreateWeaponEntity 会把它写入实体 0x98
+        quint16 spriteId = 0;
+        const qint64 spriteOffset = static_cast<qint64>(i) * WEAPON_SIZE + 0xF4;
+        if (spriteOffset + static_cast<qint64>(sizeof(spriteId)) <= poolSize)
+            std::memcpy(&spriteId, base + spriteOffset, sizeof(spriteId));
+
+        WeaponInfo info;
+        info.index = i;
+        info.name = name;
+        info.spriteId = spriteId;
+        result.append(info);
+    }
+    return result;
+}
+
 QStringList GameDataReader::readAllWeaponNames() const
 {
     QStringList names;

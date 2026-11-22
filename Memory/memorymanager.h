@@ -29,11 +29,19 @@ public:
     bool isProcessAlive() const;
     QString attachedProcessName() const { return m_processName; }
     quint32 attachedProcessId() const { return m_processId; }
+    // 已附加进程的可执行文件完整路径 / 所在目录（用于定位 gfx 资源）
+    QString processImagePath() const;
+    QString gameDirectory() const;
 
     // 主模块基址
     quint64 moduleBaseAddress() const { return m_moduleBase; }
     const GameResolver::Layout &gameLayout() const { return m_gameLayout; }
     bool hasFunction(GameResolver::Function function) const;
+
+    // 主模块代码节（用于图集等非核心数据的运行时扫描）
+    quint32 codeSectionRva() const { return m_codeSectionRva; }
+    quint32 codeSectionSize() const { return m_codeSectionSize; }
+    QByteArray readCodeSection() const;
 
     // 内存读写
     bool readMemory(quint64, void*, quint64) const;
@@ -68,6 +76,7 @@ public:
     quint64 AllocateThing(qint8) const;
     quint32 AllocateCharacterSlot() const;
     bool Assigncharactertothing(quint64, quint32) const;
+    quint64 CreateWeaponEntity(qint32 weaponId) const;
     bool SwitchActiveTileLayer(quint8) const;
     bool SetCurrentPlayerThing(quint64) const;
     //bool RecruitCharacter(quint32, quint8) const;
@@ -85,6 +94,8 @@ private:
     quint32 m_processId = 0;
     QString m_processName;
     quint64 m_moduleBase = 0;
+    quint32 m_codeSectionRva = 0;
+    quint32 m_codeSectionSize = 0;
     GameResolver::Layout m_gameLayout;
     void *m_handle = nullptr; // HANDLE
 };

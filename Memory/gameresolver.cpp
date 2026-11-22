@@ -167,6 +167,11 @@ bool GameResolver::resolve(const QByteArray &section,
     const Pattern weaponAccessor(
         "8B 44 24 04 C7 05 ?? ?? ?? ?? ?? ?? ?? ?? 3D ?? ?? ?? ?? 76 ?? "
         "B8 ?? ?? ?? ?? 69 C0 ?? ?? ?? ?? 05 ?? ?? ?? ?? C3");
+    // 可选函数：CreateWeaponEntity(weapon_id) —— AllocateEntity(3) + 初始化武器数据。
+    // 缺失时只禁用“生成武器”，不影响工具附加。
+    const Pattern createWeaponEntity(
+        "56 53 83 EC 14 8B 5C 24 20 C7 04 24 03 00 00 00 E8 ?? ?? ?? ?? "
+        "89 04 24 89 C6 89 5C 24 04 E8 ?? ?? ?? ?? 81 FB 01 04 00 00");
     QStringList unresolvedFunctions;
     auto function = [&](Function id, const Pattern &pattern, const QString &name) {
         quint32 rva = 0;
@@ -192,6 +197,16 @@ bool GameResolver::resolve(const QByteArray &section,
         layout->error = QStringLiteral("无法唯一解析核心函数: %1；为避免错误读写，已拒绝附加。")
                             .arg(unresolvedFunctions.join(QStringLiteral(", ")));
         return false;
+    }
+
+    // 可选：武器实体创建函数
+    {
+        quint32 createWeaponRva = 0;
+        if (requiredPattern(section, sectionRva, createWeaponEntity, &createWeaponRva)) {
+            layout->functionRvas[static_cast<size_t>(Function::CreateWeaponEntity)] = createWeaponRva;
+        } else {
+            layout->warning += QStringLiteral("未能定位武器生成函数，生成武器功能将不可用。");
+        }
     }
 
     quint32 mapSetterRva = 0;

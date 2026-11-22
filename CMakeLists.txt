@@ -23,6 +23,10 @@ qt_add_executable(DR2CDebugTool
     Delegates/spinboxdelegate.cpp
     WeaponDialog/weapondialog.h
     WeaponDialog/weapondialog.cpp
+    Spawn/spriteatlas.h
+    Spawn/spriteatlas.cpp
+    Spawn/spawndialog.h
+    Spawn/spawndialog.cpp
     Setting/addrsetting.h
     Setting/addrsetting.cpp
     Setting/addrsetting.ui

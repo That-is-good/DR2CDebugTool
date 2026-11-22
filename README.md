@@ -38,6 +38,8 @@ Each language version contains detailed feature descriptions, usage guides, proj
 
 ![Entity Panel](./Readme/entity.png)
 
+![New Entity Dialog](./Readme/new_entity.png)
+
 ![Mission Panel](./Readme/misson.png)
 
 ---

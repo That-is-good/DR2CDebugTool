@@ -26,6 +26,7 @@ MainWindow::MainWindow(QWidget *parent)
     , setting(new AddrSetting(this))
     , m_memMgr(new MemoryManager(this))
     , m_gameData(new GameDataReader(m_memMgr, this))
+    , m_spriteAtlas(new SpriteAtlas(m_memMgr))
     , m_refreshTimer(new QTimer(this))
 {
     resourceNames = {
@@ -52,6 +53,8 @@ MainWindow::~MainWindow()
     disconnect(m_memMgr, &MemoryManager::processDetached, 0, 0);
     setControlsEnabled(false);
     m_refreshTimer->stop();
+    delete m_spriteAtlas;
+    m_spriteAtlas = nullptr;
     delete ui;
 }
 
@@ -313,6 +316,13 @@ void MainWindow::setupConnections()
             .arg(base, 0, 16));
         if (!m_memMgr->gameLayout().warning.isEmpty()) {
             statusBar()->showMessage(m_memMgr->gameLayout().warning, 10000);
+        }
+        m_spriteAtlas->setGameDirectory(m_memMgr->gameDirectory());
+        if (!m_spriteAtlas->refresh()) {
+            statusBar()->showMessage(m_spriteAtlas->lastError(), 8000);
+        } else if (m_memMgr->gameLayout().warning.isEmpty()) {
+            statusBar()->showMessage(
+                tr("精灵图集就绪：运行时扫描到 %1 张").arg(m_spriteAtlas->scannedSheets()), 6000);
         }
         refreshAll();
         m_refreshTimer->start();
@@ -946,21 +956,79 @@ void MainWindow::moveEntityToScenePos(quint64 addr, const QPointF &scenePos)
     //refreshEntityView();
 }
 
-quint64 MainWindow::spawnEntityAt(uint type, const QPointF &scenePos)
+void MainWindow::openSpawnDialog(const QPointF &scenePos)
 {
+    if (!isAttached()) return;
+
+    SpawnDialog dlg(m_memMgr, m_gameData, m_spriteAtlas,
+                    SpawnDialog::Mode::Create, nullptr, this);
+    const bool timerWasActive = m_refreshTimer->isActive();
+    m_refreshTimer->stop();
+    const int result = dlg.exec();
+    if (timerWasActive)
+        m_refreshTimer->start();
+
+    if (result == QDialog::Accepted)
+        spawnFromRequest(dlg.request(), scenePos);
+}
+
+void MainWindow::spawnFromRequest(const SpawnRequest &request, const QPointF &scenePos)
+{
+    if (!isAttached()) return;
+
+    quint64 ptr = 0;
+    if (request.weaponId >= 0) {
+        if (!m_memMgr->hasFunction(GameResolver::Function::CreateWeaponEntity)) {
+            statusBar()->showMessage(tr("此游戏构建未能识别武器生成函数，已取消"));
+            return;
+        }
+        ptr = m_memMgr->CreateWeaponEntity(request.weaponId);
+        if (!ptr) {
+            statusBar()->showMessage(tr("生成武器失败（武器索引无效或实体池已满）"));
+            return;
+        }
+    } else {
+        ptr = onSpawnEntity(static_cast<uint>(request.kind));
+        if (!ptr || ptr == static_cast<quint64>(-1))
+            return;
+    }
+
     const int region = regionFromScenePos(scenePos);
     const QPointF origin = m_regionOffsets.value(region, QPointF(0, 0));
     const float x = static_cast<float>(scenePos.x() - origin.x());
     const float y = static_cast<float>(scenePos.y() - origin.y());
 
-    quint64 ptr = onSpawnEntity(type);
-    if (ptr != 0 && ptr != static_cast<quint64>(-1))
-        m_gameData->modifyThing(ptr, [&](ThingData &th) {
-            th.mapid = static_cast<quint8>(region);
-            th.vec3d[0][0] = x;
-            th.vec3d[0][1] = y;
-        });
-    return ptr;
+    m_gameData->modifyThing(ptr, [&](ThingData &th) {
+        th.mapid = static_cast<quint8>(region);
+        th.vec3d[0][0] = x;
+        th.vec3d[0][1] = y;
+        // 武器实体的精灵图由 CreateWeaponEntity 按武器索引写入，此处不覆盖
+        if (request.weaponId < 0 && request.spriteId != 0)
+            th.spriteid = static_cast<quint16>(request.spriteId);
+        if (request.aiState != 0)
+            th.ai_state = request.aiState;
+        if (request.amountDirty)
+            th.amount = request.amount;
+        if (request.lootDirty)
+            th.loot = static_cast<quint8>(request.loot);
+        if (request.vehicleDirty) {
+            th.chassis = request.chassis;
+            th.chassis_max = request.chassisMax;
+            th.engine = request.engine;
+            th.engine_max = request.engineMax;
+            th.armour = request.armour;
+            th.armour_max = request.armourMax;
+            th.speed = request.speed;
+            th.speed_max = request.speedMax;
+            th.repair = request.repair;
+            th.mpg = request.mpg;
+            // 游戏自身生成载具时质量为 1000，普通实体只有 1，不补会导致车一碰就飞
+            th.phy[0] = 1000.0f;
+        }
+        if (request.hitpoints > 0)
+            th.hitpoints = request.hitpoints;
+    });
+    statusBar()->showMessage(tr("已生成实体"));
 }
 
 void MainWindow::RenderMapTileLayerAt(const QPointF &scenePos){
@@ -1284,7 +1352,7 @@ void MainWindow::onEntityMenu(const QPoint &pos){
         entitytableViewMenu.addAction(tr("修改位置"), this, [this, selAddrs]() { onEditEntityPosition(selAddrs); });
         entitytableViewMenu.addAction(tr("修改速度"), this, [this, selAddrs]() { onEditEntityVelocity(selAddrs); });
         entitytableViewMenu.addAction(tr("修改物理"), this, [this, selAddrs]() { onEditEntityPhysics(selAddrs); });
-        entitytableViewMenu.addAction(tr("修改其他"), this, [this, selAddrs]() { onEditEntityOther(selAddrs); });
+        entitytableViewMenu.addAction(tr("修改属性…"), this, [this, selAddrs]() { onEditEntityOther(selAddrs); });
         entitytableViewMenu.addSeparator();
         QAction *destroyAction = entitytableViewMenu.addAction(
             tr("销毁"), this, [this, selAddrs]() { onDestoryEntity(selAddrs); });
@@ -1297,18 +1365,7 @@ void MainWindow::onEntityMenu(const QPoint &pos){
         entitytableViewMenu.addSeparator();
     }
 
-    QMenu entitytableViewNewMenu(tr("新建"), this);
-    QList<QAction*> newactions;
-    newactions.append(entitytableViewNewMenu.addAction(tr("人类")));
-    newactions.append(entitytableViewNewMenu.addAction(tr("僵尸")));
-    newactions.append(entitytableViewNewMenu.addAction(tr("物品")));
-    newactions.append(entitytableViewNewMenu.addAction(tr("抛射物")));
-    newactions.append(entitytableViewNewMenu.addAction(tr("家具")));
-    newactions.append(entitytableViewNewMenu.addAction(tr("拾取物")));
-    newactions.append(entitytableViewNewMenu.addAction(tr("武器")));
-    newactions.append(entitytableViewNewMenu.addAction(tr("车辆")));
-    newactions.append(entitytableViewNewMenu.addAction(tr("特殊拾取")));
-    entitytableViewMenu.addMenu(&entitytableViewNewMenu);
+    entitytableViewMenu.addAction(tr("新建实体…"), this, [this, scenePos]() { openSpawnDialog(scenePos); });
     entitytableViewMenu.addAction(tr("设置渲染图层"), this, [this, scenePos]() { RenderMapTileLayerAt(scenePos); });
 
     // 模态菜单期间暂停定时刷新，避免模型重建
@@ -1325,9 +1382,6 @@ void MainWindow::onEntityMenu(const QPoint &pos){
     if (flagActs.contains(selectedAction)) {
         int flagIdx = flagActs.indexOf(selectedAction);
         applyEntityFlagsToAddrs(selAddrs, selectedAction->isChecked(), static_cast<quint8>(flagIdx));
-    } else if (newactions.contains(selectedAction)) {
-        spawnEntityAt(newactions.indexOf(selectedAction) + 1, scenePos);
-        //refreshEntityView();
     }
 }
 
@@ -1469,124 +1523,41 @@ void MainWindow::onEditEntityPhysics(const QList<quint64> &addrs)
 void MainWindow::onEditEntityOther(const QList<quint64> &addrs)
 {
     if (addrs.isEmpty() || !isAttached()) return;
-    ThingData cur = m_gameData->readThing(addrs.first());
-    const bool editVehicle = cur.type[0] == 3 && cur.type[1] == 3;
-    const bool editLoot = cur.type[0] == 3 && cur.type[1] == 1;
+    const ThingData cur = m_gameData->readThing(addrs.first());
 
-    QDialog dlg(this);
-    dlg.setWindowTitle(tr("修改其他"));
-    QFormLayout *form = new QFormLayout(&dlg);
-
-    QSpinBox *hp = new QSpinBox(&dlg);
-    hp->setRange(-65535, 65535);
-    hp->setValue(cur.hitpoints);
-    form->addRow(tr("生命值"), hp);
-
-    QSpinBox *sprite = new QSpinBox(&dlg);
-    sprite->setRange(0, 65535);
-    sprite->setValue(cur.spriteid);
-    form->addRow(tr("精灵图"), sprite);
-
-    QSpinBox *ai = new QSpinBox(&dlg);
-    ai->setRange(0, 65535);
-    ai->setValue(static_cast<int>(cur.ai_state));
-    form->addRow(tr("AI状态"), ai);
-
-    QSpinBox *chassis = nullptr;
-    QSpinBox *chassisMax = nullptr;
-    QSpinBox *engine = nullptr;
-    QSpinBox *engineMax = nullptr;
-    QSpinBox *armour = nullptr;
-    QSpinBox *armourMax = nullptr;
-    QSpinBox *speed = nullptr;
-    QSpinBox *speedMax = nullptr;
-    QSpinBox *repair = nullptr;
-    QDoubleSpinBox *mpg = nullptr;
-    QSpinBox *amount = nullptr;
-    QComboBox *loot = nullptr;
-
-    if (editVehicle) {
-        auto makeVehiclePart = [&dlg, form](const QString &label, qint8 value) {
-            QSpinBox *spin = new QSpinBox(&dlg);
-            spin->setRange(-128, 127);
-            spin->setValue(value);
-            form->addRow(label, spin);
-            return spin;
-        };
-        chassis = makeVehiclePart(tr("底盘"), cur.chassis);
-        chassisMax = makeVehiclePart(tr("底盘上限"), cur.chassis_max);
-        engine = makeVehiclePart(tr("引擎"), cur.engine);
-        engineMax = makeVehiclePart(tr("引擎上限"), cur.engine_max);
-        armour = makeVehiclePart(tr("装甲"), cur.armour);
-        armourMax = makeVehiclePart(tr("装甲上限"), cur.armour_max);
-        speed = makeVehiclePart(tr("速度"), cur.speed);
-        speedMax = makeVehiclePart(tr("速度上限"), cur.speed_max);
-
-        repair = new QSpinBox(&dlg);
-        repair->setRange(std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
-        repair->setValue(cur.repair);
-        form->addRow(tr("修理值"), repair);
-
-        mpg = new QDoubleSpinBox(&dlg);
-        mpg->setDecimals(2);
-        mpg->setRange(-65535.0, 65535.0);
-        mpg->setValue(cur.mpg);
-        form->addRow(tr("MPG"), mpg);
-    } else if (editLoot) {
-        amount = new QSpinBox(&dlg);
-        amount->setRange(std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
-        amount->setValue(cur.amount);
-        form->addRow(tr("数量"), amount);
-
-        loot = new QComboBox(&dlg);
-        const QStringList lootNames = {
-            tr("无"), tr("食物"), tr("汽油"), tr("医疗"),
-            tr("子弹"), tr("步枪弹"), tr("霰弹"), tr("废料")
-        };
-        for (int i = 0; i < lootNames.size(); ++i)
-            loot->addItem(lootNames[i], i);
-        const int lootIndex = loot->findData(cur.loot);
-        if (lootIndex >= 0)
-            loot->setCurrentIndex(lootIndex);
-        else
-            loot->setCurrentIndex(-1);
-        form->addRow(tr("战利品"), loot);
-    }
-
-    QDialogButtonBox *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
-    connect(box, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
-    connect(box, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
-    form->addRow(box);
-
-    bool timerWasActive = m_refreshTimer->isActive();
+    // 与“新建实体”共用同一个对话框：修改模式锁定类型并预填当前值
+    SpawnDialog dlg(m_memMgr, m_gameData, m_spriteAtlas,
+                    SpawnDialog::Mode::Edit, &cur, this);
+    const bool timerWasActive = m_refreshTimer->isActive();
     m_refreshTimer->stop();
-    if (dlg.exec() == QDialog::Accepted) {
-        for (quint64 a : addrs) {
-            m_gameData->modifyThing(a, [&](ThingData &th) {
-                th.hitpoints = hp->value();
-                th.spriteid = static_cast<quint16>(sprite->value());
-                th.ai_state = static_cast<quint32>(ai->value());
-                if (editVehicle && th.type[0] == 3 && th.type[1] == 3) {
-                    th.chassis = static_cast<qint8>(chassis->value());
-                    th.chassis_max = static_cast<qint8>(chassisMax->value());
-                    th.engine = static_cast<qint8>(engine->value());
-                    th.engine_max = static_cast<qint8>(engineMax->value());
-                    th.armour = static_cast<qint8>(armour->value());
-                    th.armour_max = static_cast<qint8>(armourMax->value());
-                    th.speed = static_cast<qint8>(speed->value());
-                    th.speed_max = static_cast<qint8>(speedMax->value());
-                    th.repair = repair->value();
-                    th.mpg = static_cast<float>(mpg->value());
-                } else if (editLoot && th.type[0] == 3 && th.type[1] == 1) {
-                    th.amount = amount->value();
-                    if (loot->currentIndex() >= 0)
-                        th.loot = static_cast<quint8>(loot->currentData().toUInt());
-                }
-            });
-        }
-        //refreshEntityView();
-    }
+    const int result = dlg.exec();
     if (timerWasActive) m_refreshTimer->start();
+    if (result != QDialog::Accepted)
+        return;
+
+    const SpawnRequest req = dlg.request();
+    for (quint64 a : addrs) {
+        m_gameData->modifyThing(a, [&](ThingData &th) {
+            th.spriteid = static_cast<quint16>(req.spriteId);
+            th.hitpoints = req.hitpoints;
+            th.ai_state = req.aiState;
+            if (th.type[0] == 3 && th.type[1] == 1) {
+                th.amount = req.amount;
+                th.loot = static_cast<quint8>(req.loot);
+            } else if (th.type[0] == 3 && th.type[1] == 3) {
+                th.chassis = req.chassis;
+                th.chassis_max = req.chassisMax;
+                th.engine = req.engine;
+                th.engine_max = req.engineMax;
+                th.armour = req.armour;
+                th.armour_max = req.armourMax;
+                th.speed = req.speed;
+                th.speed_max = req.speedMax;
+                th.repair = req.repair;
+                th.mpg = req.mpg;
+            }
+        });
+    }
 }
 
 void MainWindow::onTeleportToTarget(const QList<quint64> &addrs)

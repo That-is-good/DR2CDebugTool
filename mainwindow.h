@@ -43,6 +43,8 @@ class QGraphicsItemGroup;
 #include "Setting/addrsetting.h"
 #include "Memory/gamedatareader.h"
 #include "Memory/memorymanager.h"
+#include "Spawn/spriteatlas.h"
+#include "Spawn/spawndialog.h"
 #include "Delegates/spinboxdelegate.h"
 #include "WeaponDialog/weapondialog.h"
 
@@ -143,7 +145,8 @@ private:
     QPointF clampEntityPos(const QGraphicsItem *item, const QPointF &scenePos, int region) const;
     void updateEntityMarkerPositions();
     void moveEntityToScenePos(quint64 addr, const QPointF &scenePos);
-    quint64 spawnEntityAt(uint type, const QPointF &scenePos);
+    void openSpawnDialog(const QPointF &scenePos);
+    void spawnFromRequest(const SpawnRequest &request, const QPointF &scenePos);
     void RenderMapTileLayerAt(const QPointF &scenePos);
 
     bool isAttached() const;
@@ -153,6 +156,7 @@ private:
     AddrSetting *setting;
     MemoryManager *m_memMgr;
     GameDataReader *m_gameData;
+    SpriteAtlas *m_spriteAtlas;
     QTimer *m_refreshTimer;
 
     QGraphicsScene *m_entityScene = nullptr;

@@ -75,52 +75,52 @@
 <context>
     <name>GameDataReader</name>
     <message>
-        <location filename="../Memory/gamedatareader.cpp" line="101"/>
+        <location filename="../Memory/gamedatareader.cpp" line="111"/>
         <source>人类</source>
         <translation type="unfinished">人類</translation>
     </message>
     <message>
-        <location filename="../Memory/gamedatareader.cpp" line="102"/>
+        <location filename="../Memory/gamedatareader.cpp" line="112"/>
         <source>僵尸</source>
         <translation type="unfinished">ゾンビ</translation>
     </message>
     <message>
-        <location filename="../Memory/gamedatareader.cpp" line="104"/>
+        <location filename="../Memory/gamedatareader.cpp" line="114"/>
         <source>抛射物</source>
         <translation type="unfinished">投射物</translation>
     </message>
     <message>
-        <location filename="../Memory/gamedatareader.cpp" line="105"/>
+        <location filename="../Memory/gamedatareader.cpp" line="115"/>
         <source>类型%1</source>
         <translation type="unfinished">型%1</translation>
     </message>
     <message>
-        <location filename="../Memory/gamedatareader.cpp" line="112"/>
+        <location filename="../Memory/gamedatareader.cpp" line="122"/>
         <source>物品</source>
         <translation type="unfinished">物</translation>
     </message>
     <message>
-        <location filename="../Memory/gamedatareader.cpp" line="113"/>
+        <location filename="../Memory/gamedatareader.cpp" line="123"/>
         <source>拾取物</source>
         <translation type="unfinished">拾取物</translation>
     </message>
     <message>
-        <location filename="../Memory/gamedatareader.cpp" line="114"/>
+        <location filename="../Memory/gamedatareader.cpp" line="124"/>
         <source>武器</source>
         <translation type="unfinished">武器</translation>
     </message>
     <message>
-        <location filename="../Memory/gamedatareader.cpp" line="115"/>
+        <location filename="../Memory/gamedatareader.cpp" line="125"/>
         <source>车辆</source>
         <translation type="unfinished">乗り物</translation>
     </message>
     <message>
-        <location filename="../Memory/gamedatareader.cpp" line="116"/>
+        <location filename="../Memory/gamedatareader.cpp" line="126"/>
         <source>特殊拾取</source>
         <translation type="unfinished">特殊</translation>
     </message>
     <message>
-        <location filename="../Memory/gamedatareader.cpp" line="117"/>
+        <location filename="../Memory/gamedatareader.cpp" line="127"/>
         <source>子类型%1</source>
         <translation type="unfinished">子型%1</translation>
     </message>
@@ -130,7 +130,7 @@
     <message>
         <location filename="../mainwindow.ui" line="14"/>
         <source>MainWindow</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">MainWindow</translation>
     </message>
     <message>
         <location filename="../mainwindow.ui" line="39"/>
@@ -140,7 +140,7 @@
     <message>
         <location filename="../mainwindow.ui" line="55"/>
         <source>prog</source>
-        <translation></translation>
+        <translation>prog</translation>
     </message>
     <message>
         <location filename="../mainwindow.ui" line="72"/>
@@ -204,19 +204,19 @@
     </message>
     <message>
         <location filename="../mainwindow.ui" line="271"/>
-        <location filename="../mainwindow.cpp" line="414"/>
+        <location filename="../mainwindow.cpp" line="416"/>
         <source>属性</source>
-        <translation></translation>
+        <translation>属性</translation>
     </message>
     <message>
         <location filename="../mainwindow.ui" line="318"/>
         <source>属性2</source>
-        <translation></translation>
+        <translation>属性2</translation>
     </message>
     <message>
         <location filename="../mainwindow.ui" line="283"/>
         <source>属性1</source>
-        <translation></translation>
+        <translation>属性1</translation>
     </message>
     <message>
         <location filename="../mainwindow.ui" line="392"/>
@@ -239,7 +239,7 @@
     </message>
     <message>
         <location filename="../mainwindow.ui" line="448"/>
-        <location filename="../mainwindow.cpp" line="1400"/>
+        <location filename="../mainwindow.cpp" line="1409"/>
         <source>区域</source>
         <translation type="unfinished">区域</translation>
     </message>
@@ -252,7 +252,7 @@
         <translation type="obsolete">非発光</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1329"/>
+        <location filename="../mainwindow.cpp" line="1338"/>
         <source>不可被击中</source>
         <translation type="unfinished">被弾無効</translation>
     </message>
@@ -269,17 +269,17 @@
         <translation type="obsolete">淡さ</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1326"/>
+        <location filename="../mainwindow.cpp" line="1335"/>
         <source>无碰撞</source>
         <translation type="unfinished">衝突無効</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1328"/>
+        <location filename="../mainwindow.cpp" line="1337"/>
         <source>不绘制</source>
         <translation type="unfinished">非描画</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1331"/>
+        <location filename="../mainwindow.cpp" line="1340"/>
         <source>发光</source>
         <translation type="unfinished">発光</translation>
     </message>
@@ -288,49 +288,49 @@
         <translation type="obsolete">たんま</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1456"/>
+        <location filename="../mainwindow.cpp" line="1465"/>
         <source>速度X</source>
-        <translation></translation>
+        <translation>速度X</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1500"/>
+        <location filename="../mainwindow.cpp" line="1509"/>
         <source>摩擦力</source>
-        <translation></translation>
+        <translation>摩擦力</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1458"/>
+        <location filename="../mainwindow.cpp" line="1467"/>
         <source>速度Z</source>
-        <translation></translation>
+        <translation>速度Z</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1412"/>
+        <location filename="../mainwindow.cpp" line="1421"/>
         <source>坐标X</source>
         <translation type="unfinished">位置X</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1501"/>
+        <location filename="../mainwindow.cpp" line="1510"/>
         <source>弹跳力</source>
         <translation type="unfinished">反発力</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1499"/>
+        <location filename="../mainwindow.cpp" line="1508"/>
         <source>质量</source>
         <translation type="unfinished">質量</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1413"/>
+        <location filename="../mainwindow.cpp" line="1422"/>
         <source>坐标Y</source>
         <translation type="unfinished">位置Y</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1414"/>
+        <location filename="../mainwindow.cpp" line="1423"/>
         <source>坐标Z</source>
         <translation type="unfinished">位置Z</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1457"/>
+        <location filename="../mainwindow.cpp" line="1466"/>
         <source>速度Y</source>
-        <translation></translation>
+        <translation>速度Y</translation>
     </message>
     <message>
         <source>生命值</source>
@@ -385,12 +385,14 @@
         <translation type="obsolete">戦利品</translation>
     </message>
     <message>
+        <location filename="../mainwindow.cpp" line="35"/>
         <source>步枪弹</source>
-        <translation type="obsolete">ライフル弾</translation>
+        <translation type="unfinished">ライフル弾</translation>
     </message>
     <message>
+        <location filename="../mainwindow.cpp" line="35"/>
         <source>废料</source>
-        <translation type="obsolete">スクラップ</translation>
+        <translation type="unfinished">スクラップ</translation>
     </message>
     <message>
         <source>设置目标实体</source>
@@ -411,12 +413,12 @@
         <translation type="unfinished">ペット</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1327"/>
+        <location filename="../mainwindow.cpp" line="1336"/>
         <source>隐身</source>
         <translation type="unfinished">不可視</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1330"/>
+        <location filename="../mainwindow.cpp" line="1339"/>
         <source>不可拾取</source>
         <translation type="unfinished">拾得不可</translation>
     </message>
@@ -483,14 +485,14 @@
     </message>
     <message>
         <location filename="../mainwindow.ui" line="523"/>
-        <location filename="../mainwindow.cpp" line="441"/>
-        <location filename="../mainwindow.cpp" line="479"/>
+        <location filename="../mainwindow.cpp" line="443"/>
+        <location filename="../mainwindow.cpp" line="481"/>
         <source>资源</source>
         <translation type="unfinished">資源</translation>
     </message>
     <message>
         <location filename="../mainwindow.ui" line="541"/>
-        <location filename="../mainwindow.cpp" line="456"/>
+        <location filename="../mainwindow.cpp" line="458"/>
         <source>武器</source>
         <translation type="unfinished">武器</translation>
     </message>
@@ -503,203 +505,206 @@
         <translation type="obsolete">資源0</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="33"/>
+        <location filename="../mainwindow.cpp" line="35"/>
         <source>食物</source>
         <translation type="unfinished">食料</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="33"/>
+        <location filename="../mainwindow.cpp" line="35"/>
         <source>汽油</source>
         <translation type="unfinished">ガソリン</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="33"/>
-        <location filename="../mainwindow.cpp" line="36"/>
+        <location filename="../mainwindow.cpp" line="35"/>
+        <location filename="../mainwindow.cpp" line="38"/>
         <source>医疗</source>
         <translation type="unfinished">医療</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="33"/>
         <source>步枪</source>
-        <translation type="unfinished">ライフル弾</translation>
+        <translation type="obsolete">ライフル弾</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="33"/>
+        <location filename="../mainwindow.cpp" line="35"/>
         <source>霰弹</source>
         <translation type="unfinished">ショットガン弾</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="33"/>
         <source>手枪</source>
-        <translation type="unfinished">ピストル弾</translation>
+        <translation type="obsolete">ピストル弾</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="33"/>
         <source>垃圾</source>
-        <translation type="unfinished">ゴミ</translation>
+        <translation type="obsolete">ゴミ</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="36"/>
+        <location filename="../mainwindow.cpp" line="38"/>
         <source>士气</source>
         <translation type="unfinished">やる気</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="36"/>
+        <location filename="../mainwindow.cpp" line="38"/>
         <source>态度</source>
         <translation type="unfinished">態度</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="36"/>
+        <location filename="../mainwindow.cpp" line="38"/>
         <source>镇静</source>
         <translation type="unfinished">冷静</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="36"/>
+        <location filename="../mainwindow.cpp" line="38"/>
         <source>魅力</source>
         <translation type="unfinished">魅力</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="36"/>
+        <location filename="../mainwindow.cpp" line="38"/>
         <source>智慧</source>
         <translation type="unfinished">智慧</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="36"/>
+        <location filename="../mainwindow.cpp" line="38"/>
         <source>忠诚</source>
         <translation type="unfinished">忠誠</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="37"/>
+        <location filename="../mainwindow.cpp" line="39"/>
         <source>机械</source>
         <translation type="unfinished">機械</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="37"/>
+        <location filename="../mainwindow.cpp" line="39"/>
         <source>射击</source>
         <translation type="unfinished">射撃</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="37"/>
+        <location filename="../mainwindow.cpp" line="39"/>
         <source>力量</source>
         <translation type="unfinished">力量</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="37"/>
+        <location filename="../mainwindow.cpp" line="39"/>
         <source>灵巧</source>
         <translation type="unfinished">敏捷</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="37"/>
+        <location filename="../mainwindow.cpp" line="39"/>
         <source>体能</source>
         <translation type="unfinished">体力</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="37"/>
+        <location filename="../mainwindow.cpp" line="39"/>
         <source>活力</source>
         <translation type="unfinished">活力</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="42"/>
+        <location filename="../mainwindow.cpp" line="44"/>
         <source>加拿大的死亡之路调试工具</source>
         <translation type="unfinished">Death Road to Canadaデバッグツール</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="227"/>
+        <location filename="../mainwindow.cpp" line="229"/>
         <source>输入进程名过滤...</source>
         <translation type="unfinished">プロセスを入力...</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="235"/>
-        <location filename="../mainwindow.cpp" line="1074"/>
+        <location filename="../mainwindow.cpp" line="237"/>
+        <location filename="../mainwindow.cpp" line="1083"/>
         <source>全部</source>
         <translation type="unfinished">全て</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="325"/>
+        <location filename="../mainwindow.cpp" line="327"/>
         <source>精灵图集就绪：运行时扫描到 %1 张</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">スプライトアトラス準備完了：実行時に %1 枚を検出</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="982"/>
+        <location filename="../mainwindow.cpp" line="984"/>
         <source>此游戏构建未能识别武器生成函数，已取消</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">このゲームビルドでは武器生成関数を特定できないため、中止しました</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="987"/>
+        <location filename="../mainwindow.cpp" line="989"/>
         <source>生成武器失败（武器索引无效或实体池已满）</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">武器の生成に失敗しました（武器インデックスが無効、またはエンティティプールが満杯）</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1355"/>
+        <location filename="../mainwindow.cpp" line="1364"/>
         <source>修改属性…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">属性を変更…</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1368"/>
+        <location filename="../mainwindow.cpp" line="1377"/>
         <source>新建实体…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">エンティティを新規作成…</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1785"/>
+        <location filename="../mainwindow.cpp" line="1801"/>
         <source>角色 %1</source>
         <translation type="unfinished">キャラクター %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="334"/>
+        <location filename="../mainwindow.cpp" line="336"/>
         <source>此游戏构建未能识别脚本执行函数。</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">このゲームビルドではスクリプト実行関数を特定できませんでした。</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="952"/>
+        <location filename="../mainwindow.cpp" line="35"/>
+        <source>子弹</source>
+        <translation type="unfinished">弾丸</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="954"/>
         <source>已移动实体至区域%1 (X:%2 Y:%3)</source>
         <translation type="unfinished">実体を区域%1 (X:%2 Y:%3) へ移動しました</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1041"/>
+        <location filename="../mainwindow.cpp" line="1050"/>
         <source>已设置渲染图层</source>
         <translation type="unfinished">レンダリングレイヤー設定済み</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1043"/>
+        <location filename="../mainwindow.cpp" line="1052"/>
         <source>设置图层失败</source>
         <translation type="unfinished">レンダリングレイヤー設定失敗</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1248"/>
+        <location filename="../mainwindow.cpp" line="1257"/>
         <source>ID: %1 | %2 | 区域：%3
 X: %4 Y: %5 Z: %6</source>
-        <translation></translation>
+        <translation>ID: %1 | %2 | エリア：%3
+X: %4 Y: %5 Z: %6</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1318"/>
+        <location filename="../mainwindow.cpp" line="1327"/>
         <source>设置为中心</source>
         <translation type="unfinished">中心に設定</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1320"/>
+        <location filename="../mainwindow.cpp" line="1329"/>
         <source>已设置中心实体: 0x%1</source>
         <translation type="unfinished">中心実体を設定: 0x%1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1325"/>
+        <location filename="../mainwindow.cpp" line="1334"/>
         <source>标志</source>
         <translation type="unfinished">フラグ</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1352"/>
-        <location filename="../mainwindow.cpp" line="1394"/>
+        <location filename="../mainwindow.cpp" line="1361"/>
+        <location filename="../mainwindow.cpp" line="1403"/>
         <source>修改位置</source>
         <translation type="unfinished">位置を変更</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1353"/>
-        <location filename="../mainwindow.cpp" line="1443"/>
+        <location filename="../mainwindow.cpp" line="1362"/>
+        <location filename="../mainwindow.cpp" line="1452"/>
         <source>修改速度</source>
         <translation type="unfinished">速度を変更</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1354"/>
-        <location filename="../mainwindow.cpp" line="1486"/>
+        <location filename="../mainwindow.cpp" line="1363"/>
+        <location filename="../mainwindow.cpp" line="1495"/>
         <source>修改物理</source>
         <translation type="unfinished">物理を変更</translation>
     </message>
@@ -708,27 +713,27 @@ X: %4 Y: %5 Z: %6</source>
         <translation type="obsolete">その他を変更</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1358"/>
+        <location filename="../mainwindow.cpp" line="1367"/>
         <source>销毁</source>
         <translation type="unfinished">破棄</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1361"/>
+        <location filename="../mainwindow.cpp" line="1370"/>
         <source>传送至中心</source>
         <translation type="unfinished">中心へ転送</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1362"/>
+        <location filename="../mainwindow.cpp" line="1371"/>
         <source>随机交换</source>
         <translation type="unfinished">ランダム交換</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1363"/>
+        <location filename="../mainwindow.cpp" line="1372"/>
         <source>克隆</source>
         <translation type="unfinished">クローン</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1364"/>
+        <location filename="../mainwindow.cpp" line="1373"/>
         <source>设为玩家实体</source>
         <translation type="unfinished">プレイヤー実体に設定</translation>
     </message>
@@ -769,58 +774,58 @@ X: %4 Y: %5 Z: %6</source>
         <translation type="vanished">特殊</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1369"/>
+        <location filename="../mainwindow.cpp" line="1378"/>
         <source>设置渲染图层</source>
         <translation type="unfinished">レンダリングレイヤーを設定</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1662"/>
+        <location filename="../mainwindow.cpp" line="1678"/>
         <source>此游戏构建未能识别实体释放函数，已禁用人类生成以避免留下未清理实体</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">このゲームビルドではエンティティ解放関数を特定できないため、未解放エンティティを残さないよう人間の生成を無効化しました</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1681"/>
+        <location filename="../mainwindow.cpp" line="1697"/>
         <source>生成实体失败: 无法绑定角色数据</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">エンティティの生成に失敗しました：キャラクターデータを関連付けできません</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1724"/>
+        <location filename="../mainwindow.cpp" line="1740"/>
         <source>已设置为玩家实体</source>
         <translation type="unfinished">プレイヤー実体に設定済み</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1726"/>
+        <location filename="../mainwindow.cpp" line="1742"/>
         <source>设置为玩家实体失败</source>
         <translation type="unfinished">プレイヤー実体設定に失敗しました</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1882"/>
+        <location filename="../mainwindow.cpp" line="1898"/>
         <source>目标进程已退出，自动分离</source>
         <translation type="unfinished">ターゲットプロセスが終了したため、自動的に切り離します</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="874"/>
-        <location filename="../mainwindow.cpp" line="1078"/>
+        <location filename="../mainwindow.cpp" line="876"/>
+        <location filename="../mainwindow.cpp" line="1087"/>
         <source>区域%1</source>
-        <translation></translation>
+        <translation>エリア%1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="313"/>
+        <location filename="../mainwindow.cpp" line="315"/>
         <source>已附加: %1 (PID: %2) 模块基址: 0x%3</source>
         <translation>添付済み: %1 (PID: %2) モジュール: 0x%3</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="339"/>
+        <location filename="../mainwindow.cpp" line="341"/>
         <source>已分离</source>
         <translation type="unfinished">切離済み</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="344"/>
+        <location filename="../mainwindow.cpp" line="346"/>
         <source>错误: </source>
         <translation type="unfinished">エラー:</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="345"/>
+        <location filename="../mainwindow.cpp" line="347"/>
         <source>错误</source>
         <translation type="unfinished">エラー</translation>
     </message>
@@ -833,62 +838,62 @@ X: %4 Y: %5 Z: %6</source>
         <translation type="obsolete">アドバイス</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="414"/>
+        <location filename="../mainwindow.cpp" line="416"/>
         <source>基础值</source>
         <translation type="unfinished">基本値</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="414"/>
+        <location filename="../mainwindow.cpp" line="416"/>
         <source>附加值</source>
         <translation type="unfinished">追加値</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="414"/>
+        <location filename="../mainwindow.cpp" line="416"/>
         <source>有效值</source>
         <translation type="unfinished">有効値</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="414"/>
+        <location filename="../mainwindow.cpp" line="416"/>
         <source>是否已知</source>
         <translation type="unfinished">既知</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="414"/>
+        <location filename="../mainwindow.cpp" line="416"/>
         <source>临时值</source>
         <translation type="unfinished">臨時値</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="441"/>
-        <location filename="../mainwindow.cpp" line="456"/>
-        <location filename="../mainwindow.cpp" line="479"/>
+        <location filename="../mainwindow.cpp" line="443"/>
+        <location filename="../mainwindow.cpp" line="458"/>
+        <location filename="../mainwindow.cpp" line="481"/>
         <source>数量</source>
         <translation type="unfinished">個数</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="456"/>
+        <location filename="../mainwindow.cpp" line="458"/>
         <source>锁定</source>
         <translation type="unfinished">固定</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="459"/>
-        <location filename="../mainwindow.cpp" line="505"/>
-        <location filename="../mainwindow.cpp" line="741"/>
-        <location filename="../mainwindow.cpp" line="765"/>
-        <location filename="../mainwindow.cpp" line="787"/>
-        <location filename="../mainwindow.cpp" line="1868"/>
+        <location filename="../mainwindow.cpp" line="461"/>
+        <location filename="../mainwindow.cpp" line="507"/>
+        <location filename="../mainwindow.cpp" line="743"/>
+        <location filename="../mainwindow.cpp" line="767"/>
+        <location filename="../mainwindow.cpp" line="789"/>
+        <location filename="../mainwindow.cpp" line="1884"/>
         <source>(空)</source>
-        <translation></translation>
+        <translation>（空）</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="550"/>
-        <location filename="../mainwindow.cpp" line="1566"/>
-        <location filename="../mainwindow.cpp" line="1571"/>
-        <location filename="../mainwindow.cpp" line="1605"/>
+        <location filename="../mainwindow.cpp" line="552"/>
+        <location filename="../mainwindow.cpp" line="1582"/>
+        <location filename="../mainwindow.cpp" line="1587"/>
+        <location filename="../mainwindow.cpp" line="1621"/>
         <source>提示</source>
         <translation type="unfinished">ヒント</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="550"/>
+        <location filename="../mainwindow.cpp" line="552"/>
         <source>请选择进程</source>
         <translation type="unfinished">プロセス未検出</translation>
     </message>
@@ -901,7 +906,7 @@ X: %4 Y: %5 Z: %6</source>
         <translation type="obsolete">子型%1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1280"/>
+        <location filename="../mainwindow.cpp" line="1289"/>
         <source>实体: %1</source>
         <translation>実体: %1</translation>
     </message>
@@ -926,19 +931,19 @@ X: %4 Y: %5 Z: %6</source>
         <translation type="obsolete">実体壊した</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1655"/>
+        <location filename="../mainwindow.cpp" line="1671"/>
         <source>销毁实体失败</source>
         <translation type="unfinished">壊し失敗</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1031"/>
-        <location filename="../mainwindow.cpp" line="1692"/>
+        <location filename="../mainwindow.cpp" line="1040"/>
+        <location filename="../mainwindow.cpp" line="1708"/>
         <source>已生成实体</source>
         <translation type="unfinished">実体生成</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1670"/>
-        <location filename="../mainwindow.cpp" line="1695"/>
+        <location filename="../mainwindow.cpp" line="1686"/>
+        <location filename="../mainwindow.cpp" line="1711"/>
         <source>生成实体失败</source>
         <translation type="unfinished">生成失敗</translation>
     </message>
@@ -947,67 +952,67 @@ X: %4 Y: %5 Z: %6</source>
         <translation type="obsolete">スプライト</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1566"/>
+        <location filename="../mainwindow.cpp" line="1582"/>
         <source>请先设置中心实体</source>
         <translation type="unfinished">先に中心実体を設定してください</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1571"/>
+        <location filename="../mainwindow.cpp" line="1587"/>
         <source>中心实体不存在</source>
         <translation type="unfinished">中心実体が存在しません</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1587"/>
+        <location filename="../mainwindow.cpp" line="1603"/>
         <source>已传送 %1 个实体至目标</source>
         <translation type="unfinished">%1 個の実体を目標に転送しました</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1590"/>
+        <location filename="../mainwindow.cpp" line="1606"/>
         <source>未选择要传送的实体</source>
         <translation type="unfinished">転送する実体が選択されていません</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1605"/>
+        <location filename="../mainwindow.cpp" line="1621"/>
         <source>请至少选择两个实体</source>
         <translation type="unfinished">少なくとも2つの実体を選択してください</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1634"/>
+        <location filename="../mainwindow.cpp" line="1650"/>
         <source>已随机交换 %1 个实体的位置</source>
         <translation type="unfinished">%1 個の実体の位置をランダム交換しました</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1652"/>
+        <location filename="../mainwindow.cpp" line="1668"/>
         <source>已销毁 %1 个实体</source>
         <translation type="unfinished">%1 個の実体を破棄しました</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1676"/>
+        <location filename="../mainwindow.cpp" line="1692"/>
         <source>生成实体失败: 角色池已满</source>
         <translation type="unfinished">実体生成失敗: キャラプールが満杯です</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1713"/>
+        <location filename="../mainwindow.cpp" line="1729"/>
         <source>已克隆 %1 个实体</source>
         <translation type="unfinished">%1 個の実体をクローンしました</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1716"/>
+        <location filename="../mainwindow.cpp" line="1732"/>
         <source>克隆实体失败</source>
         <translation type="unfinished">実体のクローンに失敗</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1760"/>
+        <location filename="../mainwindow.cpp" line="1776"/>
         <source>已发送命令</source>
         <translation type="unfinished">命令送った</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1762"/>
+        <location filename="../mainwindow.cpp" line="1778"/>
         <source>发送命令失败</source>
         <translation type="unfinished">送り失敗</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="33"/>
+        <location filename="../mainwindow.cpp" line="35"/>
         <source>无</source>
         <translation type="unfinished">なし</translation>
     </message>
@@ -1015,180 +1020,408 @@ X: %4 Y: %5 Z: %6</source>
 <context>
     <name>SpawnDialog</name>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="84"/>
+        <location filename="../Spawn/spawndialog.cpp" line="86"/>
         <source>修改实体属性</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">エンティティ属性を変更</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="84"/>
+        <location filename="../Spawn/spawndialog.cpp" line="86"/>
         <source>新建实体</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">エンティティを新規作成</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="96"/>
+        <location filename="../Spawn/spawndialog.cpp" line="99"/>
         <source>修改实体时不能更改类型</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">エンティティ変更時はタイプを変更できません</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="111"/>
+        <location filename="../Spawn/spawndialog.cpp" line="114"/>
         <source>类别</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">カテゴリ</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="139"/>
+        <location filename="../Spawn/spawndialog.cpp" line="142"/>
         <source>按名称或索引筛选</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">名前またはインデックスで絞り込み</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="147"/>
+        <location filename="../Spawn/spawndialog.cpp" line="150"/>
         <source>该类别无需选择精灵图，直接设置参数后生成。</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">このカテゴリではスプライトの選択は不要です。パラメータを設定して生成してください。</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="169"/>
+        <location filename="../Spawn/spawndialog.cpp" line="172"/>
         <source>精灵图 ID</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">スプライト ID</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="173"/>
+        <location filename="../Spawn/spawndialog.cpp" line="176"/>
         <source>血量</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">HP</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="177"/>
+        <location filename="../Spawn/spawndialog.cpp" line="178"/>
         <source>AI状态</source>
         <translation type="unfinished">AI状態</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="187"/>
-        <source>数量</source>
-        <translation type="unfinished"></translation>
+        <location filename="../Spawn/spawndialog.cpp" line="199"/>
+        <source>
+可直接输入脚本对象地址，例如 0x5A1B2C3D</source>
+        <translation type="unfinished">
+スクリプトオブジェクトのアドレスを直接入力できます（例：0x5A1B2C3D）</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="324"/>
+        <location filename="../Spawn/spawndialog.cpp" line="222"/>
+        <source>数量</source>
+        <translation type="unfinished">数量</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="441"/>
         <source>无</source>
         <translation type="unfinished">なし</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="192"/>
+        <location filename="../Spawn/spawndialog.cpp" line="229"/>
         <source>食物</source>
         <translation type="unfinished">食料</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="192"/>
+        <location filename="../Spawn/spawndialog.cpp" line="201"/>
+        <source>选择或输入地址 0x...</source>
+        <translation type="unfinished">アドレスを選択または入力 0x...</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="204"/>
+        <source>cyoa 脚本</source>
+        <translation type="unfinished">cyoa スクリプト</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="205"/>
+        <source>主动交互脚本：角色主动与该实体交互时才运行（选项/对话/商店）。不交互不会执行。</source>
+        <translation type="unfinished">能動相互作用スクリプト：キャラクターがこのエンティティに能動的に相互作用したときのみ実行されます（選択肢／会話／ショップ）。相互作用しなければ実行されません。</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="207"/>
+        <source>events 脚本</source>
+        <translation type="unfinished">events スクリプト</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="208"/>
+        <source>事件回调脚本：游戏派发事件时运行（受击、死亡、到达目标、被拾取等）。被动触发，无法主动执行。</source>
+        <translation type="unfinished">イベントコールバックスクリプト：ゲームがイベントを送出したときに実行されます（被弾、死亡、目標到達、拾得など）。受動的にのみ実行され、直接実行はできません。</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="210"/>
+        <source>action 脚本</source>
+        <translation type="unfinished">action スクリプト</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="211"/>
+        <source>动作脚本：其他角色对该实体执行动作时运行（被使用/被操作）。需要 AI 真的对它执行动作才会触发。</source>
+        <translation type="unfinished">動作スクリプト：他のキャラクターがこのエンティティに動作を行ったときに実行されます（使用／操作される）。AI が実際に動作を行わなければ発動しません。</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="187"/>
+        <source>脚本槽说明：
+cyoa：别人主动交互它时运行（选项/对话/商店）
+events：游戏派发事件时运行（受击、死亡、拾取等）
+action：别人对它做动作时运行（被使用/被操作）
+三者互不覆盖，可同时填写；选“不修改”则不写入。拾取物不需要脚本。</source>
+        <translation type="unfinished">スクリプトスロットの説明：
+cyoa：他のキャラクターが能動的に相互作用したときに実行（選択肢／会話／ショップ）
+events：ゲームがイベントを送出したときに実行（被弾、死亡、拾得など）
+action：他のキャラクターが動作を行ったときに実行（使用／操作される）
+三者は独立しており同時に設定できます。「変更しない」を選ぶと書き込みません。拾得物にスクリプトは不要です。</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="229"/>
         <source>汽油</source>
         <translation type="unfinished">ガソリン</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="192"/>
+        <location filename="../Spawn/spawndialog.cpp" line="229"/>
         <source>医疗</source>
         <translation type="unfinished">医療</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="193"/>
+        <location filename="../Spawn/spawndialog.cpp" line="230"/>
         <source>子弹</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">弾丸</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="193"/>
+        <location filename="../Spawn/spawndialog.cpp" line="230"/>
         <source>步枪弹</source>
         <translation type="unfinished">ライフル弾</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="193"/>
+        <location filename="../Spawn/spawndialog.cpp" line="230"/>
         <source>霰弹</source>
         <translation type="unfinished">ショットガン弾</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="193"/>
+        <location filename="../Spawn/spawndialog.cpp" line="230"/>
         <source>废料</source>
         <translation type="unfinished">スクラップ</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="197"/>
+        <location filename="../Spawn/spawndialog.cpp" line="234"/>
         <source>战利品</source>
         <translation type="unfinished">戦利品</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="211"/>
+        <location filename="../Spawn/spawndialog.cpp" line="248"/>
         <source>底盘</source>
         <translation type="unfinished">シャーシ</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="212"/>
+        <location filename="../Spawn/spawndialog.cpp" line="249"/>
         <source>底盘上限</source>
         <translation type="unfinished">シャーシ上限</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="213"/>
+        <location filename="../Spawn/spawndialog.cpp" line="250"/>
         <source>引擎</source>
         <translation type="unfinished">エンジン</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="214"/>
+        <location filename="../Spawn/spawndialog.cpp" line="251"/>
         <source>引擎上限</source>
         <translation type="unfinished">エンジン上限</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="215"/>
+        <location filename="../Spawn/spawndialog.cpp" line="252"/>
         <source>装甲</source>
         <translation type="unfinished">装甲</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="216"/>
+        <location filename="../Spawn/spawndialog.cpp" line="253"/>
         <source>装甲上限</source>
         <translation type="unfinished">装甲上限</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="217"/>
+        <location filename="../Spawn/spawndialog.cpp" line="254"/>
         <source>速度</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">速度</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="218"/>
+        <location filename="../Spawn/spawndialog.cpp" line="255"/>
         <source>速度上限</source>
         <translation type="unfinished">速度上限</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="222"/>
+        <location filename="../Spawn/spawndialog.cpp" line="259"/>
         <source>修理值</source>
         <translation type="unfinished">修理値</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="227"/>
+        <location filename="../Spawn/spawndialog.cpp" line="264"/>
         <source>MPG</source>
         <translation type="unfinished">MPG</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="241"/>
+        <location filename="../Spawn/spawndialog.cpp" line="278"/>
         <source>改动任一车辆属性后会整组写入</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">いずれかの車両属性を変更すると、グループ全体が書き込まれます</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="246"/>
+        <location filename="../Spawn/spawndialog.cpp" line="283"/>
         <source>应用</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">適用</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="246"/>
+        <location filename="../Spawn/spawndialog.cpp" line="283"/>
         <source>生成</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">生成</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="322"/>
+        <location filename="../Spawn/spawndialog.cpp" line="344"/>
+        <source>不修改</source>
+        <translation type="unfinished">変更しない</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="345"/>
+        <source>0x00000000（无）</source>
+        <translation type="unfinished">0x00000000（なし）</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="358"/>
+        <source>默认 cyoa</source>
+        <translation type="unfinished">既定 cyoa</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="359"/>
+        <source>默认 events(人类)</source>
+        <translation type="unfinished">既定 events（人間）</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="360"/>
+        <source>默认 events(僵尸)</source>
+        <translation type="unfinished">既定 events（ゾンビ）</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="361"/>
+        <source>默认 action</source>
+        <translation type="unfinished">既定 action</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="368"/>
+        <source>实体 %1 的 cyoa</source>
+        <translation type="unfinished">エンティティ %1 の cyoa</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="369"/>
+        <source>实体 %1 的 events</source>
+        <translation type="unfinished">エンティティ %1 の events</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="370"/>
+        <source>实体 %1 的 action</source>
+        <translation type="unfinished">エンティティ %1 の action</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="579"/>
         <source>类别：%1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">カテゴリ：%1</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="422"/>
+        <location filename="../Spawn/spawndialog.cpp" line="548"/>
         <source>武器索引 %1（生成时由游戏直接初始化武器数据）</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">武器インデックス %1（生成時にゲームが武器データを直接初期化します）</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="433"/>
-        <location filename="../Spawn/spawndialog.cpp" line="439"/>
+        <location filename="../Spawn/spawndialog.cpp" line="559"/>
+        <location filename="../Spawn/spawndialog.cpp" line="565"/>
         <source>无预览</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">プレビューなし</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="38"/>
+        <source>人类</source>
+        <translation type="unfinished">人類</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="39"/>
+        <source>僵尸</source>
+        <translation type="unfinished">ゾンビ</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="40"/>
+        <source>物品</source>
+        <translation type="unfinished">物</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="41"/>
+        <source>抛射物</source>
+        <translation type="unfinished">投射物</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="42"/>
+        <source>家具</source>
+        <translation type="unfinished">家具</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="43"/>
+        <source>拾取物</source>
+        <translation type="unfinished">拾取物</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="44"/>
+        <source>武器</source>
+        <translation type="unfinished">武器</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="45"/>
+        <source>车辆</source>
+        <translation type="unfinished">乗り物</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="46"/>
+        <source>特殊拾取</source>
+        <translation type="unfinished">特殊拾取</translation>
+    </message>
+</context>
+<context>
+    <name>SpriteAtlas</name>
+    <message>
+        <location filename="../Spawn/spriteatlas.cpp" line="21"/>
+        <source>武器 8x32</source>
+        <translation type="unfinished">武器 8x32</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spriteatlas.cpp" line="22"/>
+        <source>武器 16x32</source>
+        <translation type="unfinished">武器 16x32</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spriteatlas.cpp" line="23"/>
+        <source>拾取物 16</source>
+        <translation type="unfinished">拾得物 16</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spriteatlas.cpp" line="24"/>
+        <source>室内物件 16</source>
+        <translation type="unfinished">屋内オブジェクト 16</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spriteatlas.cpp" line="25"/>
+        <source>家具 32</source>
+        <translation type="unfinished">家具 32</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spriteatlas.cpp" line="26"/>
+        <source>特殊 16</source>
+        <translation type="unfinished">特殊 16</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spriteatlas.cpp" line="27"/>
+        <source>特殊 32</source>
+        <translation type="unfinished">特殊 32</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spriteatlas.cpp" line="28"/>
+        <source>特殊 48</source>
+        <translation type="unfinished">特殊 48</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spriteatlas.cpp" line="29"/>
+        <source>特殊 64</source>
+        <translation type="unfinished">特殊 64</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spriteatlas.cpp" line="30"/>
+        <source>特殊 96</source>
+        <translation type="unfinished">特殊 96</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spriteatlas.cpp" line="31"/>
+        <source>车辆</source>
+        <translation type="unfinished">車両</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spriteatlas.cpp" line="32"/>
+        <source>车辆残骸</source>
+        <translation type="unfinished">車の残骸</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spriteatlas.cpp" line="152"/>
+        <source>游戏未附加</source>
+        <translation type="unfinished">ゲーム未接続</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spriteatlas.cpp" line="189"/>
+        <source>未找到精灵图集（请确认已附加游戏且游戏目录正确）</source>
+        <translation type="unfinished">スプライトアトラスが見つかりません（ゲームが接続され、ゲームディレクトリが正しいことを確認してください）</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spriteatlas.cpp" line="284"/>
+        <source>ID %1（无法确定图集）</source>
+        <translation type="unfinished">ID %1（アトラスを特定できません）</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spriteatlas.cpp" line="285"/>
+        <source>ID %1 · %2 第 %3 帧</source>
+        <translation type="unfinished">ID %1 · %2 フレーム %3</translation>
     </message>
 </context>
 <context>

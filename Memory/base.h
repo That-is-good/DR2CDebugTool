@@ -9,6 +9,10 @@ struct ThingData {
     
     quint8 mapid = 0; // 0x04 地图ID
 
+    quint8 walkover = 0; // 0x09 走过即触发（拾取物/武器为 1）
+    quint8 layer = 0; // 0x0b 图层
+    quint8 tileflags = 0; // 0x0c 地格标记
+
     quint8 nocollide = 0; // 0x0d 无碰撞
 
     quint8 nopick = 0; // 0x11 不可拾取
@@ -27,6 +31,13 @@ struct ThingData {
     qint32 amount = 0; // 0xe4 数量
     quint8 loot = 0; // 0xe8 战利品
 
+    // 0x94 / 0x98 / 0x9c 脚本对象指针
+    quint32 cyoa = 0; // 0x94
+    quint32 events = 0; // 0x98
+    quint32 action = 0; // 0x9c
+
+    float rad_z = 0.0f; // 0xb4 rad.z（分配时为 16.0f，拾取物 .as-pickup 改为 2.0f）
+
     qint8 chassis = 0; // 0x208 载具底盘
     qint8 chassis_max = 0; // 0x209
     qint8 engine = 0; // 0x20a
@@ -43,6 +54,7 @@ struct ThingData {
     qint32 hitpoints = 0; // 0x254
 
     quint8 no_hit = 0; // 0x27a 不可被击中
+    quint8 no_do_damage = 0; // 0x27b 不造成伤害
 
     quint32 ai_state = 0; // 0x288 AI状态
 

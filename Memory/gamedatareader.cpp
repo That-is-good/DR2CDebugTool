@@ -87,6 +87,16 @@ qint32 GameDataReader::GetLastEntityID(){
     return entityid;
 }
 
+quint32 GameDataReader::GetDefaultScript(int index) const
+{
+    if (!isAttached() || index < 0 || index > 3) return 0;
+    // 0xA110B4(cyoa) / 0xA110BC(events type1) / 0xA110B8(events type2) / 0xA110C0(action)
+    static const quint32 rvas[4] = {0x6110B4, 0x6110BC, 0x6110B8, 0x6110C0};
+    quint32 ptr = 0;
+    m_memMgr->read<quint32>(m_moduleBase + rvas[index], ptr);
+    return ptr;
+}
+
 qint32 GameDataReader::GetLeaderThingID(){
     qint32 entityid;
     if (!m_memMgr->read<qint32>(m_missionStateBase + 0x00, entityid))
@@ -132,6 +142,10 @@ ThingData GameDataReader::readThing(quint64 addr)
 
     m_memMgr->read<quint8>(addr + 0x04, data.mapid);
 
+    m_memMgr->read<quint8>(addr + 0x09, data.walkover);
+    m_memMgr->read<quint8>(addr + 0x0B, data.layer);
+    m_memMgr->read<quint8>(addr + 0x0C, data.tileflags);
+
     m_memMgr->readMemory(addr + 0x2C, data.vec3d, sizeof(float) * 6);
     m_memMgr->readMemory(addr + 0x58, data.phy, sizeof(float) * 3);
 
@@ -141,6 +155,11 @@ ThingData GameDataReader::readThing(quint64 addr)
     m_memMgr->readMemory(addr + 0x12, data.vision, sizeof(quint8) * 2);
    
     m_memMgr->read<quint8>(addr + 0x27A, data.no_hit);
+    m_memMgr->read<quint8>(addr + 0x27B, data.no_do_damage);
+    m_memMgr->read<float>(addr + 0xB4, data.rad_z);
+    m_memMgr->read<quint32>(addr + 0x94, data.cyoa);
+    m_memMgr->read<quint32>(addr + 0x98, data.events);
+    m_memMgr->read<quint32>(addr + 0x9C, data.action);
     m_memMgr->read<quint8>(addr + 0x70, data.glow);
     //m_memMgr->read<quint32>(addr + 0x148, data.charid);
     m_memMgr->read<quint16>(addr + 0xD8, data.spriteid);
@@ -187,12 +206,20 @@ QList<ThingData> GameDataReader::readAllThings()
         memcpy(data.type, p + 0x02, sizeof(quint8) * 2);   // type, subtype
         data.typeString = GetsubName(data.type[0], data.type[1]);
         data.mapid = p[0x04];
+        data.walkover = p[0x09];
+        data.layer = p[0x0B];
+        data.tileflags = p[0x0C];
         memcpy(data.vec3d, p + 0x2C, sizeof(float) * 6);    // pos + vel
         memcpy(data.phy, p + 0x58, sizeof(float) * 3);      // mass, friction, bounce
         data.nocollide = p[0x0D];
         data.nopick = p[0x11];
         memcpy(data.vision, p + 0x12, sizeof(quint8) * 2);  // unseen, invisible
         data.no_hit = p[0x27A];
+        data.no_do_damage = p[0x27B];
+        memcpy(&data.rad_z, p + 0xB4, sizeof(float));
+        memcpy(&data.cyoa, p + 0x94, sizeof(quint32));
+        memcpy(&data.events, p + 0x98, sizeof(quint32));
+        memcpy(&data.action, p + 0x9C, sizeof(quint32));
         data.glow = p[0x70];
         //memcpy(&data.charid, p + 0x148, sizeof(quint32));
         memcpy(&data.spriteid, p + 0xD8, sizeof(quint16));
@@ -224,8 +251,13 @@ bool GameDataReader::writeThing(quint64 addr, const ThingData &data)
 
     bool ok = true;
 
-    //ok &= m_memMgr->write<quint8>(addr + 0x03, data.type[1]); // 写入subtype
+    // 写入subtype：编辑时把普通物件改成拾取物需要它
+    ok &= m_memMgr->write<quint8>(addr + 0x03, data.type[1]);
     ok &= m_memMgr->write<quint8>(addr + 0x04, data.mapid);
+
+    ok &= m_memMgr->write<quint8>(addr + 0x09, data.walkover);
+    ok &= m_memMgr->write<quint8>(addr + 0x0B, data.layer);
+    ok &= m_memMgr->write<quint8>(addr + 0x0C, data.tileflags);
 
     ok &= m_memMgr->writeMemory(addr + 0x2C, data.vec3d, sizeof(float) * 6);
     ok &= m_memMgr->writeMemory(addr + 0x58, data.phy, sizeof(float) * 3);
@@ -236,6 +268,11 @@ bool GameDataReader::writeThing(quint64 addr, const ThingData &data)
     ok &= m_memMgr->writeMemory(addr + 0x12, data.vision, sizeof(quint8) * 2);
 
     ok &= m_memMgr->write<quint8>(addr + 0x27A, data.no_hit);
+    ok &= m_memMgr->write<quint8>(addr + 0x27B, data.no_do_damage);
+    ok &= m_memMgr->write<float>(addr + 0xB4, data.rad_z);
+    ok &= m_memMgr->write<quint32>(addr + 0x94, data.cyoa);
+    ok &= m_memMgr->write<quint32>(addr + 0x98, data.events);
+    ok &= m_memMgr->write<quint32>(addr + 0x9C, data.action);
     ok &= m_memMgr->write<quint8>(addr + 0x70, data.glow);
     //ok &= m_memMgr->write<quint32>(addr + 0x148, data.charid);
     ok &= m_memMgr->write<quint16>(addr + 0xD8, data.spriteid);
@@ -244,6 +281,15 @@ bool GameDataReader::writeThing(quint64 addr, const ThingData &data)
     if (data.type[0] == 3 && data.type[1] == 1) {
         ok &= m_memMgr->write<qint32>(addr + 0xE4, data.amount);
         ok &= m_memMgr->write<quint8>(addr + 0xE8, data.loot);
+
+        // 与游戏 spawnloot / .as-pickup(0x4A4F20) 保持一致：
+        // 只写 amount/loot 的话物品仍会被当成普通物件，无法捡起。
+        ok &= m_memMgr->write<quint8>(addr + 0x09, 1);    // walkover
+        ok &= m_memMgr->write<quint8>(addr + 0x11, 0);    // nopick
+        ok &= m_memMgr->write<quint8>(addr + 0x27A, 1);   // no_hit
+        ok &= m_memMgr->write<quint8>(addr + 0x27B, 1);   // no_do_damage
+        ok &= m_memMgr->write<float>(addr + 0x58, 0.1f);  // mass
+        ok &= m_memMgr->write<float>(addr + 0xB4, 2.0f);
     } else if (data.type[0] == 3 && data.type[1] == 3) {
         ok &= m_memMgr->write<qint8>(addr + 0x208, data.chassis);
         ok &= m_memMgr->write<qint8>(addr + 0x209, data.chassis_max);

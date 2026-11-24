@@ -29,8 +29,10 @@ MainWindow::MainWindow(QWidget *parent)
     , m_spriteAtlas(new SpriteAtlas(m_memMgr))
     , m_refreshTimer(new QTimer(this))
 {
+    // 顺序与脚本常量一致：1=LOOT_GAS 2=LOOT_FOOD 3=LOOT_MEDICAL
+    // 4=LOOT_BULLET 5=LOOT_RIFLE_SHELL 6=LOOT_SHOTGUN_SHELL 7=LOOT_JUNK
     resourceNames = {
-        tr("无"), tr("食物"), tr("汽油"), tr("医疗"), tr("手枪"), tr("步枪"), tr("霰弹"), tr("垃圾")
+        tr("无"), tr("汽油"), tr("食物"), tr("医疗"), tr("子弹"), tr("步枪弹"), tr("霰弹"), tr("废料")
     };
     statNames = {
         tr("士气"), tr("态度"), tr("镇静"), tr("魅力"), tr("智慧"), tr("忠诚"), tr("医疗"),
@@ -1027,6 +1029,13 @@ void MainWindow::spawnFromRequest(const SpawnRequest &request, const QPointF &sc
         }
         if (request.hitpoints > 0)
             th.hitpoints = request.hitpoints;
+        for (int i = 0; i < 3; ++i) {
+            if (!request.scriptDirty[i])
+                continue;
+            if (i == 0) th.cyoa = request.scripts[i];
+            else if (i == 1) th.events = request.scripts[i];
+            else th.action = request.scripts[i];
+        }
     });
     statusBar()->showMessage(tr("已生成实体"));
 }
@@ -1541,6 +1550,13 @@ void MainWindow::onEditEntityOther(const QList<quint64> &addrs)
             th.spriteid = static_cast<quint16>(req.spriteId);
             th.hitpoints = req.hitpoints;
             th.ai_state = req.aiState;
+            for (int i = 0; i < 3; ++i) {
+                if (!req.scriptDirty[i])
+                    continue;
+                if (i == 0) th.cyoa = req.scripts[i];
+                else if (i == 1) th.events = req.scripts[i];
+                else th.action = req.scripts[i];
+            }
             if (th.type[0] == 3 && th.type[1] == 1) {
                 th.amount = req.amount;
                 th.loot = static_cast<quint8>(req.loot);

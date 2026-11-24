@@ -35,6 +35,10 @@ struct SpawnRequest {
     int loot = 0;
     bool vehicleDirty = false;
 
+    // 脚本槽位：0=cyoa 1=events 2=action；scriptDirty 表示该槽需要写入
+    bool scriptDirty[3] = {false, false, false};
+    quint32 scripts[3] = {0, 0, 0};
+
     qint8 chassis = 0;
     qint8 chassisMax = 0;
     qint8 engine = 0;
@@ -68,14 +72,18 @@ public:
 private:
     void buildUi();
     void populateCategories();
+    void populateScripts();
     void populateGrid(int sheetIndex);
     void populateWeapons();
     void updatePreview();
+    void updateInfoLabel(const QString &extra = QString());
     void updateCategorySpecific();
     void applyInitial(const ThingData &thing);
     void onCategoryChanged(int row);
     void onGridSelectionChanged();
     void onWeaponSelectionChanged();
+    bool scriptValueFromCombo(QComboBox *combo, quint32 *value) const;
+    void setScriptComboValue(QComboBox *combo, quint32 value);
     void accept() override;
 
     MemoryManager *m_memMgr;
@@ -96,7 +104,13 @@ private:
     QLabel *m_infoLabel = nullptr;
     QSpinBox *m_spriteSpin = nullptr;
     QSpinBox *m_hpSpin = nullptr;
+    QLabel *m_aiLabel = nullptr;
     QSpinBox *m_aiSpin = nullptr;
+
+    // 脚本：cyoa / events / action
+    QComboBox *m_cyoaCombo = nullptr;
+    QComboBox *m_eventsCombo = nullptr;
+    QComboBox *m_actionCombo = nullptr;
 
     // 拾取物：数量 / 战利品
     QWidget *m_lootBox = nullptr;

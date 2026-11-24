@@ -14,9 +14,11 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QPushButton>
+#include <QSet>
 #include <QSpinBox>
 #include <QStackedWidget>
 #include <QVBoxLayout>
+#include <QVariant>
 
 #include <limits>
 
@@ -33,15 +35,15 @@ struct CategoryDef {
 const QVector<CategoryDef> &categories()
 {
     static const QVector<CategoryDef> defs = {
-        {QStringLiteral("人类"),     1, -1},
-        {QStringLiteral("僵尸"),     2, -1},
-        {QStringLiteral("物品"),     3,  0},
-        {QStringLiteral("抛射物"),   4, -1},
-        {QStringLiteral("家具"),     5,  4},
-        {QStringLiteral("拾取物"),   6,  2},
-        {QStringLiteral("武器"),     7, -2},
-        {QStringLiteral("车辆"),     8, 10},
-        {QStringLiteral("特殊拾取"), 9,  6},
+        {SpawnDialog::tr("人类"),     1, -1},
+        {SpawnDialog::tr("僵尸"),     2, -1},
+        {SpawnDialog::tr("物品"),     3,  0},
+        {SpawnDialog::tr("抛射物"),   4, -1},
+        {SpawnDialog::tr("家具"),     5,  4},
+        {SpawnDialog::tr("拾取物"),   6,  2},
+        {SpawnDialog::tr("武器"),     7, -2},
+        {SpawnDialog::tr("车辆"),     8, 10},
+        {SpawnDialog::tr("特殊拾取"), 9,  6},
     };
     return defs;
 }
@@ -82,7 +84,7 @@ SpawnDialog::SpawnDialog(MemoryManager *memMgr,
     , m_mode(mode)
 {
     setWindowTitle(m_mode == Mode::Edit ? tr("修改实体属性") : tr("新建实体"));
-    resize(920, 620);
+    resize(920, 700);
     buildUi();
 
     if (m_atlas && m_atlas->isReady()) {
@@ -90,6 +92,7 @@ SpawnDialog::SpawnDialog(MemoryManager *memMgr,
             m_sheetCombo->addItem(sheet.title);
     }
     populateCategories();
+    populateScripts();
 
     if (m_mode == Mode::Edit) {
         m_categoryList->setEnabled(false); // 修改时类型锁定
@@ -172,10 +175,42 @@ void SpawnDialog::buildUi()
     m_hpSpin->setRange(-65535, 65535);
     form->addRow(tr("血量"), m_hpSpin);
 
+    m_aiLabel = new QLabel(tr("AI状态"), this);
     m_aiSpin = new QSpinBox(this);
     m_aiSpin->setRange(0, 65535);
-    form->addRow(tr("AI状态"), m_aiSpin);
+    form->addRow(m_aiLabel, m_aiSpin);
     rightLayout->addLayout(form);
+
+    // 脚本（cyoa / events / action）：下拉列出当前可用的脚本对象
+    auto *scriptBox = new QWidget(this);
+    // 三个槽的通俗说明放在悬停提示里，避免占用界面空间
+    scriptBox->setToolTip(tr("脚本槽说明：\n"
+                             "cyoa：别人主动交互它时运行（选项/对话/商店）\n"
+                             "events：游戏派发事件时运行（受击、死亡、拾取等）\n"
+                             "action：别人对它做动作时运行（被使用/被操作）\n"
+                             "三者互不覆盖，可同时填写；选“不修改”则不写入。拾取物不需要脚本。"));
+    auto *scriptForm = new QFormLayout(scriptBox);
+    scriptForm->setContentsMargins(0, 0, 0, 0);
+    auto makeScriptCombo = [this, scriptForm](QComboBox *&combo, const QString &text,
+                                              const QString &description) {
+        auto *label = new QLabel(text, this);
+        combo = new QComboBox(this);
+        combo->setEditable(true);
+        combo->setToolTip(description + tr("\n可直接输入脚本对象地址，例如 0x5A1B2C3D"));
+        label->setToolTip(combo->toolTip());
+        combo->lineEdit()->setPlaceholderText(tr("选择或输入地址 0x..."));
+        scriptForm->addRow(label, combo);
+    };
+    makeScriptCombo(m_cyoaCombo, tr("cyoa 脚本"),
+                    tr("主动交互脚本：角色主动与该实体交互时才运行（选项/对话/商店）。"
+                       "不交互不会执行。"));
+    makeScriptCombo(m_eventsCombo, tr("events 脚本"),
+                    tr("事件回调脚本：游戏派发事件时运行（受击、死亡、到达目标、被拾取等）。"
+                       "被动触发，无法主动执行。"));
+    makeScriptCombo(m_actionCombo, tr("action 脚本"),
+                    tr("动作脚本：其他角色对该实体执行动作时运行（被使用/被操作）。"
+                       "需要 AI 真的对它执行动作才会触发。"));
+    rightLayout->addWidget(scriptBox);
 
     // 拾取物：数量 / 战利品
     m_lootBox = new QWidget(this);
@@ -188,8 +223,10 @@ void SpawnDialog::buildUi()
     m_lootCombo = new QComboBox(m_lootBox);
     // 战利品类型必须是 1~7：游戏交互逻辑要求 amount>0 且 loot!=0，
     // 否则靠近时只会提示“这里什么也没有”。因此不提供“无”选项。
+    // 数值顺序来自脚本常量：1=LOOT_GAS 2=LOOT_FOOD 3=LOOT_MEDICAL
+    // 4=LOOT_BULLET 5=LOOT_RIFLE_SHELL 6=LOOT_SHOTGUN_SHELL 7=LOOT_JUNK
     const QStringList lootNames = {
-        tr("食物"), tr("汽油"), tr("医疗"),
+        tr("汽油"), tr("食物"), tr("医疗"),
         tr("子弹"), tr("步枪弹"), tr("霰弹"), tr("废料")
     };
     for (int i = 0; i < lootNames.size(); ++i)
@@ -297,6 +334,86 @@ void SpawnDialog::populateCategories()
         m_categoryList->addItem(def.name);
 }
 
+// 脚本对象无法可靠地由文件名反查，这里直接列出“已知可用地址”：
+// 游戏内置默认脚本 + 当前所有实体上挂载的脚本，去重后按地址显示。
+void SpawnDialog::populateScripts()
+{
+    QComboBox *combos[3] = {m_cyoaCombo, m_eventsCombo, m_actionCombo};
+    for (QComboBox *combo : combos) {
+        combo->clear();
+        combo->addItem(tr("不修改"), QVariant());
+        combo->addItem(tr("0x00000000（无）"), 0u);
+    }
+
+    QSet<quint32> seen;
+    auto addPointer = [&combos, &seen](quint32 ptr, const QString &label) {
+        if (ptr == 0 || seen.contains(ptr))
+            return;
+        seen.insert(ptr);
+        const QString text = QString("0x%1  %2").arg(ptr, 8, 16, QChar('0')).arg(label);
+        for (QComboBox *combo : combos)
+            combo->addItem(text, ptr);
+    };
+
+    addPointer(m_gameData ? m_gameData->GetDefaultScript(0) : 0, tr("默认 cyoa"));
+    addPointer(m_gameData ? m_gameData->GetDefaultScript(1) : 0, tr("默认 events(人类)"));
+    addPointer(m_gameData ? m_gameData->GetDefaultScript(2) : 0, tr("默认 events(僵尸)"));
+    addPointer(m_gameData ? m_gameData->GetDefaultScript(3) : 0, tr("默认 action"));
+
+    if (m_gameData && m_gameData->isAttached()) {
+        const QVector<ThingData> things = m_gameData->readAllThings();
+        for (const ThingData &thing : things) {
+            if (thing.id == 0)
+                continue;
+            addPointer(thing.cyoa, tr("实体 %1 的 cyoa").arg(thing.id));
+            addPointer(thing.events, tr("实体 %1 的 events").arg(thing.id));
+            addPointer(thing.action, tr("实体 %1 的 action").arg(thing.id));
+        }
+    }
+}
+
+bool SpawnDialog::scriptValueFromCombo(QComboBox *combo, quint32 *value) const
+{
+    if (!combo || !value)
+        return false;
+    const int index = combo->currentIndex();
+    if (index >= 0) {
+        const QVariant data = combo->itemData(index);
+        if (!data.isValid())
+            return false; // “不修改”
+        *value = data.toUInt();
+        return true;
+    }
+    // 用户手动输入的地址
+    QString text = combo->currentText().trimmed();
+    text = text.section(QChar(' '), 0, 0);
+    bool ok = false;
+    quint32 parsed = 0;
+    if (text.startsWith("0x", Qt::CaseInsensitive))
+        parsed = text.mid(2).toUInt(&ok, 16);
+    else
+        parsed = text.toUInt(&ok, 16);
+    if (!ok)
+        return false;
+    *value = parsed;
+    return true;
+}
+
+void SpawnDialog::setScriptComboValue(QComboBox *combo, quint32 value)
+{
+    if (!combo)
+        return;
+    int index = combo->findData(value);
+    if (index < 0 && value != 0) {
+        combo->addItem(QString("0x%1").arg(value, 8, 16, QChar('0')), value);
+        index = combo->count() - 1;
+    }
+    if (index >= 0)
+        combo->setCurrentIndex(index);
+    else
+        combo->setEditText(QString("0x%1").arg(value, 8, 16, QChar('0')));
+}
+
 void SpawnDialog::onCategoryChanged(int row)
 {
     const QVector<CategoryDef> &defs = categories();
@@ -319,7 +436,7 @@ void SpawnDialog::onCategoryChanged(int row)
     } else if (sheet < 0) {
         m_stack->setCurrentIndex(2);
         m_spriteSpin->setValue(0);
-        m_infoLabel->setText(tr("类别：%1").arg(def.name));
+        updateInfoLabel();
         m_preview->setPixmap(QPixmap());
         m_preview->setText(tr("无"));
     } else {
@@ -329,6 +446,7 @@ void SpawnDialog::onCategoryChanged(int row)
             m_sheetCombo->setCurrentIndex(sheet);
         m_populating = false;
         populateGrid(sheet);
+        updateInfoLabel();
     }
     updateCategorySpecific();
 }
@@ -339,8 +457,15 @@ void SpawnDialog::updateCategorySpecific()
     const int row = m_categoryList->currentRow();
     const bool loot = row >= 0 && row < defs.size() && defs.at(row).kind == 6;
     const bool vehicle = row >= 0 && row < defs.size() && defs.at(row).kind == 8;
+    const bool zombie = row >= 0 && row < defs.size() && defs.at(row).kind == 2;
     m_lootBox->setVisible(loot);
     m_vehicleBox->setVisible(vehicle);
+
+    // AI 状态只有僵尸才真正生效，其它类型隐藏并清零
+    m_aiLabel->setVisible(zombie);
+    m_aiSpin->setVisible(zombie);
+    if (!zombie)
+        m_aiSpin->setValue(0);
 }
 
 void SpawnDialog::populateGrid(int sheetIndex)
@@ -419,13 +544,14 @@ void SpawnDialog::onWeaponSelectionChanged()
     const quint32 spriteId = item->data(Qt::UserRole + 1).toUInt();
     m_request.spriteId = spriteId;
     m_spriteSpin->setValue(static_cast<int>(spriteId));
-    m_infoLabel->setText(tr("武器索引 %1（生成时由游戏直接初始化武器数据）")
-                             .arg(m_request.weaponId));
     updatePreview();
+    updateInfoLabel(tr("武器索引 %1（生成时由游戏直接初始化武器数据）")
+                        .arg(m_request.weaponId));
 }
 
 void SpawnDialog::updatePreview()
 {
+    updateInfoLabel();
     const quint32 id = static_cast<quint32>(m_spriteSpin->value());
     m_request.spriteId = id;
     if (!m_atlas || !m_atlas->isReady() || id == 0) {
@@ -437,11 +563,29 @@ void SpawnDialog::updatePreview()
     if (pixmap.isNull()) {
         m_preview->setPixmap(QPixmap());
         m_preview->setText(tr("无预览"));
-        m_infoLabel->setText(m_atlas->describe(id));
         return;
     }
     m_preview->setPixmap(pixmap);
-    m_infoLabel->setText(m_atlas->describe(id));
+}
+
+// 右侧信息文字始终显示“类别”，有精灵时再追加精灵描述，
+// 避免切换类别后仍停留在上一个类别的文字。
+void SpawnDialog::updateInfoLabel(const QString &extra)
+{
+    const QVector<CategoryDef> &defs = categories();
+    const int row = m_categoryList->currentRow();
+    QStringList lines;
+    if (row >= 0 && row < defs.size())
+        lines << tr("类别：%1").arg(defs.at(row).name);
+    const quint32 id = static_cast<quint32>(m_spriteSpin->value());
+    if (m_atlas && m_atlas->isReady() && id != 0) {
+        const QString desc = m_atlas->describe(id);
+        if (!desc.isEmpty())
+            lines << desc;
+    }
+    if (!extra.isEmpty())
+        lines << extra;
+    m_infoLabel->setText(lines.join(QStringLiteral("\n")));
 }
 
 void SpawnDialog::applyInitial(const ThingData &thing)
@@ -459,6 +603,10 @@ void SpawnDialog::applyInitial(const ThingData &thing)
     m_amountSpin->setValue(thing.amount);
     const int lootIndex = m_lootCombo->findData(static_cast<int>(thing.loot));
     m_lootCombo->setCurrentIndex(lootIndex >= 0 ? lootIndex : 0);
+
+    setScriptComboValue(m_cyoaCombo, thing.cyoa);
+    setScriptComboValue(m_eventsCombo, thing.events);
+    setScriptComboValue(m_actionCombo, thing.action);
 
     m_chassis->setValue(thing.chassis);
     m_chassisMax->setValue(thing.chassis_max);
@@ -502,12 +650,24 @@ void SpawnDialog::applyInitial(const ThingData &thing)
 
 void SpawnDialog::accept()
 {
-    m_request.spriteId = static_cast<quint32>(m_spriteSpin->value());
-    m_request.hitpoints = m_hpSpin->value();
-    m_request.aiState = static_cast<quint32>(m_aiSpin->value());
-
     const QVector<CategoryDef> &defs = categories();
     const int row = m_categoryList->currentRow();
+    const bool zombie = row >= 0 && row < defs.size() && defs.at(row).kind == 2;
+
+    m_request.spriteId = static_cast<quint32>(m_spriteSpin->value());
+    m_request.hitpoints = m_hpSpin->value();
+    // AI 状态只有僵尸有效，其它类型一律写 0
+    m_request.aiState = zombie ? static_cast<quint32>(m_aiSpin->value()) : 0u;
+
+    QComboBox *scriptCombos[3] = {m_cyoaCombo, m_eventsCombo, m_actionCombo};
+    for (int i = 0; i < 3; ++i) {
+        quint32 value = 0;
+        if (scriptValueFromCombo(scriptCombos[i], &value)) {
+            m_request.scriptDirty[i] = true;
+            m_request.scripts[i] = value;
+        }
+    }
+
     if (row >= 0 && row < defs.size()) {
         if (defs.at(row).kind == 6) {
             // 拾取物必须 amount>0 且 loot!=0，否则游戏交互时只会提示“这里什么也没有”

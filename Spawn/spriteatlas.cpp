@@ -2,6 +2,7 @@
 
 #include "../Memory/memorymanager.h"
 
+#include <QCoreApplication>
 #include <QFileInfo>
 
 namespace {
@@ -17,18 +18,18 @@ struct SheetSpec {
 };
 
 const SheetSpec kSheetSpecs[] = {
-    {"武器 8x32",   "gfx/items/dr2c_weapons.png",             8,  32, 0x46C8A4u},
-    {"武器 16x32",  "gfx/items/dr2c_weapons_16x32px.png",     16, 32, 0x46C8A0u},
-    {"拾取物 16",   "gfx/items/dr2c_loot16.png",              16, 16, 0x46C89Cu},
-    {"室内物件 16", "gfx/items/dr2c_cityfurniture_16px.png",  16, 16, 0x46C908u},
-    {"家具 32",     "gfx/items/dr2c_housefurniture_32px.png", 32, 32, 0x46C8E8u},
-    {"特殊 16",     "gfx/items/special16.png",                16, 16, 0x46C8E4u},
-    {"特殊 32",     "gfx/items/special32.png",                32, 32, 0x46C8E0u},
-    {"特殊 48",     "gfx/items/special48.png",                48, 48, 0x46C8DCu},
-    {"特殊 64",     "gfx/items/special64.png",                64, 64, 0x46C8D8u},
-    {"特殊 96",     "gfx/items/special96.png",                96, 96, 0x46C8D4u},
-    {"车辆",        "gfx/cars/dr2c_cars110x96.png",           110, 96, 0x46C898u},
-    {"车辆残骸",    "gfx/cars/car-wrecks124x96.png",          124, 96, 0x46C894u},
+    {QT_TRANSLATE_NOOP("SpriteAtlas", "武器 8x32"),   "gfx/items/dr2c_weapons.png",             8,  32, 0x46C8A4u},
+    {QT_TRANSLATE_NOOP("SpriteAtlas", "武器 16x32"),  "gfx/items/dr2c_weapons_16x32px.png",     16, 32, 0x46C8A0u},
+    {QT_TRANSLATE_NOOP("SpriteAtlas", "拾取物 16"),   "gfx/items/dr2c_loot16.png",              16, 16, 0x46C89Cu},
+    {QT_TRANSLATE_NOOP("SpriteAtlas", "室内物件 16"), "gfx/items/dr2c_cityfurniture_16px.png",  16, 16, 0x46C908u},
+    {QT_TRANSLATE_NOOP("SpriteAtlas", "家具 32"),     "gfx/items/dr2c_housefurniture_32px.png", 32, 32, 0x46C8E8u},
+    {QT_TRANSLATE_NOOP("SpriteAtlas", "特殊 16"),     "gfx/items/special16.png",                16, 16, 0x46C8E4u},
+    {QT_TRANSLATE_NOOP("SpriteAtlas", "特殊 32"),     "gfx/items/special32.png",                32, 32, 0x46C8E0u},
+    {QT_TRANSLATE_NOOP("SpriteAtlas", "特殊 48"),     "gfx/items/special48.png",                48, 48, 0x46C8DCu},
+    {QT_TRANSLATE_NOOP("SpriteAtlas", "特殊 64"),     "gfx/items/special64.png",                64, 64, 0x46C8D8u},
+    {QT_TRANSLATE_NOOP("SpriteAtlas", "特殊 96"),     "gfx/items/special96.png",                96, 96, 0x46C8D4u},
+    {QT_TRANSLATE_NOOP("SpriteAtlas", "车辆"),        "gfx/cars/dr2c_cars110x96.png",           110, 96, 0x46C898u},
+    {QT_TRANSLATE_NOOP("SpriteAtlas", "车辆残骸"),    "gfx/cars/car-wrecks124x96.png",          124, 96, 0x46C894u},
 };
 
 struct ScannedSheet {
@@ -135,7 +136,7 @@ bool SpriteAtlas::refresh()
     m_sheets.clear();
     for (const SheetSpec &spec : kSheetSpecs) {
         SpriteSheet sheet;
-        sheet.title = QString::fromUtf8(spec.title);
+        sheet.title = QCoreApplication::translate("SpriteAtlas", spec.title);
         sheet.file = QString::fromUtf8(spec.file);
         sheet.cellW = spec.cellW;
         sheet.cellH = spec.cellH;
@@ -148,7 +149,7 @@ bool SpriteAtlas::refresh()
     m_scannedSheets = 0;
 
     if (!m_memMgr || !m_memMgr->isAttached()) {
-        m_error = QStringLiteral("游戏未附加");
+        m_error = QCoreApplication::translate("SpriteAtlas", "游戏未附加");
         return false;
     }
 
@@ -185,7 +186,7 @@ bool SpriteAtlas::refresh()
     }
 
     if (loadedCount == 0) {
-        m_error = QStringLiteral("未找到精灵图集（请确认已附加游戏且游戏目录正确）");
+        m_error = QCoreApplication::translate("SpriteAtlas", "未找到精灵图集（请确认已附加游戏且游戏目录正确）");
         return false;
     }
     m_ready = true;
@@ -280,8 +281,8 @@ QString SpriteAtlas::describe(quint32 spriteId) const
     int sheetIndex = -1;
     int frameIndex = -1;
     if (!locate(spriteId, &sheetIndex, &frameIndex))
-        return QStringLiteral("ID %1（无法确定图集）").arg(spriteId);
-    return QStringLiteral("ID %1 · %2 第 %3 帧")
+        return QCoreApplication::translate("SpriteAtlas", "ID %1（无法确定图集）").arg(spriteId);
+    return QCoreApplication::translate("SpriteAtlas", "ID %1 · %2 第 %3 帧")
         .arg(spriteId)
         .arg(m_sheets.at(sheetIndex).title)
         .arg(frameIndex);

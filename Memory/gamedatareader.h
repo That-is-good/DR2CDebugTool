@@ -36,6 +36,9 @@ public:
     qint32 GetLeaderThingID();
     qint32 GetLastEntityID();
 
+    // 游戏内置的默认脚本对象：0=cyoa 1=events(type1) 2=events(type2) 3=action
+    quint32 GetDefaultScript(int index) const;
+
     QString GettypeName(qint8);
     QString GetsubName(qint8, qint8);
 

@@ -29,10 +29,10 @@ MainWindow::MainWindow(QWidget *parent)
     , m_spriteAtlas(new SpriteAtlas(m_memMgr))
     , m_refreshTimer(new QTimer(this))
 {
-    // 顺序与脚本常量一致：1=LOOT_GAS 2=LOOT_FOOD 3=LOOT_MEDICAL
+    // 顺序与实践一致：1=LOOT_FOOD 2=LOOT_GAS 3=LOOT_MEDICAL
     // 4=LOOT_BULLET 5=LOOT_RIFLE_SHELL 6=LOOT_SHOTGUN_SHELL 7=LOOT_JUNK
     resourceNames = {
-        tr("无"), tr("汽油"), tr("食物"), tr("医疗"), tr("子弹"), tr("步枪弹"), tr("霰弹"), tr("废料")
+        tr("无"), tr("食物"), tr("汽油"), tr("医疗"), tr("子弹"), tr("步枪弹"), tr("霰弹"), tr("废料")
     };
     statNames = {
         tr("士气"), tr("态度"), tr("镇静"), tr("魅力"), tr("智慧"), tr("忠诚"), tr("医疗"),

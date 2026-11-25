@@ -1,12 +1,15 @@
 #include "addrsetting.h"
 #include "ui_addrsetting.h"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QList>
+#include <QLocale>
 
 AddrSetting::AddrSetting(QWidget *parent)
     : QDialog(parent)
@@ -16,18 +19,6 @@ AddrSetting::AddrSetting(QWidget *parent)
 
     ui->LanguagecomboBox->addItem("System", "sys");
     GetLocalLanguages();
-    const QList<QWidget *> offsetControls{
-        ui->EntityOffsetLabel, ui->EntityOffsetspinBox,
-        ui->WeaponOffsetLabel, ui->WeaponOffsetspinBox,
-        ui->MissonOffsetLabel, ui->MissonOffsetspinBox,
-        ui->AreaOffsetLabel, ui->AreaOffsetspinBox,
-        ui->CharaSizeLabel, ui->CharaSizespinBox,
-        ui->EntitySizeLabel, ui->EntitySizespinBox,
-        ui->WeaponSizeLabel, ui->WeaponSizespinBox,
-        ui->AreaSizeLabel, ui->AreaSizespinBox
-    };
-    for (QWidget *offsetControl : offsetControls)
-        offsetControl->hide();
     connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &AddrSetting::AppliedSetting);
 }
 
@@ -68,6 +59,8 @@ void AddrSetting::RefreshText(){
 
     ui->UpdateSpinBox->setValue(UpdateFrequency);
 
+    ui->SaveReportcheckBox->setChecked(SaveSheetReport);
+
     // 设置语言选择框
     for (int i = 0; i < ui->LanguagecomboBox->count(); ++i) {
         if (ui->LanguagecomboBox->itemData(i).toString() == m_language) {
@@ -85,6 +78,8 @@ void AddrSetting::AppliedSetting(){
     Weaponlength = ui->WeaponLengthspinBox->value();
 
     UpdateFrequency = ui->UpdateSpinBox->value();
+
+    SaveSheetReport = ui->SaveReportcheckBox->isChecked();
 
     m_language = ui->LanguagecomboBox->currentData().toString();
 }
@@ -109,6 +104,7 @@ void AddrSetting::saveToFile(const QString &filePath) const
 
     root["UpdateFrequency"] = UpdateFrequency;
     root["Language"]        = m_language;
+    root["SaveSheetReport"] = SaveSheetReport;
 
     QJsonDocument doc(root);
     QFile file(filePath);
@@ -141,6 +137,8 @@ void AddrSetting::loadFromFile(const QString &filePath)
     Weaponlength = static_cast<quint16>(root.value("WeaponLength").toInt(1024));
 
     UpdateFrequency = static_cast<quint16>(root.value("UpdateFrequency").toInt(500));
+
+    SaveSheetReport = root.value("SaveSheetReport").toBool(false);
 
     m_language = root.value("Language").toString("sys");
 

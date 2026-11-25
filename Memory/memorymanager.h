@@ -5,12 +5,33 @@
 #include <QString>
 #include <QList>
 #include <QVariantMap>
-#include <QProcess>
-#include <QImage>
-#include <QPixmap>
+#include <QByteArray>
+#include <QRect>
+#include <QVector>
 
 #include "base.h"
 #include "gameresolver.h"
+
+// ============================================================================
+// MemoryManager（Qt 前端侧）
+//
+// 本类不再直接 ReadProcessMemory 读取游戏数据，而是：
+//   1. 把 DR2CAgent.dll 注入游戏进程；
+//   2. 通过命名管道 \\.\pipe\DR2CTool_<pid> 与 Agent 通信；
+//   3. 对上层保持原有 API（readMemory/writeMemory/CallFunction 等）不变。
+// ============================================================================
+
+struct HoverInfo
+{
+    bool found = false;
+    quint32 thingId = 0;
+    quint32 slot = 0;
+    quint32 mapId = 0;
+    quint64 thingAddress = 0; // 实体在游戏进程中的地址
+    QRect rect;              // 高亮矩形（游戏客户区坐标）
+    float worldX = 0.0f;
+    float worldY = 0.0f;
+};
 
 class MemoryManager : public QObject
 {
@@ -29,7 +50,6 @@ public:
     bool isProcessAlive() const;
     QString attachedProcessName() const { return m_processName; }
     quint32 attachedProcessId() const { return m_processId; }
-    // 已附加进程的可执行文件完整路径 / 所在目录（用于定位 gfx 资源）
     QString processImagePath() const;
     QString gameDirectory() const;
 
@@ -38,12 +58,12 @@ public:
     const GameResolver::Layout &gameLayout() const { return m_gameLayout; }
     bool hasFunction(GameResolver::Function function) const;
 
-    // 主模块代码节（用于图集等非核心数据的运行时扫描）
+    // 主模块代码节（图集扫描用；数据由 Agent 回传）
     quint32 codeSectionRva() const { return m_codeSectionRva; }
     quint32 codeSectionSize() const { return m_codeSectionSize; }
     QByteArray readCodeSection() const;
 
-    // 内存读写
+    // 内存读写（经 Agent 转发）
     bool readMemory(quint64, void*, quint64) const;
     bool writeMemory(quint64, const void*, quint64) const;
 
@@ -62,11 +82,7 @@ public:
     QString readString(quint64, quint64 maxLen = 40) const;
     bool writeString(quint64, const QString&, quint64 maxLen = 40) const;
 
-    // 远程内存分配/释放
-    bool AllocateRemoteString(const QString&, quint64 *remoteAddr) const;
-    bool FreeRemoteMemory(quint64 remoteAddr) const;
-
-    // 调用函数
+    // 调用游戏函数（在 Agent 所在线程内执行，异常由 Agent 捕获）
     bool CallFunction(GameResolver::Function, const QVector<quint64>&,
                       quint64 *retValue = nullptr) const;
 
@@ -79,7 +95,17 @@ public:
     quint64 CreateWeaponEntity(qint32 weaponId) const;
     bool SwitchActiveTileLayer(quint8) const;
     bool SetCurrentPlayerThing(quint64) const;
-    //bool RecruitCharacter(quint32, quint8) const;
+
+    // 世界交互（悬停 / 拖拽）
+    bool hoverThing(int mouseX, int mouseY, int clientWidth, int clientHeight,
+                    HoverInfo *out) const;
+    bool dragBegin(quint64 thingAddress) const;
+    bool dragMove(quint64 thingAddress, int mouseX, int mouseY,
+                  int clientWidth, int clientHeight) const;
+    bool dragEnd(quint64 thingAddress) const;
+
+    // 游戏窗口（用于把客户区坐标映射到屏幕坐标）
+    quint64 gameWindowHandle() const;
 
 signals:
     void processAttached();
@@ -87,17 +113,25 @@ signals:
     void attachError(const QString&);
 
 private:
-    void queryModuleBase();
-    bool resolveGameLayout();
+    bool injectAgent(QString *error);
+    bool connectAgent(QString *error);
+    bool fetchLayout(QString *error);
+
+    // 同步收发一条请求；status 为响应帧头中的状态码
+    bool sendRequest(quint16 command, const QByteArray &request,
+                     QByteArray *response, quint32 *status) const;
 
     bool m_attached = false;
+    bool m_agentInjected = false;
     quint32 m_processId = 0;
     QString m_processName;
     quint64 m_moduleBase = 0;
     quint32 m_codeSectionRva = 0;
     quint32 m_codeSectionSize = 0;
     GameResolver::Layout m_gameLayout;
-    void *m_handle = nullptr; // HANDLE
+    void *m_handle = nullptr; // 进程 HANDLE
+    void *m_pipe = nullptr;   // 管道 HANDLE
+    mutable quint32 m_sequence = 0;
 };
 
 #endif // MEMORYMANAGER_H

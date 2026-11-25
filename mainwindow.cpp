@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "Interaction/gameoverlay.h"
 #include <algorithm>
 #include <random>
 #include <QSet>
@@ -17,6 +18,8 @@
 #include <QPainter>
 #include <QPair>
 #include <QDir>
+#include <QFile>
+#include <QCoreApplication>
 #include <QRandomGenerator>
 #include <limits>
 
@@ -51,6 +54,8 @@ MainWindow::~MainWindow()
 {
     QString configPath = QCoreApplication::applicationDirPath() + "/config.json";
     setting->saveToFile(configPath);
+    if (m_overlay)
+        m_overlay->setActive(false);
     m_memMgr->detachProcess();
     disconnect(m_memMgr, &MemoryManager::processDetached, 0, 0);
     setControlsEnabled(false);
@@ -239,6 +244,18 @@ void MainWindow::setupUI()
     onEntityModeChanged();
     setControlsEnabled(false);
     m_refreshTimer->setInterval(500);
+
+    // 世界交互：覆盖在游戏窗口上的透明层（悬停高亮 + 拖拽）
+    m_overlay = new GameOverlay(m_memMgr, this);
+    m_worldInteractionCheck = new QCheckBox(tr("世界交互（悬停/拖拽）"), this);
+    m_worldInteractionCheck->setToolTip(
+        tr("勾选后会在游戏窗口上显示透明覆盖层：悬停高亮实体，按住左键拖动实体。"));
+    m_worldInteractionCheck->setEnabled(false);
+    statusBar()->addPermanentWidget(m_worldInteractionCheck);
+    connect(m_worldInteractionCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        if (m_overlay)
+            m_overlay->setActive(checked && isAttached());
+    });
 }
 
 void MainWindow::setControlsEnabled(bool enabled)
@@ -326,6 +343,16 @@ void MainWindow::setupConnections()
             statusBar()->showMessage(
                 tr("精灵图集就绪：运行时扫描到 %1 张").arg(m_spriteAtlas->scannedSheets()), 6000);
         }
+        // 图集还原报告：排查 mod 图集匹配时可在设置里打开，默认不写文件
+        if (setting->GetSaveSheetReport()) {
+            const QString sheetReport = m_spriteAtlas->sheetReport();
+            if (!sheetReport.isEmpty()) {
+                QFile sheetFile(QCoreApplication::applicationDirPath()
+                                + QStringLiteral("/sprite_sheets.txt"));
+                if (sheetFile.open(QIODevice::WriteOnly | QIODevice::Truncate))
+                    sheetFile.write(sheetReport.toUtf8());
+            }
+        }
         refreshAll();
         m_refreshTimer->start();
         setControlsEnabled(true);
@@ -334,6 +361,11 @@ void MainWindow::setupConnections()
         ui->cmdplainTextEdit->setEnabled(scriptAvailable);
         if (!scriptAvailable)
             ui->cmdplainTextEdit->setToolTip(tr("此游戏构建未能识别脚本执行函数。"));
+        if (m_worldInteractionCheck) {
+            m_worldInteractionCheck->setEnabled(true);
+            if (m_worldInteractionCheck->isChecked() && m_overlay)
+                m_overlay->setActive(true);
+        }
     });
     connect(m_memMgr, &MemoryManager::processDetached, this, [this]() {
         m_gameData->setModuleBase(0);
@@ -341,6 +373,12 @@ void MainWindow::setupConnections()
         statusBar()->showMessage(tr("已分离"));
         setControlsEnabled(false);
         m_refreshTimer->stop();
+        if (m_overlay)
+            m_overlay->setActive(false);
+        if (m_worldInteractionCheck) {
+            m_worldInteractionCheck->setEnabled(false);
+            m_worldInteractionCheck->setChecked(false);
+        }
     });
     connect(m_memMgr, &MemoryManager::attachError, this, [this](const QString &err) {
         statusBar()->showMessage(tr("错误: ") + err);

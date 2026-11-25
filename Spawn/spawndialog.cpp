@@ -24,8 +24,8 @@
 
 namespace {
 
-// kind：与 MainWindow::onSpawnEntity 一致；sheet：SpriteAtlas 下标，
-// -1 表示该类别不使用精灵图，-2 表示使用武器列表。
+// kind：与 MainWindow::onSpawnEntity 一致；sheet：-1 表示该类别不使用精灵图，
+// -2 表示使用武器列表，其余表示走精灵图页（图集内容随 mod 变化，不再按类别固定对应）。
 struct CategoryDef {
     QString name;
     int kind;
@@ -441,11 +441,10 @@ void SpawnDialog::onCategoryChanged(int row)
         m_preview->setText(tr("无"));
     } else {
         m_stack->setCurrentIndex(0);
-        m_populating = true;
-        if (sheet < m_sheetCombo->count())
-            m_sheetCombo->setCurrentIndex(sheet);
-        m_populating = false;
-        populateGrid(sheet);
+        // 图集会随 mod 增删，类别与图集下标的固定对应已失效，不再按类别自动切换图集，
+        // 直接沿用手动选择的当前项
+        const int current = m_sheetCombo->currentIndex();
+        populateGrid(current >= 0 ? current : 0);
         updateInfoLabel();
     }
     updateCategorySpecific();
@@ -478,10 +477,14 @@ void SpawnDialog::populateGrid(int sheetIndex)
     if (sheetIndex < 0 || sheetIndex >= sheets.size())
         return;
     const SpriteSheet &sheet = sheets.at(sheetIndex);
-    if (!sheet.loaded() || sheet.baseId == 0)
+    if (!sheet.loaded())
+        return;
+    // 静态表在 baseId 未读到时不能列帧；运行时段的 baseId 可以是 0
+    if (sheet.baseId == 0 && sheet.path.isEmpty())
         return;
 
-    const int count = sheet.frameCount();
+    // 超大的瓦片图集一次性生成几万个图标会卡死界面，这里限制预览数量
+    const int count = qMin(sheet.frameCount(), 4000);
     m_grid->setUpdatesEnabled(false);
     for (int frame = 0; frame < count; ++frame) {
         const quint32 id = sheet.baseId + static_cast<quint32>(frame);

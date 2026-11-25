@@ -12,13 +12,14 @@ qt_add_executable(DR2CDebugTool
     mainwindow.cpp
     mainwindow.h
     mainwindow.ui
-    #resources.qrc
     Memory/memorymanager.h
     Memory/memorymanager.cpp
     Memory/gameresolver.h
-    Memory/gameresolver.cpp
     Memory/gamedatareader.h
     Memory/gamedatareader.cpp
+    Interaction/gameoverlay.h
+    Interaction/gameoverlay.cpp
+    Common/protocol.h
     Delegates/spinboxdelegate.h
     Delegates/spinboxdelegate.cpp
     WeaponDialog/weapondialog.h
@@ -30,6 +31,7 @@ qt_add_executable(DR2CDebugTool
     Setting/addrsetting.h
     Setting/addrsetting.cpp
     Setting/addrsetting.ui
+    resource.qrc
 
 )
 
@@ -45,6 +47,27 @@ target_link_libraries(DR2CDebugTool
         Qt::Core
         Qt::Widgets
 )
+
+# Windows 可执行文件图标（资源管理器/任务栏里显示的 exe 图标）
+if(WIN32)
+    enable_language(RC)
+    target_sources(DR2CDebugTool PRIVATE appicon.rc)
+endif()
+
+# Common/protocol.h 同时被 64 位前端与 32 位 Agent 使用
+target_include_directories(DR2CDebugTool PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+# 可选：把预先构建好的 DR2CAgent.dll 自动复制到可执行文件目录。
+# 在 Qt Creator 的 CMake 配置里设置 DR2C_AGENT_DLL 指向 Agent 构建产物即可。
+set(DR2C_AGENT_DLL "" CACHE FILEPATH "预构建的 DR2CAgent.dll 路径（可选）")
+if(DR2C_AGENT_DLL)
+    add_custom_command(TARGET DR2CDebugTool POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${DR2C_AGENT_DLL}"
+            "$<TARGET_FILE_DIR:DR2CDebugTool>/DR2CAgent.dll"
+        COMMENT "复制 DR2CAgent.dll 到输出目录"
+    )
+endif()
 
 install(TARGETS DR2CDebugTool
     BUNDLE  DESTINATION .

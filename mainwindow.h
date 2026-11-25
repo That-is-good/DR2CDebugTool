@@ -39,6 +39,7 @@ class QGraphicsEllipseItem;
 class QGraphicsRectItem;
 class QGraphicsItem;
 class QGraphicsItemGroup;
+class GameOverlay;
 
 #include "Setting/addrsetting.h"
 #include "Memory/gamedatareader.h"
@@ -158,6 +159,8 @@ private:
     GameDataReader *m_gameData;
     SpriteAtlas *m_spriteAtlas;
     QTimer *m_refreshTimer;
+    GameOverlay *m_overlay = nullptr;
+    QCheckBox *m_worldInteractionCheck = nullptr;
 
     QGraphicsScene *m_entityScene = nullptr;
     QVector<ThingData> m_thingCache;             // 固定大小实体池，下标即池索引

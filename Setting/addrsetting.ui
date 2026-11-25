@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>400</width>
-    <height>709</height>
+    <height>352</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -44,314 +44,148 @@
     </widget>
    </item>
    <item>
-    <widget class="QScrollArea" name="scrollArea">
-     <property name="widgetResizable">
+    <widget class="QLabel" name="LanguageHintLabel">
+     <property name="text">
+      <string>切换语言后需重启本工具才能生效。</string>
+     </property>
+     <property name="wordWrap">
       <bool>true</bool>
      </property>
-     <widget class="QWidget" name="scrollAreaWidgetContents">
-      <property name="geometry">
-       <rect>
-        <x>0</x>
-        <y>0</y>
-        <width>366</width>
-        <height>669</height>
-       </rect>
-      </property>
-      <layout class="QVBoxLayout" name="verticalLayout_2">
-       <item>
-        <widget class="QGroupBox" name="EntitygroupBox">
-         <property name="title">
-          <string>实体</string>
-         </property>
-         <layout class="QFormLayout" name="formLayout_2">
-          <item row="5" column="0">
-           <widget class="QLabel" name="EntityLengthLabel">
-            <property name="text">
-             <string>数量</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="0">
-           <widget class="QLabel" name="EntityOffsetLabel">
-            <property name="text">
-             <string>偏移(Hex)</string>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="0">
-           <widget class="QLabel" name="EntitySizeLabel">
-            <property name="text">
-             <string>大小(Hex)</string>
-            </property>
-           </widget>
-          </item>
-          <item row="5" column="1">
-           <widget class="QSpinBox" name="EntityLengthspinBox">
-            <property name="maximum">
-             <number>32767</number>
-            </property>
-            <property name="value">
-             <number>610</number>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="1">
-           <widget class="QSpinBox" name="EntitySizespinBox">
-            <property name="maximum">
-             <number>65535</number>
-            </property>
-            <property name="value">
-             <number>772</number>
-            </property>
-            <property name="displayIntegerBase">
-             <number>16</number>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="QSpinBox" name="EntityOffsetspinBox">
-            <property name="maximum">
-             <number>2147483647</number>
-            </property>
-            <property name="value">
-             <number>5649120</number>
-            </property>
-            <property name="displayIntegerBase">
-             <number>16</number>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-       </item>
-       <item>
-        <widget class="QGroupBox" name="WeapongroupBox">
-         <property name="title">
-          <string>武器</string>
-         </property>
-         <layout class="QFormLayout" name="formLayout_3">
-          <item row="5" column="0">
-           <widget class="QLabel" name="WeaponLengthLabel">
-            <property name="text">
-             <string>数量</string>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="0">
-           <widget class="QLabel" name="WeaponSizeLabel">
-            <property name="text">
-             <string>大小(Hex)</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="0">
-           <widget class="QLabel" name="WeaponOffsetLabel">
-            <property name="text">
-             <string>偏移(Hex)</string>
-            </property>
-           </widget>
-          </item>
-          <item row="5" column="1">
-           <widget class="QSpinBox" name="WeaponLengthspinBox">
-            <property name="maximum">
-             <number>32767</number>
-            </property>
-            <property name="value">
-             <number>1024</number>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="1">
-           <widget class="QSpinBox" name="WeaponSizespinBox">
-            <property name="maximum">
-             <number>65535</number>
-            </property>
-            <property name="value">
-             <number>452</number>
-            </property>
-            <property name="displayIntegerBase">
-             <number>16</number>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="QSpinBox" name="WeaponOffsetspinBox">
-            <property name="maximum">
-             <number>2147483647</number>
-            </property>
-            <property name="value">
-             <number>5111936</number>
-            </property>
-            <property name="displayIntegerBase">
-             <number>16</number>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-       </item>
-       <item>
-        <widget class="QGroupBox" name="AreagroupBox">
-         <property name="title">
-          <string>地图</string>
-         </property>
-         <layout class="QFormLayout" name="formLayout_6">
-          <item row="0" column="0">
-           <widget class="QLabel" name="AreaOffsetLabel">
-            <property name="text">
-             <string>偏移(Hex)</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1">
-           <widget class="QSpinBox" name="AreaOffsetspinBox">
-            <property name="maximum">
-             <number>2147483647</number>
-            </property>
-            <property name="value">
-             <number>4643776</number>
-            </property>
-            <property name="displayIntegerBase">
-             <number>16</number>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="QSpinBox" name="AreaSizespinBox">
-            <property name="maximum">
-             <number>65535</number>
-            </property>
-            <property name="value">
-             <number>52</number>
-            </property>
-            <property name="displayIntegerBase">
-             <number>16</number>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="0">
-           <widget class="QLabel" name="AreaSizeLabel">
-            <property name="text">
-             <string>大小(Hex)</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-       </item>
-       <item>
-        <widget class="QGroupBox" name="MissongroupBox">
-         <property name="title">
-          <string>任务</string>
-         </property>
-         <layout class="QFormLayout" name="formLayout_4">
-          <item row="2" column="1">
-           <widget class="QGroupBox" name="CharagroupBox">
-            <property name="title">
-             <string>角色</string>
-            </property>
-            <layout class="QFormLayout" name="formLayout">
-             <item row="0" column="0">
-              <widget class="QLabel" name="CharaSizeLabel">
-               <property name="text">
-                <string>大小(Hex)</string>
-               </property>
-              </widget>
-             </item>
-             <item row="0" column="1">
-              <widget class="QSpinBox" name="CharaSizespinBox">
-               <property name="maximum">
-                <number>65535</number>
-               </property>
-               <property name="value">
-                <number>736</number>
-               </property>
-               <property name="displayIntegerBase">
-                <number>16</number>
-               </property>
-              </widget>
-             </item>
-             <item row="2" column="0">
-              <widget class="QLabel" name="CharaLengthLabel">
-               <property name="text">
-                <string>数量</string>
-               </property>
-              </widget>
-             </item>
-             <item row="2" column="1">
-              <widget class="QSpinBox" name="CharaLengthspinBox">
-               <property name="maximum">
-                <number>32767</number>
-               </property>
-               <property name="value">
-                <number>255</number>
-               </property>
-               <property name="displayIntegerBase">
-                <number>10</number>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item row="0" column="1">
-           <widget class="QLabel" name="MissonOffsetLabel">
-            <property name="text">
-             <string>偏移(Hex)</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="QSpinBox" name="MissonOffsetspinBox">
-            <property name="maximum">
-             <number>2147483647</number>
-            </property>
-            <property name="value">
-             <number>6169144</number>
-            </property>
-            <property name="displayIntegerBase">
-             <number>16</number>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-       </item>
-       <item>
-        <widget class="QGroupBox" name="OthergroupBox">
-         <property name="title">
-          <string>其他</string>
-         </property>
-         <layout class="QFormLayout" name="formLayout_5">
-          <item row="0" column="0">
-           <widget class="QLabel" name="UpdateLabel">
-            <property name="text">
-             <string>更新频率(ms)</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1">
-           <widget class="QSpinBox" name="UpdateSpinBox">
-            <property name="minimum">
-             <number>16</number>
-            </property>
-            <property name="maximum">
-             <number>1000</number>
-            </property>
-            <property name="singleStep">
-             <number>50</number>
-            </property>
-            <property name="value">
-             <number>500</number>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-       </item>
-      </layout>
-     </widget>
     </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="RefreshgroupBox">
+     <property name="title">
+      <string>刷新</string>
+     </property>
+     <layout class="QFormLayout" name="formLayout">
+      <item row="0" column="0">
+       <widget class="QLabel" name="UpdateLabel">
+        <property name="text">
+         <string>更新频率(ms)</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QSpinBox" name="UpdateSpinBox">
+        <property name="minimum">
+         <number>16</number>
+        </property>
+        <property name="maximum">
+         <number>1000</number>
+        </property>
+        <property name="singleStep">
+         <number>50</number>
+        </property>
+        <property name="value">
+         <number>500</number>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="CapacitygroupBox">
+     <property name="title">
+      <string>数据容量</string>
+     </property>
+     <layout class="QFormLayout" name="formLayout_2">
+      <item row="0" column="0">
+       <widget class="QLabel" name="EntityLengthLabel">
+        <property name="text">
+         <string>实体数量</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QSpinBox" name="EntityLengthspinBox">
+        <property name="maximum">
+         <number>32767</number>
+        </property>
+        <property name="value">
+         <number>610</number>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="WeaponLengthLabel">
+        <property name="text">
+         <string>武器数量</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QSpinBox" name="WeaponLengthspinBox">
+        <property name="maximum">
+         <number>32767</number>
+        </property>
+        <property name="value">
+         <number>1024</number>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="CharaLengthLabel">
+        <property name="text">
+         <string>角色数量</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QSpinBox" name="CharaLengthspinBox">
+        <property name="maximum">
+         <number>32767</number>
+        </property>
+        <property name="value">
+         <number>255</number>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="DiaggroupBox">
+     <property name="title">
+      <string>诊断</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_2">
+      <item>
+       <widget class="QCheckBox" name="SaveReportcheckBox">
+        <property name="text">
+         <string>附加时保存图集还原报告(sprite_sheets.txt)</string>
+        </property>
+        <property name="checked">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="SaveReportHintLabel">
+        <property name="text">
+         <string>用于排查 mod 图集匹配问题，报告写入程序所在目录。</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Orientation::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>10</height>
+      </size>
+     </property>
+    </spacer>
    </item>
    <item>
     <widget class="QDialogButtonBox" name="buttonBox">
@@ -372,32 +206,12 @@
    <signal>accepted()</signal>
    <receiver>AddrSetting</receiver>
    <slot>accept()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>248</x>
-     <y>254</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>157</x>
-     <y>274</y>
-    </hint>
-   </hints>
   </connection>
   <connection>
    <sender>buttonBox</sender>
    <signal>rejected()</signal>
    <receiver>AddrSetting</receiver>
    <slot>reject()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>316</x>
-     <y>260</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>286</x>
-     <y>274</y>
-    </hint>
-   </hints>
   </connection>
  </connections>
 </ui>

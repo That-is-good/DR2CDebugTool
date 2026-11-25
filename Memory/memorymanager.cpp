@@ -1,12 +1,191 @@
 #include "memorymanager.h"
 
+#include "../Common/protocol.h"
+
+#include <QCoreApplication>
+#include <QDir>
 #include <QFileInfo>
+
+#include <algorithm>
+#include <cstring>
+#include <vector>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
 #include <tlhelp32.h>
 #include <psapi.h>
+#include <cwchar>
 #endif
+
+namespace {
+
+#ifdef Q_OS_WIN
+
+constexpr DWORD kProcessAccess =
+    PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
+    PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ;
+
+bool readProcess(HANDLE process, quint32 address, void *buffer, SIZE_T size)
+{
+    SIZE_T done = 0;
+    return ReadProcessMemory(process,
+                             reinterpret_cast<LPCVOID>(static_cast<quintptr>(address)),
+                             buffer, size, &done) != FALSE
+           && done == size;
+}
+
+// 读取目标进程内 32 位 kernel32 的导出表，定位 LoadLibraryW 的真实地址。
+// 64 位前端不能直接使用自己 kernel32 的地址，必须按目标进程的模块布局解析。
+bool resolveRemoteLoadLibrary(HANDLE process, DWORD pid, quint64 *address, QString *error)
+{
+    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid);
+    if (snapshot == INVALID_HANDLE_VALUE) {
+        *error = QStringLiteral("无法枚举目标进程模块（需要管理员权限？）。");
+        return false;
+    }
+
+    quint32 kernel32Base = 0;
+    MODULEENTRY32W entry{};
+    entry.dwSize = sizeof(entry);
+    if (Module32FirstW(snapshot, &entry)) {
+        do {
+            if (lstrcmpiW(entry.szModule, L"kernel32.dll") == 0) {
+                kernel32Base = static_cast<quint32>(reinterpret_cast<quintptr>(entry.modBaseAddr));
+                break;
+            }
+        } while (Module32NextW(snapshot, &entry));
+    }
+    CloseHandle(snapshot);
+
+    if (!kernel32Base) {
+        *error = QStringLiteral("目标进程中找不到 kernel32.dll。");
+        return false;
+    }
+
+    IMAGE_DOS_HEADER dos{};
+    if (!readProcess(process, kernel32Base, &dos, sizeof(dos)) ||
+        dos.e_magic != IMAGE_DOS_SIGNATURE || dos.e_lfanew <= 0) {
+        *error = QStringLiteral("无法读取目标 kernel32 的 PE 头。");
+        return false;
+    }
+
+    IMAGE_NT_HEADERS32 nt{};
+    if (!readProcess(process, kernel32Base + static_cast<quint32>(dos.e_lfanew),
+                     &nt, sizeof(nt)) ||
+        nt.Signature != IMAGE_NT_SIGNATURE ||
+        nt.OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
+        *error = QStringLiteral("目标 kernel32 不是有效的 32 位 PE。");
+        return false;
+    }
+
+    const IMAGE_DATA_DIRECTORY directory =
+        nt.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT];
+    if (directory.VirtualAddress == 0 || directory.Size == 0 ||
+        directory.Size > nt.OptionalHeader.SizeOfImage) {
+        *error = QStringLiteral("目标 kernel32 缺少导出表。");
+        return false;
+    }
+
+    IMAGE_EXPORT_DIRECTORY exports{};
+    if (!readProcess(process, kernel32Base + directory.VirtualAddress,
+                     &exports, sizeof(exports)) ||
+        exports.NumberOfNames == 0 || exports.NumberOfNames > 8192 ||
+        exports.NumberOfFunctions == 0 || exports.NumberOfFunctions > 65536) {
+        *error = QStringLiteral("目标 kernel32 导出表异常。");
+        return false;
+    }
+
+    std::vector<DWORD> nameRvas(exports.NumberOfNames);
+    std::vector<WORD> ordinals(exports.NumberOfNames);
+    std::vector<DWORD> functionRvas(exports.NumberOfFunctions);
+    if (!readProcess(process, kernel32Base + exports.AddressOfNames,
+                     nameRvas.data(), exports.NumberOfNames * sizeof(DWORD)) ||
+        !readProcess(process, kernel32Base + exports.AddressOfNameOrdinals,
+                     ordinals.data(), exports.NumberOfNames * sizeof(WORD)) ||
+        !readProcess(process, kernel32Base + exports.AddressOfFunctions,
+                     functionRvas.data(), exports.NumberOfFunctions * sizeof(DWORD))) {
+        *error = QStringLiteral("无法读取目标 kernel32 导出表内容。");
+        return false;
+    }
+
+    for (DWORD i = 0; i < exports.NumberOfNames; ++i) {
+        char name[64] = {0};
+        if (!readProcess(process, kernel32Base + nameRvas[i], name, sizeof(name) - 1))
+            continue;
+        name[sizeof(name) - 1] = '\0';
+        if (std::strcmp(name, "LoadLibraryW") != 0)
+            continue;
+
+        const WORD ordinal = ordinals[i];
+        if (ordinal >= exports.NumberOfFunctions)
+            break;
+        const DWORD functionRva = functionRvas[ordinal];
+        if (functionRva == 0)
+            break;
+
+        *address = static_cast<quint64>(kernel32Base) + functionRva;
+        return true;
+    }
+
+    *error = QStringLiteral("目标 kernel32 中找不到 LoadLibraryW 导出。");
+    return false;
+}
+
+bool writeAll(HANDLE pipe, const void *buffer, quint32 size)
+{
+    const char *data = static_cast<const char *>(buffer);
+    quint32 total = 0;
+    while (total < size) {
+        DWORD written = 0;
+        if (!WriteFile(pipe, data + total, size - total, &written, nullptr) || written == 0)
+            return false;
+        total += written;
+    }
+    return true;
+}
+
+bool readAll(HANDLE pipe, void *buffer, quint32 size)
+{
+    char *data = static_cast<char *>(buffer);
+    quint32 total = 0;
+    while (total < size) {
+        DWORD received = 0;
+        if (!ReadFile(pipe, data + total, size - total, &received, nullptr) || received == 0)
+            return false;
+        total += received;
+    }
+    return true;
+}
+
+struct WindowSearch {
+    DWORD pid = 0;
+    HWND result = nullptr;
+    LONG bestArea = -1;
+};
+
+BOOL CALLBACK findGameWindowProc(HWND window, LPARAM parameter)
+{
+    WindowSearch *search = reinterpret_cast<WindowSearch *>(parameter);
+    DWORD windowPid = 0;
+    GetWindowThreadProcessId(window, &windowPid);
+    if (windowPid != search->pid || !IsWindowVisible(window) ||
+        GetWindow(window, GW_OWNER) != nullptr)
+        return TRUE;
+
+    RECT client{};
+    if (!GetClientRect(window, &client))
+        return TRUE;
+    const LONG area = (client.right - client.left) * (client.bottom - client.top);
+    if (area > search->bestArea) {
+        search->bestArea = area;
+        search->result = window;
+    }
+    return TRUE;
+}
+
+#endif // Q_OS_WIN
+
+} // namespace
 
 MemoryManager::MemoryManager(QObject *parent)
     : QObject(parent)
@@ -14,6 +193,7 @@ MemoryManager::MemoryManager(QObject *parent)
     , m_processId(0)
     , m_moduleBase(0)
     , m_handle(nullptr)
+    , m_pipe(nullptr)
 {
 }
 
@@ -25,19 +205,7 @@ MemoryManager::~MemoryManager()
 bool MemoryManager::hasFunction(GameResolver::Function function) const
 {
     return m_gameLayout.valid &&
-        m_gameLayout.functionRvas[static_cast<size_t>(function)] != 0;
-}
-
-void MemoryManager::queryModuleBase()
-{
-#ifdef Q_OS_WIN
-    if (!m_handle) return;
-    HMODULE hMods[1024];
-    DWORD cbNeeded;
-    if (EnumProcessModules(m_handle, hMods, sizeof(hMods), &cbNeeded)) {
-        m_moduleBase = reinterpret_cast<quint64>(hMods[0]);
-    }
-#endif
+        m_gameLayout.functionRvas[static_cast<std::size_t>(function)] != 0;
 }
 
 QString MemoryManager::processImagePath() const
@@ -59,127 +227,25 @@ QString MemoryManager::gameDirectory() const
     return QFileInfo(path).absolutePath();
 }
 
-bool MemoryManager::resolveGameLayout()
-{
-    m_gameLayout = GameResolver::Layout{};
-#ifdef Q_OS_WIN
-    if (!m_handle || !m_moduleBase) {
-        m_gameLayout.error = QStringLiteral("无法读取目标进程主模块。");
-        return false;
-    }
-
-    IMAGE_DOS_HEADER dosHeader{};
-    if (!readMemory(m_moduleBase, &dosHeader, sizeof(dosHeader)) ||
-        dosHeader.e_magic != IMAGE_DOS_SIGNATURE || dosHeader.e_lfanew <= 0) {
-        m_gameLayout.error = QStringLiteral("目标进程不是有效的 PE 模块。");
-        return false;
-    }
-
-    const quint64 ntAddress = m_moduleBase + static_cast<quint32>(dosHeader.e_lfanew);
-    DWORD signature = 0;
-    IMAGE_FILE_HEADER fileHeader{};
-    IMAGE_OPTIONAL_HEADER32 optionalHeader{};
-    if (!readMemory(ntAddress, &signature, sizeof(signature)) ||
-        signature != IMAGE_NT_SIGNATURE ||
-        !readMemory(ntAddress + sizeof(signature), &fileHeader, sizeof(fileHeader)) ||
-        !readMemory(ntAddress + sizeof(signature) + sizeof(fileHeader),
-                    &optionalHeader, sizeof(optionalHeader)) ||
-        fileHeader.Machine != IMAGE_FILE_MACHINE_I386 ||
-        optionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR32_MAGIC ||
-        optionalHeader.SizeOfImage == 0 ||
-        fileHeader.NumberOfSections == 0 ||
-        fileHeader.NumberOfSections > 96) {
-        m_gameLayout.error = QStringLiteral("目标模块格式不受支持（需要 32 位 x86 PE）。");
-        return false;
-    }
-
-    const quint64 sectionTableAddress = ntAddress + sizeof(signature) +
-        sizeof(fileHeader) + fileHeader.SizeOfOptionalHeader;
-    QByteArray sectionHeaders(static_cast<qsizetype>(fileHeader.NumberOfSections) *
-                                  sizeof(IMAGE_SECTION_HEADER), '\0');
-    if (!readMemory(sectionTableAddress, sectionHeaders.data(),
-                    static_cast<quint64>(sectionHeaders.size()))) {
-        m_gameLayout.error = QStringLiteral("无法读取目标模块节表。");
-        return false;
-    }
-
-    IMAGE_SECTION_HEADER textSection{};
-    bool foundText = false;
-    for (quint16 i = 0; i < fileHeader.NumberOfSections; ++i) {
-        IMAGE_SECTION_HEADER section{};
-        memcpy(&section, sectionHeaders.constData() +
-                    static_cast<qsizetype>(i) * sizeof(section), sizeof(section));
-        if (memcmp(section.Name, ".text", 5) == 0 &&
-            (section.Characteristics & IMAGE_SCN_MEM_EXECUTE) != 0) {
-            textSection = section;
-            foundText = true;
-            break;
-        }
-    }
-
-    const quint32 sectionSize = qMax(textSection.Misc.VirtualSize, textSection.SizeOfRawData);
-    if (!foundText || sectionSize == 0 || sectionSize > 32u * 1024u * 1024u ||
-        static_cast<quint64>(textSection.VirtualAddress) + sectionSize >
-            optionalHeader.SizeOfImage) {
-        m_gameLayout.error = QStringLiteral("目标模块缺少有效的可执行代码节。");
-        return false;
-    }
-
-    QByteArray executableSection(static_cast<qsizetype>(sectionSize), '\0');
-    if (!readMemory(m_moduleBase + textSection.VirtualAddress, executableSection.data(),
-                    sectionSize)) {
-        m_gameLayout.error = QStringLiteral("无法读取目标模块代码节用于特征码解析。");
-        return false;
-    }
-    m_codeSectionRva = textSection.VirtualAddress;
-    m_codeSectionSize = sectionSize;
-
-    if (!GameResolver::resolve(executableSection, textSection.VirtualAddress,
-                               optionalHeader.ImageBase, optionalHeader.SizeOfImage,
-                               &m_gameLayout))
-        return false;
-
-    quint32 characterPoolAddress = 0;
-    if (!readMemory(m_moduleBase + m_gameLayout.characterPoolPointerRva,
-                    &characterPoolAddress, sizeof(characterPoolAddress)) ||
-        characterPoolAddress < m_moduleBase ||
-        static_cast<quint64>(characterPoolAddress) - m_moduleBase >=
-            m_gameLayout.imageSize) {
-        m_gameLayout.valid = false;
-        m_gameLayout.error = QStringLiteral("角色池运行时指针无效；为避免错误读写，已拒绝附加。");
-        return false;
-    }
-    m_gameLayout.characterPoolRva =
-        static_cast<quint32>(static_cast<quint64>(characterPoolAddress) - m_moduleBase);
-
-    return true;
-#else
-    m_gameLayout.error = QStringLiteral("仅支持 Windows 平台。");
-    return false;
-#endif
-}
-
 QList<QVariantMap> MemoryManager::enumerateProcesses()
 {
     QList<QVariantMap> processes;
 #ifdef Q_OS_WIN
-    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (hSnapshot == INVALID_HANDLE_VALUE)
+    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snapshot == INVALID_HANDLE_VALUE)
         return processes;
 
-    PROCESSENTRY32W pe32;
-    pe32.dwSize = sizeof(PROCESSENTRY32W);
-
-    if (Process32FirstW(hSnapshot, &pe32)) {
+    PROCESSENTRY32W entry;
+    entry.dwSize = sizeof(PROCESSENTRY32W);
+    if (Process32FirstW(snapshot, &entry)) {
         do {
-            QVariantMap proc;
-            proc["pid"] = static_cast<quint32>(pe32.th32ProcessID);
-            proc["name"] = QString::fromWCharArray(pe32.szExeFile);
-            processes.append(proc);
-        } while (Process32NextW(hSnapshot, &pe32));
+            QVariantMap process;
+            process["pid"] = static_cast<quint32>(entry.th32ProcessID);
+            process["name"] = QString::fromWCharArray(entry.szExeFile);
+            processes.append(process);
+        } while (Process32NextW(snapshot, &entry));
     }
-
-    CloseHandle(hSnapshot);
+    CloseHandle(snapshot);
 #endif
     return processes;
 }
@@ -187,59 +253,34 @@ QList<QVariantMap> MemoryManager::enumerateProcesses()
 bool MemoryManager::attachProcess(const QString &processName)
 {
 #ifdef Q_OS_WIN
-    detachProcess();
-
-    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (hSnapshot == INVALID_HANDLE_VALUE)
+    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snapshot == INVALID_HANDLE_VALUE) {
+        emit attachError(QStringLiteral("无法枚举进程列表。"));
         return false;
+    }
 
-    PROCESSENTRY32W pe32;
-    pe32.dwSize = sizeof(PROCESSENTRY32W);
-    bool found = false;
-
-    if (Process32FirstW(hSnapshot, &pe32)) {
+    PROCESSENTRY32W entry;
+    entry.dwSize = sizeof(PROCESSENTRY32W);
+    quint32 foundPid = 0;
+    if (Process32FirstW(snapshot, &entry)) {
         do {
-            QString name = QString::fromWCharArray(pe32.szExeFile);
+            const QString name = QString::fromWCharArray(entry.szExeFile);
             if (name.compare(processName, Qt::CaseInsensitive) == 0) {
-                m_processId = pe32.th32ProcessID;
-                m_processName = name;
-                found = true;
+                foundPid = static_cast<quint32>(entry.th32ProcessID);
                 break;
             }
-        } while (Process32NextW(hSnapshot, &pe32));
+        } while (Process32NextW(snapshot, &entry));
     }
+    CloseHandle(snapshot);
 
-    CloseHandle(hSnapshot);
-
-    if (!found) {
-        emit attachError(QString("未找到进程: %1").arg(processName));
+    if (!foundPid) {
+        emit attachError(QStringLiteral("未找到进程: %1").arg(processName));
         return false;
     }
-
-    m_handle = OpenProcess(PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_VM_OPERATION
-                           | PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION,
-                           FALSE, m_processId);
-    if (!m_handle) {
-        emit attachError(QString("无法打开进程 %1 (PID: %2)").arg(m_processName).arg(m_processId));
-        m_processId = 0;
-        m_processName.clear();
-        return false;
-    }
-
-    queryModuleBase();
-    if (!m_moduleBase || !resolveGameLayout()) {
-        const QString error = m_gameLayout.error.isEmpty()
-            ? QStringLiteral("无法解析目标程序布局。") : m_gameLayout.error;
-        detachProcess();
-        emit attachError(error);
-        return false;
-    }
-    m_attached = true;
-    emit processAttached();
-    return true;
+    return attachProcessById(foundPid);
 #else
     Q_UNUSED(processName);
-    emit attachError("仅支持 Windows 平台");
+    emit attachError(QStringLiteral("仅支持 Windows 平台。"));
     return false;
 #endif
 }
@@ -249,57 +290,95 @@ bool MemoryManager::attachProcessById(quint32 pid)
 #ifdef Q_OS_WIN
     detachProcess();
 
-    m_handle = OpenProcess(PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_VM_OPERATION
-                           | PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION,
-                           FALSE, pid);
-    if (!m_handle) {
-        emit attachError(QString("无法打开进程 PID: %1").arg(pid));
+    HANDLE process = OpenProcess(kProcessAccess, FALSE, pid);
+    if (!process) {
+        emit attachError(QStringLiteral("无法打开进程 PID: %1（请以管理员身份运行）。").arg(pid));
         return false;
     }
 
+    BOOL isWow64 = FALSE;
+    if (!IsWow64Process(process, &isWow64) || !isWow64) {
+        CloseHandle(process);
+        emit attachError(QStringLiteral("目标进程不是 32 位程序，无法注入 Agent。"));
+        return false;
+    }
+
+    m_handle = process;
     m_processId = pid;
 
-    WCHAR exeName[MAX_PATH] = {0};
+    wchar_t exeName[MAX_PATH] = {0};
     DWORD size = MAX_PATH;
-    if (QueryFullProcessImageNameW(m_handle, 0, exeName, &size)) {
+    if (QueryFullProcessImageNameW(process, 0, exeName, &size)) {
         m_processName = QString::fromWCharArray(exeName);
-        int lastSlash = m_processName.lastIndexOf('\\');
+        const int lastSlash = m_processName.lastIndexOf('\\');
         if (lastSlash >= 0)
             m_processName = m_processName.mid(lastSlash + 1);
     }
 
-    queryModuleBase();
-    if (!m_moduleBase || !resolveGameLayout()) {
-        const QString error = m_gameLayout.error.isEmpty()
-            ? QStringLiteral("无法解析目标程序布局。") : m_gameLayout.error;
+    QString error;
+    if (!injectAgent(&error) || !connectAgent(&error)) {
         detachProcess();
         emit attachError(error);
         return false;
     }
+
+    // 获取模块基址
+    QByteArray response;
+    quint32 status = 0;
+    if (!sendRequest(static_cast<quint16>(dr2c::Command::GetInfo), QByteArray(),
+                     &response, &status) ||
+        status != static_cast<quint32>(dr2c::Status::Ok) ||
+        response.size() < static_cast<int>(sizeof(dr2c::InfoResponse))) {
+        detachProcess();
+        emit attachError(QStringLiteral("Agent 未返回有效的进程信息。"));
+        return false;
+    }
+    dr2c::InfoResponse info{};
+    std::memcpy(&info, response.constData(), sizeof(info));
+    m_moduleBase = info.moduleBase;
+
+    if (!m_moduleBase || !fetchLayout(&error)) {
+        const QString message = error.isEmpty()
+            ? QStringLiteral("无法解析目标程序布局。") : error;
+        detachProcess();
+        emit attachError(message);
+        return false;
+    }
+
     m_attached = true;
     emit processAttached();
     return true;
 #else
     Q_UNUSED(pid);
-    emit attachError("仅支持 Windows 平台");
+    emit attachError(QStringLiteral("仅支持 Windows 平台。"));
     return false;
 #endif
 }
 
 void MemoryManager::detachProcess()
 {
+    const bool wasAttached = m_attached;
 #ifdef Q_OS_WIN
+    if (m_pipe) {
+        CloseHandle(static_cast<HANDLE>(m_pipe));
+        m_pipe = nullptr;
+    }
     if (m_handle) {
-        CloseHandle(m_handle);
+        CloseHandle(static_cast<HANDLE>(m_handle));
         m_handle = nullptr;
     }
 #endif
     m_attached = false;
+    m_agentInjected = false;
     m_processId = 0;
     m_processName.clear();
     m_moduleBase = 0;
+    m_codeSectionRva = 0;
+    m_codeSectionSize = 0;
     m_gameLayout = GameResolver::Layout{};
-    emit processDetached();
+    // 只有真正处于附加状态时才通知界面，避免重连过程中的无意义“已分离”提示
+    if (wasAttached)
+        emit processDetached();
 }
 
 bool MemoryManager::isProcessAlive() const
@@ -307,52 +386,290 @@ bool MemoryManager::isProcessAlive() const
 #ifdef Q_OS_WIN
     if (!m_handle) return false;
     DWORD exitCode = 0;
-    if (!GetExitCodeProcess(m_handle, &exitCode))
+    if (!GetExitCodeProcess(static_cast<HANDLE>(m_handle), &exitCode))
         return false;
-    // STILL_ACTIVE = 259 表示进程仍在运行
     return exitCode == STILL_ACTIVE;
 #else
     return false;
 #endif
 }
 
-bool MemoryManager::readMemory(quint64 address, void *buffer, quint64 size) const
+bool MemoryManager::injectAgent(QString *error)
 {
 #ifdef Q_OS_WIN
-    if (!m_handle || !buffer || size == 0)
+    const QString dllPath = QDir::toNativeSeparators(
+        QCoreApplication::applicationDirPath() + QStringLiteral("/DR2CAgent.dll"));
+    if (!QFileInfo::exists(dllPath)) {
+        *error = QStringLiteral("未找到注入模块：%1").arg(dllPath);
+        return false;
+    }
+
+    HANDLE process = static_cast<HANDLE>(m_handle);
+    quint64 loadLibrary = 0;
+    if (!resolveRemoteLoadLibrary(process, m_processId, &loadLibrary, error))
         return false;
 
-    quint64 bytesRead = 0;
-    return ReadProcessMemory(m_handle, reinterpret_cast<LPCVOID>(address), buffer, size, &bytesRead) && bytesRead == size;
+    // 把 DLL 路径以 UTF-16（含结尾 NUL）写入目标进程
+    const QByteArray pathBytes(
+        reinterpret_cast<const char *>(dllPath.utf16()),
+        (dllPath.size() + 1) * static_cast<int>(sizeof(ushort)));
+
+    void *remotePath = VirtualAllocEx(process, nullptr,
+                                      static_cast<SIZE_T>(pathBytes.size()),
+                                      MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    if (!remotePath) {
+        *error = QStringLiteral("无法在目标进程中分配注入参数内存。");
+        return false;
+    }
+
+    SIZE_T written = 0;
+    if (!WriteProcessMemory(process, remotePath, pathBytes.constData(),
+                            static_cast<SIZE_T>(pathBytes.size()), &written) ||
+        written != static_cast<SIZE_T>(pathBytes.size())) {
+        VirtualFreeEx(process, remotePath, 0, MEM_RELEASE);
+        *error = QStringLiteral("写入注入参数失败。");
+        return false;
+    }
+
+    HANDLE thread = CreateRemoteThread(
+        process, nullptr, 0,
+        reinterpret_cast<LPTHREAD_START_ROUTINE>(
+            static_cast<quintptr>(loadLibrary)),
+        remotePath, 0, nullptr);
+    if (!thread) {
+        VirtualFreeEx(process, remotePath, 0, MEM_RELEASE);
+        *error = QStringLiteral("无法在目标进程中创建注入线程。");
+        return false;
+    }
+
+    if (WaitForSingleObject(thread, 10000) != WAIT_OBJECT_0) {
+        CloseHandle(thread);
+        VirtualFreeEx(process, remotePath, 0, MEM_RELEASE);
+        *error = QStringLiteral("注入线程等待超时（LoadLibrary 未返回）。");
+        return false;
+    }
+
+    DWORD moduleHandle = 0;
+    GetExitCodeThread(thread, &moduleHandle);
+    CloseHandle(thread);
+    VirtualFreeEx(process, remotePath, 0, MEM_RELEASE);
+
+    if (moduleHandle == 0) {
+        *error = QStringLiteral("注入 DR2CAgent.dll 失败（LoadLibrary 返回 0）。");
+        return false;
+    }
+
+    m_agentInjected = true;
+    return true;
 #else
-    Q_UNUSED(address);
-    Q_UNUSED(buffer);
-    Q_UNUSED(size);
+    *error = QStringLiteral("仅支持 Windows 平台。");
     return false;
 #endif
 }
 
-bool MemoryManager::writeMemory(quint64 address, const void *buffer, quint64 size) const
+bool MemoryManager::connectAgent(QString *error)
 {
 #ifdef Q_OS_WIN
-    if (!m_handle || !buffer || size == 0)
-        return false;
+    const QString pipePath =
+        QStringLiteral("\\\\.\\pipe\\DR2CTool_") + QString::number(m_processId);
 
-    quint64 bytesWritten = 0;
-    return WriteProcessMemory(m_handle, reinterpret_cast<LPVOID>(address), buffer, size, &bytesWritten) && bytesWritten == size;
+    HANDLE pipe = INVALID_HANDLE_VALUE;
+    for (int attempt = 0; attempt < 50; ++attempt) {
+        pipe = CreateFileW(reinterpret_cast<LPCWSTR>(pipePath.utf16()),
+                           GENERIC_READ | GENERIC_WRITE, 0, nullptr,
+                           OPEN_EXISTING, 0, nullptr);
+        if (pipe != INVALID_HANDLE_VALUE)
+            break;
+        WaitNamedPipeW(reinterpret_cast<LPCWSTR>(pipePath.utf16()), 100);
+        Sleep(50);
+    }
+
+    if (pipe == INVALID_HANDLE_VALUE) {
+        *error = QStringLiteral("无法连接到 Agent 管道（注入后服务未就绪）。");
+        return false;
+    }
+
+    m_pipe = pipe;
+
+    dr2c::PingRequest ping{};
+    ping.cookie = 0x44523243u; // 'DR2C'
+    QByteArray request(reinterpret_cast<const char *>(&ping), sizeof(ping));
+    QByteArray response;
+    quint32 status = 0;
+    bool ok = sendRequest(static_cast<quint16>(dr2c::Command::Ping),
+                          request, &response, &status);
+    if (!ok || status != static_cast<quint32>(dr2c::Status::Ok) ||
+        response.size() < static_cast<int>(sizeof(dr2c::PingResponse))) {
+        CloseHandle(pipe);
+        m_pipe = nullptr;
+        *error = QStringLiteral("Agent 未通过握手校验。");
+        return false;
+    }
+
+    dr2c::PingResponse reply{};
+    std::memcpy(&reply, response.constData(), sizeof(reply));
+    if (reply.cookie != ping.cookie || reply.pid != m_processId) {
+        CloseHandle(pipe);
+        m_pipe = nullptr;
+        *error = QStringLiteral("Agent 握手信息不匹配。");
+        return false;
+    }
+    return true;
 #else
-    Q_UNUSED(address);
-    Q_UNUSED(buffer);
-    Q_UNUSED(size);
+    *error = QStringLiteral("仅支持 Windows 平台。");
     return false;
 #endif
+}
+
+bool MemoryManager::fetchLayout(QString *error)
+{
+    QByteArray response;
+    quint32 status = 0;
+    if (!sendRequest(static_cast<quint16>(dr2c::Command::GetLayout), QByteArray(),
+                     &response, &status) ||
+        status != static_cast<quint32>(dr2c::Status::Ok) ||
+        response.size() < static_cast<int>(sizeof(dr2c::LayoutInfo))) {
+        *error = QStringLiteral("Agent 未返回布局信息。");
+        return false;
+    }
+
+    dr2c::LayoutInfo info{};
+    std::memcpy(&info, response.constData(), sizeof(info));
+
+    m_gameLayout = GameResolver::Layout{};
+    m_gameLayout.valid = info.valid != 0;
+    m_gameLayout.imageBase = info.imageBase;
+    m_gameLayout.imageSize = info.imageSize;
+    for (std::size_t i = 0; i < GameResolver::FunctionCount; ++i)
+        m_gameLayout.functionRvas[i] = info.functionRvas[i];
+    m_gameLayout.thingPoolRva = info.thingPoolRva;
+    m_gameLayout.weaponPoolRva = info.weaponPoolRva;
+    m_gameLayout.missionStateRva = info.missionStateRva;
+    m_gameLayout.characterPoolPointerRva = info.characterPoolPointerRva;
+    m_gameLayout.characterPoolRva = info.characterPoolRva;
+    m_gameLayout.mapLayerMetaRva = info.mapLayerMetaRva;
+    m_gameLayout.currentMapIdRva = info.currentMapIdRva;
+    m_gameLayout.nextThingIdRva = info.nextThingIdRva;
+    m_gameLayout.cameraMapLayerRva = info.cameraMapLayerRva;
+    m_gameLayout.playerThingArrayRva = info.playerThingArrayRva;
+    m_gameLayout.thingStride = info.thingStride;
+    m_gameLayout.characterStride = info.characterStride;
+    m_gameLayout.weaponStride = info.weaponStride;
+    m_gameLayout.mapMetaStride = info.mapMetaStride;
+    m_gameLayout.warning = QString::fromUtf8(info.warning);
+    m_gameLayout.error = QString::fromUtf8(info.error);
+
+    m_codeSectionRva = info.codeSectionRva;
+    m_codeSectionSize = info.codeSectionSize;
+
+    if (!m_gameLayout.valid) {
+        *error = m_gameLayout.error.isEmpty()
+            ? QStringLiteral("无法解析游戏内存布局。") : m_gameLayout.error;
+        return false;
+    }
+    return true;
+}
+
+bool MemoryManager::sendRequest(quint16 command, const QByteArray &request,
+                                QByteArray *response, quint32 *status) const
+{
+#ifdef Q_OS_WIN
+    HANDLE pipe = static_cast<HANDLE>(m_pipe);
+    if (!pipe)
+        return false;
+
+    dr2c::PacketHeader header{};
+    header.magic = dr2c::kPipeMagic;
+    header.version = dr2c::kProtocolVersion;
+    header.cmd = command;
+    header.seq = ++m_sequence;
+    header.status = 0;
+    header.payloadLen = static_cast<quint32>(request.size());
+
+    if (!writeAll(pipe, &header, sizeof(header)))
+        return false;
+    if (!request.isEmpty() &&
+        !writeAll(pipe, request.constData(), static_cast<quint32>(request.size())))
+        return false;
+
+    dr2c::PacketHeader reply{};
+    if (!readAll(pipe, &reply, sizeof(reply)))
+        return false;
+    if (reply.magic != dr2c::kPipeMagic ||
+        reply.version != dr2c::kProtocolVersion ||
+        reply.seq != header.seq ||
+        reply.payloadLen > dr2c::kMaxPayload)
+        return false;
+
+    if (response) {
+        response->resize(static_cast<int>(reply.payloadLen));
+        if (reply.payloadLen &&
+            !readAll(pipe, response->data(), reply.payloadLen))
+            return false;
+    } else if (reply.payloadLen) {
+        QByteArray discard(static_cast<int>(reply.payloadLen), '\0');
+        if (!readAll(pipe, discard.data(), reply.payloadLen))
+            return false;
+    }
+
+    if (status)
+        *status = reply.status;
+    return true;
+#else
+    Q_UNUSED(command);
+    Q_UNUSED(request);
+    Q_UNUSED(response);
+    Q_UNUSED(status);
+    return false;
+#endif
+}
+
+bool MemoryManager::readMemory(quint64 address, void *buffer, quint64 size) const
+{
+    if (!buffer || size == 0 || size > dr2c::kMaxPayload)
+        return false;
+
+    dr2c::ReadRequest request{};
+    request.address = address;
+    request.size = static_cast<quint32>(size);
+
+    QByteArray payload(reinterpret_cast<const char *>(&request), sizeof(request));
+    QByteArray response;
+    quint32 status = 0;
+    if (!sendRequest(static_cast<quint16>(dr2c::Command::Read), payload,
+                     &response, &status) ||
+        status != static_cast<quint32>(dr2c::Status::Ok) ||
+        static_cast<quint64>(response.size()) != size)
+        return false;
+
+    std::memcpy(buffer, response.constData(), static_cast<size_t>(size));
+    return true;
+}
+
+bool MemoryManager::writeMemory(quint64 address, const void *buffer, quint64 size) const
+{
+    if (!buffer || size == 0 || size > dr2c::kMaxPayload)
+        return false;
+
+    dr2c::WriteRequestHeader header{};
+    header.address = address;
+    header.size = static_cast<quint32>(size);
+
+    QByteArray payload(reinterpret_cast<const char *>(&header), sizeof(header));
+    payload.append(static_cast<const char *>(buffer), static_cast<int>(size));
+
+    quint32 status = 0;
+    if (!sendRequest(static_cast<quint16>(dr2c::Command::Write), payload,
+                     nullptr, &status))
+        return false;
+    return status == static_cast<quint32>(dr2c::Status::Ok);
 }
 
 QByteArray MemoryManager::readCodeSection() const
 {
     if (!m_codeSectionSize || !m_moduleBase)
         return QByteArray();
-    QByteArray data(static_cast<qsizetype>(m_codeSectionSize), '\0');
+    QByteArray data(static_cast<int>(m_codeSectionSize), '\0');
     if (!readMemory(m_moduleBase + m_codeSectionRva, data.data(),
                     static_cast<quint64>(m_codeSectionSize)))
         return QByteArray();
@@ -361,11 +678,11 @@ QByteArray MemoryManager::readCodeSection() const
 
 QString MemoryManager::readString(quint64 address, quint64 maxLen) const
 {
-    QByteArray data(maxLen, '\0');
+    QByteArray data(static_cast<int>(maxLen), '\0');
     if (!readMemory(address, data.data(), maxLen))
         return QString();
 
-    int nullPos = data.indexOf('\0');
+    const int nullPos = data.indexOf('\0');
     if (nullPos >= 0)
         data.truncate(nullPos);
 
@@ -376,457 +693,234 @@ bool MemoryManager::writeString(quint64 address, const QString &str, quint64 max
 {
     QByteArray data = str.toUtf8();
     if (static_cast<quint64>(data.size()) >= maxLen)
-        data = data.left(maxLen - 1);
+        data = data.left(static_cast<int>(maxLen) - 1);
     data.append('\0');
 
     return writeMemory(address, data.constData(), data.size());
 }
 
-// ==================== 远程内存分配/释放 ====================
-bool MemoryManager::AllocateRemoteString(const QString &str, quint64 *remoteAddr) const
-{
-#ifdef Q_OS_WIN
-    if (!m_handle || !remoteAddr) return false;
-
-    // 将字符串转为 UTF-8 并确保以 '\0' 结尾
-    QByteArray data = str.toUtf8();
-    if (data.isEmpty()) return false;
-    if (!data.endsWith('\0'))
-        data.append('\0');
-    quint32 size = static_cast<quint32>(data.size());
-
-    // 在目标进程中分配内存用于存放字符串
-    void *remoteMem = VirtualAllocEx(m_handle, nullptr, size,
-                                     MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-    if (!remoteMem) return false;
-
-    quint64 bytesWritten = 0;
-    if (!WriteProcessMemory(m_handle, remoteMem, data.constData(), size, &bytesWritten)
-            || bytesWritten != size) {
-        VirtualFreeEx(m_handle, remoteMem, 0, MEM_RELEASE);
-        return false;
-    }
-
-    *remoteAddr = reinterpret_cast<quint64>(remoteMem);
-    return true;
-#else
-    Q_UNUSED(str);
-    Q_UNUSED(remoteAddr);
-    return false;
-#endif
-}
-
-bool MemoryManager::FreeRemoteMemory(quint64 remoteAddr) const
-{
-#ifdef Q_OS_WIN
-    if (!m_handle || remoteAddr == 0) return false;
-
-    return VirtualFreeEx(m_handle, reinterpret_cast<LPVOID>(remoteAddr), 0, MEM_RELEASE) != 0;
-#else
-    Q_UNUSED(remoteAddr);
-    return false;
-#endif
-}
-
-// ==================== 通用远程函数调用 ====================
+// ==================== 游戏函数调用 ====================
 bool MemoryManager::CallFunction(GameResolver::Function function,
                                  const QVector<quint64> &args,
                                  quint64 *retValue) const
 {
-#ifdef Q_OS_WIN
-    if (!m_handle || !m_gameLayout.valid)
+    if (!m_pipe || !m_gameLayout.valid)
+        return false;
+    const quint32 functionRva = m_gameLayout.functionRvas[static_cast<std::size_t>(function)];
+    if (!functionRva)
         return false;
 
-    const quint32 funcRva = m_gameLayout.functionRvas[static_cast<size_t>(function)];
-    if (!funcRva)
+    dr2c::CallRequest request{};
+    request.functionId = static_cast<quint32>(function);
+    request.argCount = static_cast<quint32>(args.size());
+
+    QByteArray payload(reinterpret_cast<const char *>(&request), sizeof(request));
+    for (quint64 arg : args)
+        payload.append(reinterpret_cast<const char *>(&arg), sizeof(arg));
+
+    QByteArray response;
+    quint32 status = 0;
+    if (!sendRequest(static_cast<quint16>(dr2c::Command::Call), payload,
+                     &response, &status) ||
+        response.size() < static_cast<int>(sizeof(dr2c::CallResponse)))
         return false;
 
-    quint64 funcAddr = m_moduleBase + funcRva;
-    int argCount = args.size();
-
-    // 判断目标进程是 32 位还是 64 位
-    BOOL isWow64 = FALSE;
-    bool isTarget32Bit = false;
-    if (IsWow64Process(m_handle, &isWow64)) {
-        isTarget32Bit = (isWow64 == TRUE);
-    }
-
-    // 存储远程分配的内存，用于后续释放
-    QVector<void*> remoteAllocs;
-
-    // 如果需要返回值，在目标进程中分配 8 字节内存用于保存 EAX/RAX
-    void *retStorage = nullptr;
-    if (retValue) {
-        retStorage = VirtualAllocEx(m_handle, nullptr, sizeof(quint64),
-                                    MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-        if (!retStorage)
-            return false;
-        remoteAllocs.append(retStorage);
-    }
-
-    QByteArray shellcode;
-    if (isTarget32Bit) {
-        // ---- x86 (32-bit) cdecl: 参数从右到左 push，调用者清理栈 ----
-        for (int i = argCount - 1; i >= 0; --i) {
-            // push arg
-            shellcode.append(static_cast<char>(0x68));
-            quint64 arg = args[i];
-            shellcode.append(reinterpret_cast<const char*>(&arg), 4);
-        }
-        // mov eax, funcAddr
-        shellcode.append(static_cast<char>(0xB8));
-        shellcode.append(reinterpret_cast<const char*>(&funcAddr), 4);
-        // call eax
-        shellcode.append(static_cast<char>(0xFF));
-        shellcode.append(static_cast<char>(0xD0));
-        // add esp, 4*argCount   (cdecl 调用者清理栈)
-        if (argCount > 0) {
-            quint32 stackClean = static_cast<quint32>(4 * argCount);
-            shellcode.append(static_cast<char>(0x81));
-            shellcode.append(static_cast<char>(0xC4));
-            shellcode.append(reinterpret_cast<const char*>(&stackClean), 4);
-        }
-        // 如果请求了返回值，将 EAX 保存到远程内存 retStorage
-        if (retValue && retStorage) {
-            // mov edi, retStorage
-            shellcode.append(static_cast<char>(0xBF));
-            quint32 retStorage32 = static_cast<quint32>(reinterpret_cast<quint64>(retStorage));
-            shellcode.append(reinterpret_cast<const char*>(&retStorage32), 4);
-            // mov [edi], eax
-            shellcode.append(static_cast<char>(0x89));
-            shellcode.append(static_cast<char>(0x07));
-        }
-        // ret
-        shellcode.append(static_cast<char>(0xC3));
-    } else {
-        // ---- x64 (64-bit) Windows calling convention ----
-        // 前4个参数: RCX, RDX, R8, R9
-        // 第5+个参数: 栈上 [rsp+0x28], [rsp+0x30], ...
-        // 必须预留 shadow space (0x20)，栈16字节对齐
-
-        // 计算栈参数数量
-        int stackArgCount = (argCount > 4) ? (argCount - 4) : 0;
-        // 栈空间 = shadow space (0x20) + 栈参数 (每个8字节)
-        quint32 allocSize = 0x20 + static_cast<quint32>(stackArgCount * 8);
-        // 16字节对齐
-        if (allocSize % 16 != 0)
-            allocSize = (allocSize + 15) & ~15u;
-
-        // sub rsp, allocSize
-        if (allocSize >= 0x80) {
-            shellcode.append(static_cast<char>(0x48));
-            shellcode.append(static_cast<char>(0x81));
-            shellcode.append(static_cast<char>(0xEC));
-            shellcode.append(reinterpret_cast<const char*>(&allocSize), 4);
-        } else {
-            shellcode.append(static_cast<char>(0x48));
-            shellcode.append(static_cast<char>(0x83));
-            shellcode.append(static_cast<char>(0xEC));
-            shellcode.append(static_cast<char>(allocSize & 0xFF));
-        }
-
-        // 前4个参数: RCX, RDX, R8, R9
-        // arg0 -> RCX
-        if (argCount >= 1) {
-            shellcode.append(static_cast<char>(0x48));
-            shellcode.append(static_cast<char>(0xB9));
-            shellcode.append(reinterpret_cast<const char*>(&args[0]), 8);
-        }
-        // arg1 -> RDX
-        if (argCount >= 2) {
-            shellcode.append(static_cast<char>(0x48));
-            shellcode.append(static_cast<char>(0xBA));
-            shellcode.append(reinterpret_cast<const char*>(&args[1]), 8);
-        }
-        // arg2 -> R8
-        if (argCount >= 3) {
-            shellcode.append(static_cast<char>(0x49));
-            shellcode.append(static_cast<char>(0xB8));
-            shellcode.append(reinterpret_cast<const char*>(&args[2]), 8);
-        }
-        // arg3 -> R9
-        if (argCount >= 4) {
-            shellcode.append(static_cast<char>(0x49));
-            shellcode.append(static_cast<char>(0xB9));
-            shellcode.append(reinterpret_cast<const char*>(&args[3]), 8);
-        }
-
-        // 第5+个参数: 放到 [rsp+0x20], [rsp+0x28], ... 使用 mov rax, imm64; mov [rsp+off], rax
-        for (int i = 4; i < argCount; ++i) {
-            int stackOffset = 0x20 + (i - 4) * 8;
-            // mov rax, args[i]
-            shellcode.append(static_cast<char>(0x48));
-            shellcode.append(static_cast<char>(0xB8));
-            shellcode.append(reinterpret_cast<const char*>(&args[i]), 8);
-            // mov [rsp+stackOffset], rax
-            if (stackOffset < 0x80) {
-                shellcode.append(static_cast<char>(0x48));
-                shellcode.append(static_cast<char>(0x89));
-                shellcode.append(static_cast<char>(0x44));
-                shellcode.append(static_cast<char>(0x24));
-                shellcode.append(static_cast<char>(stackOffset & 0xFF));
-            } else {
-                shellcode.append(static_cast<char>(0x48));
-                shellcode.append(static_cast<char>(0x89));
-                shellcode.append(static_cast<char>(0x84));
-                shellcode.append(static_cast<char>(0x24));
-                quint32 off = static_cast<quint32>(stackOffset);
-                shellcode.append(reinterpret_cast<const char*>(&off), 4);
-            }
-        }
-
-        // mov rax, funcAddr
-        shellcode.append(static_cast<char>(0x48));
-        shellcode.append(static_cast<char>(0xB8));
-        shellcode.append(reinterpret_cast<const char*>(&funcAddr), 8);
-        // call rax
-        shellcode.append(static_cast<char>(0xFF));
-        shellcode.append(static_cast<char>(0xD0));
-
-        // add rsp, allocSize
-        if (allocSize >= 0x80) {
-            shellcode.append(static_cast<char>(0x48));
-            shellcode.append(static_cast<char>(0x81));
-            shellcode.append(static_cast<char>(0xC4));
-            shellcode.append(reinterpret_cast<const char*>(&allocSize), 4);
-        } else {
-            shellcode.append(static_cast<char>(0x48));
-            shellcode.append(static_cast<char>(0x83));
-            shellcode.append(static_cast<char>(0xC4));
-            shellcode.append(static_cast<char>(allocSize & 0xFF));
-        }
-        // 如果请求了返回值，将 RAX 保存到远程内存 retStorage
-        if (retValue && retStorage) {
-            // mov rdi, retStorage
-            shellcode.append(static_cast<char>(0x48));
-            shellcode.append(static_cast<char>(0xBF));
-            quint64 retStorage64 = reinterpret_cast<quint64>(retStorage);
-            shellcode.append(reinterpret_cast<const char*>(&retStorage64), 8);
-            // mov [rdi], rax
-            shellcode.append(static_cast<char>(0x48));
-            shellcode.append(static_cast<char>(0x89));
-            shellcode.append(static_cast<char>(0x07));
-        }
-        // ret
-        shellcode.append(static_cast<char>(0xC3));
-    }
-
-    // 在目标进程中分配可执行内存用于 shellcode
-    void *remoteCode = VirtualAllocEx(m_handle, nullptr, shellcode.size(),
-                                      MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-    if (!remoteCode) {
-        for (void *p : remoteAllocs) VirtualFreeEx(m_handle, p, 0, MEM_RELEASE);
-        return false;
-    }
-    remoteAllocs.append(remoteCode);
-
-    // 写入 shellcode
-    quint64 codeWritten = 0;
-    BOOL wroteCode = WriteProcessMemory(m_handle, remoteCode, shellcode.constData(),
-                                        shellcode.size(), &codeWritten);
-    if (!wroteCode || codeWritten != static_cast<quint64>(shellcode.size())) {
-        for (void *p : remoteAllocs) VirtualFreeEx(m_handle, p, 0, MEM_RELEASE);
-        return false;
-    }
-
-    // 创建远程线程执行 shellcode
-    HANDLE hThread = CreateRemoteThread(m_handle, nullptr, 0,
-                                        reinterpret_cast<LPTHREAD_START_ROUTINE>(remoteCode),
-                                        nullptr, 0, nullptr);
-    if (!hThread) {
-        for (void *p : remoteAllocs) VirtualFreeEx(m_handle, p, 0, MEM_RELEASE);
-        return false;
-    }
-
-    // 等待线程完成
-    WaitForSingleObject(hThread, INFINITE);
-
-    // 读取返回值
-    if (retValue && retStorage) {
-        quint64 ret = 0;
-        quint64 bytesRead = 0;
-        if (!ReadProcessMemory(m_handle, retStorage, &ret, sizeof(ret), &bytesRead)
-                || bytesRead != sizeof(ret)) {
-            CloseHandle(hThread);
-            for (void *p : remoteAllocs) VirtualFreeEx(m_handle, p, 0, MEM_RELEASE);
-            return false;
-        }
-        *retValue = ret;
-    }
-
-    // 清理
-    CloseHandle(hThread);
-    for (void *p : remoteAllocs) VirtualFreeEx(m_handle, p, 0, MEM_RELEASE);
-
-    return true;
-#else
-    Q_UNUSED(function);
-    Q_UNUSED(args);
-    Q_UNUSED(retValue);
-    return false;
-#endif
+    dr2c::CallResponse reply{};
+    std::memcpy(&reply, response.constData(), sizeof(reply));
+    if (retValue)
+        *retValue = reply.returnValue;
+    return status == static_cast<quint32>(dr2c::Status::Ok) && reply.ok != 0;
 }
 
 bool MemoryManager::ScriptEvaluateStringSafe(const QString &script) const
 {
-#ifdef Q_OS_WIN
-    if (!m_handle) return false;
-
-    // 在目标进程中分配并写入脚本字符串
-    quint64 remoteString = 0;
-    if (!AllocateRemoteString(script, &remoteString))
+    if (!m_pipe || !m_gameLayout.valid)
         return false;
 
-    QVector<quint64> args;
-    args.append(remoteString);
+    dr2c::CallRequest request{};
+    request.functionId = static_cast<quint32>(GameResolver::Function::ScriptEvaluateStringSafe);
+    request.argCount = 0; // 脚本字符串紧随请求头
 
-    bool result = CallFunction(GameResolver::Function::ScriptEvaluateStringSafe, args);
+    QByteArray payload(reinterpret_cast<const char *>(&request), sizeof(request));
+    payload.append(script.toUtf8());
 
-    // 释放远程字符串内存
-    FreeRemoteMemory(remoteString);
+    QByteArray response;
+    quint32 status = 0;
+    if (!sendRequest(static_cast<quint16>(dr2c::Command::Call), payload,
+                     &response, &status) ||
+        response.size() < static_cast<int>(sizeof(dr2c::CallResponse)))
+        return false;
 
-    return result;
-#else
-    Q_UNUSED(script);
-    return false;
-#endif
+    dr2c::CallResponse reply{};
+    std::memcpy(&reply, response.constData(), sizeof(reply));
+    return status == static_cast<quint32>(dr2c::Status::Ok) && reply.ok != 0;
 }
 
 bool MemoryManager::FreeThing(quint64 curThingPtr) const
 {
-#ifdef Q_OS_WIN
-    if (!m_handle) return false;
-    QVector<quint64> args;
-    args.append(curThingPtr);
-    
-    return CallFunction(GameResolver::Function::FreeThing, args);
-#else
-    Q_UNUSED(curThingPtr);
-    return false;
-#endif
+    return CallFunction(GameResolver::Function::FreeThing, QVector<quint64>{curThingPtr});
 }
 
 quint64 MemoryManager::AllocateEntity(qint8 type) const
 {
-#ifdef Q_OS_WIN
-    if (!m_handle) return 0;
     quint64 thingPtr = 0;
-    QVector<quint64> args;
-    args.append(type);
-    
-    if (!CallFunction(GameResolver::Function::AllocateEntity, args, &thingPtr))
+    if (!CallFunction(GameResolver::Function::AllocateEntity,
+                      QVector<quint64>{static_cast<quint64>(type)}, &thingPtr))
         return 0;
     return thingPtr;
-#else
-    Q_UNUSED(type);
-    return 0;
-#endif
 }
 
 quint64 MemoryManager::AllocateThing(qint8 subtype) const
 {
-#ifdef Q_OS_WIN
-    if (!m_handle) return 0;
     quint64 thingPtr = 0;
-    QVector<quint64> args;
-    args.append(subtype);
-    
-    if (!CallFunction(GameResolver::Function::AllocateThing, args, &thingPtr))
+    if (!CallFunction(GameResolver::Function::AllocateThing,
+                      QVector<quint64>{static_cast<quint64>(subtype)}, &thingPtr))
         return 0;
     return thingPtr;
-#else
-    Q_UNUSED(subtype);
-    return 0;
-#endif
 }
 
 quint32 MemoryManager::AllocateCharacterSlot() const
 {
-#ifdef Q_OS_WIN
-    if (!m_handle) return 0;
     quint64 characterPtr = 0;
-    if (!CallFunction(GameResolver::Function::AllocateCharacterSlot,
-                      QVector<quint64>(), &characterPtr))
+    if (!CallFunction(GameResolver::Function::AllocateCharacterSlot, QVector<quint64>(), &characterPtr))
         return 0;
     return static_cast<quint32>(characterPtr);
-#else
-    return 0;
-#endif
-}
-
-quint64 MemoryManager::CreateWeaponEntity(qint32 weaponId) const
-{
-#ifdef Q_OS_WIN
-    if (!m_handle || !hasFunction(GameResolver::Function::CreateWeaponEntity))
-        return 0;
-    quint64 thingPtr = 0;
-    QVector<quint64> args;
-    args.append(static_cast<quint64>(static_cast<qint32>(weaponId)));
-
-    if (!CallFunction(GameResolver::Function::CreateWeaponEntity, args, &thingPtr))
-        return 0;
-    return thingPtr;
-#else
-    Q_UNUSED(weaponId);
-    return 0;
-#endif
 }
 
 bool MemoryManager::Assigncharactertothing(quint64 addr, quint32 charid) const
 {
-#ifdef Q_OS_WIN
-    if (!m_handle) return false;
-    QVector<quint64> args;
-    args.append(addr);
-    args.append(charid);
-    
-    return CallFunction(GameResolver::Function::AssignCharacterToThing, args);
-#else
-    Q_UNUSED(addr);
-    Q_UNUSED(charid);
-    return false;
-#endif
+    return CallFunction(GameResolver::Function::AssignCharacterToThing,
+                        QVector<quint64>{addr, static_cast<quint64>(charid)});
 }
 
-bool MemoryManager::SwitchActiveTileLayer(quint8 mapid) const{
-#ifdef Q_OS_WIN
-    if (!m_handle) return false;
-    QVector<quint64> args;
-    args.append(mapid);
-    
-    return CallFunction(GameResolver::Function::SwitchActiveTileLayer, args);
-#else
-    Q_UNUSED(mapid);
-    return false;
-#endif
+quint64 MemoryManager::CreateWeaponEntity(qint32 weaponId) const
+{
+    if (!hasFunction(GameResolver::Function::CreateWeaponEntity))
+        return 0;
+    quint64 thingPtr = 0;
+    if (!CallFunction(GameResolver::Function::CreateWeaponEntity,
+                      QVector<quint64>{static_cast<quint64>(
+                          static_cast<quint32>(weaponId))},
+                      &thingPtr))
+        return 0;
+    return thingPtr;
+}
+
+bool MemoryManager::SwitchActiveTileLayer(quint8 mapid) const
+{
+    return CallFunction(GameResolver::Function::SwitchActiveTileLayer,
+                        QVector<quint64>{static_cast<quint64>(mapid)});
 }
 
 bool MemoryManager::SetCurrentPlayerThing(quint64 curThingPtr) const
 {
-#ifdef Q_OS_WIN
-    if (!m_handle) return false;
-    QVector<quint64> args;
-    args.append(curThingPtr);
-    
-    return CallFunction(GameResolver::Function::SetCurrentPlayerThing, args);
-#else
-    Q_UNUSED(curThingPtr);
-    return false;
-#endif
+    return CallFunction(GameResolver::Function::SetCurrentPlayerThing,
+                        QVector<quint64>{curThingPtr});
 }
 
-// bool MemoryManager::RecruitCharacter(quint32 charId, quint8 location) const
-// {
-// #ifdef Q_OS_WIN
-//     if (!m_handle) return false;
-//     QVector<quint64> args;
-//     args.append(charId);
-//     args.append(location);
-    
-//     return CallFunction(0x0492f0, args);
-// #else
-//     Q_UNUSED(charId);
-//     Q_UNUSED(location);
-//     return false;
-// #endif
-// }
+// ==================== 世界交互 ====================
+bool MemoryManager::hoverThing(int mouseX, int mouseY, int clientWidth, int clientHeight,
+                               HoverInfo *out) const
+{
+    if (out)
+        *out = HoverInfo{};
+    if (!m_pipe || !out)
+        return false;
+
+    dr2c::HoverRequest request{};
+    request.mouseX = mouseX;
+    request.mouseY = mouseY;
+    request.clientWidth = clientWidth;
+    request.clientHeight = clientHeight;
+    request.pickRadiusPx = 0;
+
+    QByteArray payload(reinterpret_cast<const char *>(&request), sizeof(request));
+    QByteArray response;
+    quint32 status = 0;
+    if (!sendRequest(static_cast<quint16>(dr2c::Command::HoverThing), payload,
+                     &response, &status) ||
+        status != static_cast<quint32>(dr2c::Status::Ok) ||
+        response.size() < static_cast<int>(sizeof(dr2c::HoverResponse)))
+        return false;
+
+    dr2c::HoverResponse reply{};
+    std::memcpy(&reply, response.constData(), sizeof(reply));
+    if (!reply.found)
+        return true;
+
+    out->found = true;
+    out->thingId = reply.thingId;
+    out->slot = reply.slot;
+    out->mapId = reply.mapId;
+    out->worldX = reply.worldX;
+    out->worldY = reply.worldY;
+    out->thingAddress = reply.thingAddress;
+    out->rect = QRect(reply.rectLeft, reply.rectTop,
+                      reply.rectRight - reply.rectLeft,
+                      reply.rectBottom - reply.rectTop);
+    return true;
+}
+
+bool MemoryManager::dragBegin(quint64 thingAddress) const
+{
+    if (!m_pipe)
+        return false;
+    dr2c::DragBeginRequest request{};
+    request.address = thingAddress;
+
+    QByteArray payload(reinterpret_cast<const char *>(&request), sizeof(request));
+    quint32 status = 0;
+    if (!sendRequest(static_cast<quint16>(dr2c::Command::DragBegin), payload,
+                     nullptr, &status))
+        return false;
+    return status == static_cast<quint32>(dr2c::Status::Ok);
+}
+
+bool MemoryManager::dragMove(quint64 thingAddress, int mouseX, int mouseY,
+                             int clientWidth, int clientHeight) const
+{
+    if (!m_pipe)
+        return false;
+    dr2c::DragMoveRequest request{};
+    request.address = thingAddress;
+    request.mouseX = mouseX;
+    request.mouseY = mouseY;
+    request.clientWidth = clientWidth;
+    request.clientHeight = clientHeight;
+
+    QByteArray payload(reinterpret_cast<const char *>(&request), sizeof(request));
+    quint32 status = 0;
+    if (!sendRequest(static_cast<quint16>(dr2c::Command::DragMove), payload,
+                     nullptr, &status))
+        return false;
+    return status == static_cast<quint32>(dr2c::Status::Ok);
+}
+
+bool MemoryManager::dragEnd(quint64 thingAddress) const
+{
+    if (!m_pipe)
+        return false;
+    dr2c::DragEndRequest request{};
+    request.address = thingAddress;
+
+    QByteArray payload(reinterpret_cast<const char *>(&request), sizeof(request));
+    quint32 status = 0;
+    if (!sendRequest(static_cast<quint16>(dr2c::Command::DragEnd), payload,
+                     nullptr, &status))
+        return false;
+    return status == static_cast<quint32>(dr2c::Status::Ok);
+}
+
+quint64 MemoryManager::gameWindowHandle() const
+{
+#ifdef Q_OS_WIN
+    if (!m_processId)
+        return 0;
+    WindowSearch search;
+    search.pid = m_processId;
+    EnumWindows(findGameWindowProc, reinterpret_cast<LPARAM>(&search));
+    return reinterpret_cast<quint64>(search.result);
+#else
+    return 0;
+#endif
+}

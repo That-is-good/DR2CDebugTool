@@ -13,6 +13,10 @@
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
+  <property name="windowIcon">
+   <iconset resource="resource.qrc">
+    <normaloff>:/icon/tool_icon</normaloff>:/icon/tool_icon</iconset>
+  </property>
   <property name="styleSheet">
    <string notr="true"/>
   </property>
@@ -555,7 +559,7 @@ color: rgb(255, 255, 255);</string>
      <x>0</x>
      <y>0</y>
      <width>1400</width>
-     <height>33</height>
+     <height>21</height>
     </rect>
    </property>
   </widget>
@@ -565,6 +569,8 @@ color: rgb(255, 255, 255);</string>
   <tabstop>refreshProcessBtn</tabstop>
   <tabstop>tabWidget</tabstop>
  </tabstops>
- <resources/>
+ <resources>
+  <include location="resource.qrc"/>
+ </resources>
  <connections/>
 </ui>

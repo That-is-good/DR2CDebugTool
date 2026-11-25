@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 
 #include <QApplication>
+#include <QIcon>
 #include <QTranslator>
 #include <QFile>
 #include <QJsonDocument>
@@ -10,6 +11,8 @@
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
+    // 窗口 / 任务栏图标，来自 resource.qrc 里嵌入的 Icons/tool.ico
+    a.setWindowIcon(QIcon(QStringLiteral(":/icon/tool_icon")));
 
     QTranslator translator;
     QString lang;

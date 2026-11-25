@@ -14,16 +14,18 @@ class MemoryManager;
 struct SpriteSheet {
     QString title;      // 界面显示名
     QString file;       // 相对游戏目录的图片路径
+    QString path;       // 绝对路径（运行时表匹配用，图片按需加载）
     int cellW = 16;
     int cellH = 16;
     quint32 baseRva = 0;
     quint32 baseId = 0; // 运行时读取
+    int frames = 0;     // 文件尺寸推算出的帧数（图片未加载时也能用）
     QImage image;       // 运行时加载
 
     int columns() const { return cellW > 0 ? image.width() / cellW : 0; }
     int rows() const { return cellH > 0 ? image.height() / cellH : 0; }
-    int frameCount() const { return columns() * rows(); }
-    bool loaded() const { return !image.isNull(); }
+    int frameCount() const { return frames > 0 ? frames : columns() * rows(); }
+    bool loaded() const { return !image.isNull() || !path.isEmpty(); }
 };
 
 // 精灵图集访问：把 spriteid 换算为 (图集, 帧序号) 并裁剪出图像。
@@ -42,6 +44,8 @@ public:
     QString lastError() const { return m_error; }
     // 本次 refresh() 中由运行时扫描确认的图集数量（0 表示回退到静态表）
     int scannedSheets() const { return m_scannedSheets; }
+    // 运行时段落匹配报告（每段：id 区间 / 单元格 / 匹配到的 PNG / 校验通过率）
+    QString sheetReport() const { return m_sheetReport; }
 
     const QVector<SpriteSheet> &sheets() const { return m_sheets; }
 
@@ -52,12 +56,17 @@ public:
     static QImage frameImage(const SpriteSheet &sheet, int frameIndex);
 
 private:
+    // 按运行时精灵表还原“每个连续 id 段对应哪个 PNG”，成功时填充 m_sheets
+    bool buildRuntimeSheets();
+    void loadSheetImage(int sheetIndex) const;
+
     MemoryManager *m_memMgr;
     QString m_gameDir;
     QString m_error;
+    QString m_sheetReport;
     bool m_ready = false;
     int m_scannedSheets = 0;
-    QVector<SpriteSheet> m_sheets;
+    mutable QVector<SpriteSheet> m_sheets;
     mutable QHash<quint64, QPixmap> m_cache;
 };
 

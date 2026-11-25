@@ -1,25 +1,28 @@
 #ifndef GAMERESOLVER_H
 #define GAMERESOLVER_H
 
-#include <QByteArray>
+#include <QtGlobal>
 #include <QString>
+
 #include <array>
+#include <cstddef>
+
+#include "../Common/protocol.h"
+
+// ============================================================================
+// GameResolver：前端侧的布局描述。
+//
+// 特征码扫描已经搬到注入的 Agent 中执行，这里只保留数据结构与函数编号，
+// 函数编号直接复用 Common/protocol.h 中的 dr2c::FunctionId，保证两端一致。
+// ============================================================================
 
 class GameResolver
 {
 public:
-    enum class Function {
-        ScriptEvaluateStringSafe,
-        FreeThing,
-        AllocateEntity,
-        AllocateThing,
-        AllocateCharacterSlot,
-        AssignCharacterToThing,
-        SwitchActiveTileLayer,
-        SetCurrentPlayerThing,
-        CreateWeaponEntity,
-        Count
-    };
+    using Function = dr2c::FunctionId;
+
+    static constexpr std::size_t FunctionCount =
+        static_cast<std::size_t>(dr2c::FunctionId::Count);
 
     struct Layout {
         bool valid = false;
@@ -27,7 +30,7 @@ public:
         QString warning;
         quint64 imageBase = 0;
         quint32 imageSize = 0;
-        std::array<quint32, static_cast<size_t>(Function::Count)> functionRvas{};
+        std::array<quint32, FunctionCount> functionRvas{};
 
         quint32 thingPoolRva = 0;
         quint32 weaponPoolRva = 0;
@@ -44,17 +47,6 @@ public:
         quint32 weaponStride = 0;
         quint32 mapMetaStride = 0;
     };
-
-    static bool resolve(const QByteArray &executableSection,
-                        quint32 sectionRva,
-                        quint64 imageBase,
-                        quint32 imageSize,
-                        Layout *layout);
-    static bool findUnique(const QByteArray &image,
-                           const QByteArray &bytes,
-                           const QByteArray &mask,
-                           int *matchOffset,
-                           int *matchCount = nullptr);
 };
 
-#endif
+#endif // GAMERESOLVER_H

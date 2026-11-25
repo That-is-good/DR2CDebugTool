@@ -21,6 +21,8 @@ public:
 
     QList<quint16> GetLength();
     quint16 GetUpdateFrequency();
+    // 附加时是否把图集还原报告写入程序目录（排查 mod 图集用，默认关闭）
+    bool GetSaveSheetReport() const { return SaveSheetReport; }
 
     // 配置文件保存/读取
     void saveToFile(const QString &filePath) const;
@@ -42,6 +44,8 @@ private:
     quint16 Weaponlength = 1024;
 
     quint16 UpdateFrequency = 500;
+
+    bool SaveSheetReport = false;
 
     QString m_language = "sys";
 

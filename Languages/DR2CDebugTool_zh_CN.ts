@@ -9,36 +9,48 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Setting/addrsetting.ui" line="251"/>
-        <source>角色</source>
+        <location filename="../Setting/addrsetting.ui" line="49"/>
+        <source>切换语言后需重启本工具才能生效。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Setting/addrsetting.ui" line="77"/>
-        <location filename="../Setting/addrsetting.ui" line="150"/>
-        <location filename="../Setting/addrsetting.ui" line="202"/>
-        <location filename="../Setting/addrsetting.ui" line="300"/>
-        <source>偏移(Hex)</source>
+        <location filename="../Setting/addrsetting.ui" line="59"/>
+        <source>刷新</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Setting/addrsetting.ui" line="70"/>
-        <location filename="../Setting/addrsetting.ui" line="136"/>
-        <location filename="../Setting/addrsetting.ui" line="277"/>
-        <source>数量</source>
+        <location filename="../Setting/addrsetting.ui" line="91"/>
+        <source>数据容量</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Setting/addrsetting.ui" line="84"/>
-        <location filename="../Setting/addrsetting.ui" line="143"/>
-        <location filename="../Setting/addrsetting.ui" line="235"/>
-        <location filename="../Setting/addrsetting.ui" line="257"/>
-        <source>大小(Hex)</source>
+        <location filename="../Setting/addrsetting.ui" line="97"/>
+        <source>实体数量</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Setting/addrsetting.ui" line="64"/>
-        <source>实体</source>
+        <location filename="../Setting/addrsetting.ui" line="114"/>
+        <source>武器数量</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Setting/addrsetting.ui" line="131"/>
+        <source>角色数量</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Setting/addrsetting.ui" line="151"/>
+        <source>诊断</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Setting/addrsetting.ui" line="157"/>
+        <source>附加时保存图集还原报告(sprite_sheets.txt)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Setting/addrsetting.ui" line="167"/>
+        <source>用于排查 mod 图集匹配问题，报告写入程序所在目录。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -47,27 +59,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Setting/addrsetting.ui" line="130"/>
-        <source>武器</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../Setting/addrsetting.ui" line="196"/>
-        <source>地图</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../Setting/addrsetting.ui" line="245"/>
-        <source>任务</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../Setting/addrsetting.ui" line="323"/>
-        <source>其他</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../Setting/addrsetting.ui" line="329"/>
+        <location filename="../Setting/addrsetting.ui" line="65"/>
         <source>更新频率(ms)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -133,661 +125,671 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="39"/>
+        <location filename="../mainwindow.ui" line="43"/>
         <source>刷新</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="55"/>
+        <location filename="../mainwindow.ui" line="59"/>
         <source>prog</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="72"/>
+        <location filename="../mainwindow.ui" line="76"/>
         <source>附加</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="95"/>
+        <location filename="../mainwindow.ui" line="99"/>
         <source>设置</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="118"/>
+        <location filename="../mainwindow.ui" line="122"/>
         <source>角色</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="130"/>
+        <location filename="../mainwindow.ui" line="134"/>
         <source>基本信息</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="221"/>
+        <location filename="../mainwindow.ui" line="225"/>
         <source>角色特性</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="167"/>
+        <location filename="../mainwindow.ui" line="171"/>
         <source>角色名</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="143"/>
+        <location filename="../mainwindow.ui" line="147"/>
         <source>当前角色</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="136"/>
+        <location filename="../mainwindow.ui" line="140"/>
         <source>角色血量</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="174"/>
+        <location filename="../mainwindow.ui" line="178"/>
         <source>角色实体ID</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="228"/>
+        <location filename="../mainwindow.ui" line="232"/>
         <source>额外速度</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="160"/>
+        <location filename="../mainwindow.ui" line="164"/>
         <source>角色特长</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="214"/>
+        <location filename="../mainwindow.ui" line="218"/>
         <source>角色描述</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="271"/>
-        <location filename="../mainwindow.cpp" line="416"/>
+        <location filename="../mainwindow.ui" line="275"/>
+        <location filename="../mainwindow.cpp" line="454"/>
         <source>属性</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="318"/>
+        <location filename="../mainwindow.ui" line="322"/>
         <source>属性2</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="283"/>
+        <location filename="../mainwindow.ui" line="287"/>
         <source>属性1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="392"/>
+        <location filename="../mainwindow.ui" line="396"/>
         <source>实体</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="398"/>
+        <location filename="../mainwindow.ui" line="402"/>
         <source>实体列表</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="407"/>
+        <location filename="../mainwindow.ui" line="411"/>
         <source>实体: 0</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="448"/>
-        <location filename="../mainwindow.cpp" line="1409"/>
+        <location filename="../mainwindow.ui" line="452"/>
+        <location filename="../mainwindow.cpp" line="1447"/>
         <source>区域</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1338"/>
+        <location filename="../mainwindow.cpp" line="1376"/>
         <source>不可被击中</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1335"/>
+        <location filename="../mainwindow.cpp" line="1373"/>
         <source>无碰撞</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1337"/>
+        <location filename="../mainwindow.cpp" line="1375"/>
         <source>不绘制</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1340"/>
+        <location filename="../mainwindow.cpp" line="1378"/>
         <source>发光</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1465"/>
+        <location filename="../mainwindow.cpp" line="1503"/>
         <source>速度X</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1509"/>
+        <location filename="../mainwindow.cpp" line="1547"/>
         <source>摩擦力</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1467"/>
+        <location filename="../mainwindow.cpp" line="1505"/>
         <source>速度Z</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1421"/>
+        <location filename="../mainwindow.cpp" line="1459"/>
         <source>坐标X</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1510"/>
+        <location filename="../mainwindow.cpp" line="1548"/>
         <source>弹跳力</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1508"/>
+        <location filename="../mainwindow.cpp" line="1546"/>
         <source>质量</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1422"/>
+        <location filename="../mainwindow.cpp" line="1460"/>
         <source>坐标Y</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1423"/>
+        <location filename="../mainwindow.cpp" line="1461"/>
         <source>坐标Z</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1466"/>
+        <location filename="../mainwindow.cpp" line="1504"/>
         <source>速度Y</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="341"/>
+        <location filename="../mainwindow.ui" line="345"/>
         <source>是否是女性</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="348"/>
+        <location filename="../mainwindow.ui" line="352"/>
         <source>是否是宠物</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1336"/>
+        <location filename="../mainwindow.cpp" line="1374"/>
         <source>隐身</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1339"/>
+        <location filename="../mainwindow.cpp" line="1377"/>
         <source>不可拾取</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="427"/>
+        <location filename="../mainwindow.ui" line="431"/>
         <source>选择</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="434"/>
+        <location filename="../mainwindow.ui" line="438"/>
         <source>放缩</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="441"/>
+        <location filename="../mainwindow.ui" line="445"/>
         <source>移动</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="474"/>
+        <location filename="../mainwindow.ui" line="478"/>
         <source>全局</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="501"/>
+        <location filename="../mainwindow.ui" line="505"/>
         <source>命令</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="523"/>
-        <location filename="../mainwindow.cpp" line="443"/>
+        <location filename="../mainwindow.ui" line="527"/>
         <location filename="../mainwindow.cpp" line="481"/>
+        <location filename="../mainwindow.cpp" line="519"/>
         <source>资源</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="541"/>
-        <location filename="../mainwindow.cpp" line="458"/>
+        <location filename="../mainwindow.ui" line="545"/>
+        <location filename="../mainwindow.cpp" line="496"/>
         <source>武器</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="35"/>
+        <location filename="../mainwindow.cpp" line="38"/>
         <source>食物</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="35"/>
+        <location filename="../mainwindow.cpp" line="38"/>
         <source>汽油</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="35"/>
         <location filename="../mainwindow.cpp" line="38"/>
+        <location filename="../mainwindow.cpp" line="41"/>
         <source>医疗</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="35"/>
+        <location filename="../mainwindow.cpp" line="38"/>
         <source>霰弹</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="38"/>
+        <location filename="../mainwindow.cpp" line="41"/>
         <source>士气</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="38"/>
+        <location filename="../mainwindow.cpp" line="41"/>
         <source>态度</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="38"/>
+        <location filename="../mainwindow.cpp" line="41"/>
         <source>镇静</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="38"/>
+        <location filename="../mainwindow.cpp" line="41"/>
         <source>魅力</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="38"/>
+        <location filename="../mainwindow.cpp" line="41"/>
         <source>智慧</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="38"/>
+        <location filename="../mainwindow.cpp" line="41"/>
         <source>忠诚</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="39"/>
+        <location filename="../mainwindow.cpp" line="42"/>
         <source>机械</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="39"/>
+        <location filename="../mainwindow.cpp" line="42"/>
         <source>射击</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="39"/>
+        <location filename="../mainwindow.cpp" line="42"/>
         <source>力量</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="39"/>
+        <location filename="../mainwindow.cpp" line="42"/>
         <source>灵巧</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="39"/>
+        <location filename="../mainwindow.cpp" line="42"/>
         <source>体能</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="39"/>
+        <location filename="../mainwindow.cpp" line="42"/>
         <source>活力</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="44"/>
+        <location filename="../mainwindow.cpp" line="47"/>
         <source>加拿大的死亡之路调试工具</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="229"/>
+        <location filename="../mainwindow.cpp" line="234"/>
         <source>输入进程名过滤...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="237"/>
-        <location filename="../mainwindow.cpp" line="1083"/>
+        <location filename="../mainwindow.cpp" line="242"/>
+        <location filename="../mainwindow.cpp" line="1121"/>
         <source>全部</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="327"/>
+        <location filename="../mainwindow.cpp" line="250"/>
+        <source>世界交互（悬停/拖拽）</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="252"/>
+        <source>勾选后会在游戏窗口上显示透明覆盖层：悬停高亮实体，按住左键拖动实体。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="344"/>
         <source>精灵图集就绪：运行时扫描到 %1 张</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="984"/>
+        <location filename="../mainwindow.cpp" line="1022"/>
         <source>此游戏构建未能识别武器生成函数，已取消</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="989"/>
+        <location filename="../mainwindow.cpp" line="1027"/>
         <source>生成武器失败（武器索引无效或实体池已满）</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1364"/>
+        <location filename="../mainwindow.cpp" line="1402"/>
         <source>修改属性…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1377"/>
+        <location filename="../mainwindow.cpp" line="1415"/>
         <source>新建实体…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1801"/>
+        <location filename="../mainwindow.cpp" line="1839"/>
         <source>角色 %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="336"/>
+        <location filename="../mainwindow.cpp" line="363"/>
         <source>此游戏构建未能识别脚本执行函数。</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="35"/>
+        <location filename="../mainwindow.cpp" line="38"/>
         <source>子弹</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="35"/>
+        <location filename="../mainwindow.cpp" line="38"/>
         <source>步枪弹</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="35"/>
+        <location filename="../mainwindow.cpp" line="38"/>
         <source>废料</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="954"/>
+        <location filename="../mainwindow.cpp" line="992"/>
         <source>已移动实体至区域%1 (X:%2 Y:%3)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1050"/>
+        <location filename="../mainwindow.cpp" line="1088"/>
         <source>已设置渲染图层</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1052"/>
+        <location filename="../mainwindow.cpp" line="1090"/>
         <source>设置图层失败</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1257"/>
+        <location filename="../mainwindow.cpp" line="1295"/>
         <source>ID: %1 | %2 | 区域：%3
 X: %4 Y: %5 Z: %6</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1327"/>
+        <location filename="../mainwindow.cpp" line="1365"/>
         <source>设置为中心</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1329"/>
+        <location filename="../mainwindow.cpp" line="1367"/>
         <source>已设置中心实体: 0x%1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1334"/>
+        <location filename="../mainwindow.cpp" line="1372"/>
         <source>标志</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1361"/>
-        <location filename="../mainwindow.cpp" line="1403"/>
+        <location filename="../mainwindow.cpp" line="1399"/>
+        <location filename="../mainwindow.cpp" line="1441"/>
         <source>修改位置</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1362"/>
-        <location filename="../mainwindow.cpp" line="1452"/>
+        <location filename="../mainwindow.cpp" line="1400"/>
+        <location filename="../mainwindow.cpp" line="1490"/>
         <source>修改速度</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1363"/>
-        <location filename="../mainwindow.cpp" line="1495"/>
+        <location filename="../mainwindow.cpp" line="1401"/>
+        <location filename="../mainwindow.cpp" line="1533"/>
         <source>修改物理</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1367"/>
+        <location filename="../mainwindow.cpp" line="1405"/>
         <source>销毁</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1370"/>
+        <location filename="../mainwindow.cpp" line="1408"/>
         <source>传送至中心</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1371"/>
+        <location filename="../mainwindow.cpp" line="1409"/>
         <source>随机交换</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1372"/>
+        <location filename="../mainwindow.cpp" line="1410"/>
         <source>克隆</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1373"/>
+        <location filename="../mainwindow.cpp" line="1411"/>
         <source>设为玩家实体</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1378"/>
+        <location filename="../mainwindow.cpp" line="1416"/>
         <source>设置渲染图层</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1678"/>
+        <location filename="../mainwindow.cpp" line="1716"/>
         <source>此游戏构建未能识别实体释放函数，已禁用人类生成以避免留下未清理实体</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1697"/>
+        <location filename="../mainwindow.cpp" line="1735"/>
         <source>生成实体失败: 无法绑定角色数据</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1740"/>
+        <location filename="../mainwindow.cpp" line="1778"/>
         <source>已设置为玩家实体</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1742"/>
+        <location filename="../mainwindow.cpp" line="1780"/>
         <source>设置为玩家实体失败</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1898"/>
+        <location filename="../mainwindow.cpp" line="1936"/>
         <source>目标进程已退出，自动分离</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="876"/>
-        <location filename="../mainwindow.cpp" line="1087"/>
+        <location filename="../mainwindow.cpp" line="914"/>
+        <location filename="../mainwindow.cpp" line="1125"/>
         <source>区域%1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="315"/>
+        <location filename="../mainwindow.cpp" line="332"/>
         <source>已附加: %1 (PID: %2) 模块基址: 0x%3</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="341"/>
+        <location filename="../mainwindow.cpp" line="373"/>
         <source>已分离</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="346"/>
+        <location filename="../mainwindow.cpp" line="384"/>
         <source>错误: </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="347"/>
+        <location filename="../mainwindow.cpp" line="385"/>
         <source>错误</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="416"/>
+        <location filename="../mainwindow.cpp" line="454"/>
         <source>基础值</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="416"/>
+        <location filename="../mainwindow.cpp" line="454"/>
         <source>附加值</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="416"/>
+        <location filename="../mainwindow.cpp" line="454"/>
         <source>有效值</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="416"/>
+        <location filename="../mainwindow.cpp" line="454"/>
         <source>是否已知</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="416"/>
+        <location filename="../mainwindow.cpp" line="454"/>
         <source>临时值</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="443"/>
-        <location filename="../mainwindow.cpp" line="458"/>
         <location filename="../mainwindow.cpp" line="481"/>
+        <location filename="../mainwindow.cpp" line="496"/>
+        <location filename="../mainwindow.cpp" line="519"/>
         <source>数量</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="458"/>
+        <location filename="../mainwindow.cpp" line="496"/>
         <source>锁定</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="461"/>
-        <location filename="../mainwindow.cpp" line="507"/>
-        <location filename="../mainwindow.cpp" line="743"/>
-        <location filename="../mainwindow.cpp" line="767"/>
-        <location filename="../mainwindow.cpp" line="789"/>
-        <location filename="../mainwindow.cpp" line="1884"/>
+        <location filename="../mainwindow.cpp" line="499"/>
+        <location filename="../mainwindow.cpp" line="545"/>
+        <location filename="../mainwindow.cpp" line="781"/>
+        <location filename="../mainwindow.cpp" line="805"/>
+        <location filename="../mainwindow.cpp" line="827"/>
+        <location filename="../mainwindow.cpp" line="1922"/>
         <source>(空)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="552"/>
-        <location filename="../mainwindow.cpp" line="1582"/>
-        <location filename="../mainwindow.cpp" line="1587"/>
-        <location filename="../mainwindow.cpp" line="1621"/>
+        <location filename="../mainwindow.cpp" line="590"/>
+        <location filename="../mainwindow.cpp" line="1620"/>
+        <location filename="../mainwindow.cpp" line="1625"/>
+        <location filename="../mainwindow.cpp" line="1659"/>
         <source>提示</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="552"/>
+        <location filename="../mainwindow.cpp" line="590"/>
         <source>请选择进程</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1289"/>
+        <location filename="../mainwindow.cpp" line="1327"/>
         <source>实体: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1671"/>
+        <location filename="../mainwindow.cpp" line="1709"/>
         <source>销毁实体失败</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1040"/>
-        <location filename="../mainwindow.cpp" line="1708"/>
+        <location filename="../mainwindow.cpp" line="1078"/>
+        <location filename="../mainwindow.cpp" line="1746"/>
         <source>已生成实体</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1686"/>
-        <location filename="../mainwindow.cpp" line="1711"/>
+        <location filename="../mainwindow.cpp" line="1724"/>
+        <location filename="../mainwindow.cpp" line="1749"/>
         <source>生成实体失败</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1582"/>
+        <location filename="../mainwindow.cpp" line="1620"/>
         <source>请先设置中心实体</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1587"/>
+        <location filename="../mainwindow.cpp" line="1625"/>
         <source>中心实体不存在</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1603"/>
+        <location filename="../mainwindow.cpp" line="1641"/>
         <source>已传送 %1 个实体至目标</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1606"/>
+        <location filename="../mainwindow.cpp" line="1644"/>
         <source>未选择要传送的实体</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1621"/>
+        <location filename="../mainwindow.cpp" line="1659"/>
         <source>请至少选择两个实体</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1650"/>
+        <location filename="../mainwindow.cpp" line="1688"/>
         <source>已随机交换 %1 个实体的位置</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1668"/>
+        <location filename="../mainwindow.cpp" line="1706"/>
         <source>已销毁 %1 个实体</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1692"/>
+        <location filename="../mainwindow.cpp" line="1730"/>
         <source>生成实体失败: 角色池已满</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1729"/>
+        <location filename="../mainwindow.cpp" line="1767"/>
         <source>已克隆 %1 个实体</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1732"/>
+        <location filename="../mainwindow.cpp" line="1770"/>
         <source>克隆实体失败</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1776"/>
+        <location filename="../mainwindow.cpp" line="1814"/>
         <source>已发送命令</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1778"/>
+        <location filename="../mainwindow.cpp" line="1816"/>
         <source>发送命令失败</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="35"/>
+        <location filename="../mainwindow.cpp" line="38"/>
         <source>无</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1100,18 +1102,18 @@ action：别人对它做动作时运行（被使用/被操作）
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="579"/>
+        <location filename="../Spawn/spawndialog.cpp" line="582"/>
         <source>类别：%1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="548"/>
+        <location filename="../Spawn/spawndialog.cpp" line="551"/>
         <source>武器索引 %1（生成时由游戏直接初始化武器数据）</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="559"/>
-        <location filename="../Spawn/spawndialog.cpp" line="565"/>
+        <location filename="../Spawn/spawndialog.cpp" line="562"/>
+        <location filename="../Spawn/spawndialog.cpp" line="568"/>
         <source>无预览</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1119,82 +1121,82 @@ action：别人对它做动作时运行（被使用/被操作）
 <context>
     <name>SpriteAtlas</name>
     <message>
-        <location filename="../Spawn/spriteatlas.cpp" line="21"/>
+        <location filename="../Spawn/spriteatlas.cpp" line="162"/>
         <source>武器 8x32</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Spawn/spriteatlas.cpp" line="22"/>
+        <location filename="../Spawn/spriteatlas.cpp" line="163"/>
         <source>武器 16x32</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Spawn/spriteatlas.cpp" line="23"/>
+        <location filename="../Spawn/spriteatlas.cpp" line="164"/>
         <source>拾取物 16</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Spawn/spriteatlas.cpp" line="24"/>
+        <location filename="../Spawn/spriteatlas.cpp" line="165"/>
         <source>室内物件 16</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Spawn/spriteatlas.cpp" line="25"/>
+        <location filename="../Spawn/spriteatlas.cpp" line="166"/>
         <source>家具 32</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Spawn/spriteatlas.cpp" line="26"/>
+        <location filename="../Spawn/spriteatlas.cpp" line="167"/>
         <source>特殊 16</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Spawn/spriteatlas.cpp" line="27"/>
+        <location filename="../Spawn/spriteatlas.cpp" line="168"/>
         <source>特殊 32</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Spawn/spriteatlas.cpp" line="28"/>
+        <location filename="../Spawn/spriteatlas.cpp" line="169"/>
         <source>特殊 48</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Spawn/spriteatlas.cpp" line="29"/>
+        <location filename="../Spawn/spriteatlas.cpp" line="170"/>
         <source>特殊 64</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Spawn/spriteatlas.cpp" line="30"/>
+        <location filename="../Spawn/spriteatlas.cpp" line="171"/>
         <source>特殊 96</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Spawn/spriteatlas.cpp" line="31"/>
+        <location filename="../Spawn/spriteatlas.cpp" line="172"/>
         <source>车辆</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Spawn/spriteatlas.cpp" line="32"/>
+        <location filename="../Spawn/spriteatlas.cpp" line="173"/>
         <source>车辆残骸</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Spawn/spriteatlas.cpp" line="152"/>
+        <location filename="../Spawn/spriteatlas.cpp" line="583"/>
         <source>游戏未附加</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Spawn/spriteatlas.cpp" line="189"/>
+        <location filename="../Spawn/spriteatlas.cpp" line="639"/>
         <source>未找到精灵图集（请确认已附加游戏且游戏目录正确）</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Spawn/spriteatlas.cpp" line="284"/>
+        <location filename="../Spawn/spriteatlas.cpp" line="757"/>
         <source>ID %1（无法确定图集）</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../Spawn/spriteatlas.cpp" line="285"/>
+        <location filename="../Spawn/spriteatlas.cpp" line="758"/>
         <source>ID %1 · %2 第 %3 帧</source>
         <translation type="unfinished"></translation>
     </message>

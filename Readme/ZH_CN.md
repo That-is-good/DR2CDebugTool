@@ -76,7 +76,17 @@
 - 点击 **“构建”**（或按 Ctrl+B），生成的可执行文件位于 `build/` 下的子目录中。
 - 构建完成后，可在 `build/Release/` 或 `build/` 下找到 `DR2CDebugTool.exe`。
 
-### 3. 部署与运行
+### 3. 构建 32 位 Agent（必需）
+- `Agent/CMakeLists.txt` 是独立工程，必须用 **32 位 MinGW** 工具链构建（前端为 64 位）：
+  ```bat
+  cmake -S Agent -B Agent/build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
+  cmake --build Agent/build -j
+  ```
+- 产物为 `DR2CAgent.dll`（注入模块）与 `DR2CInjector32.exe`（注入失败时的 32 位备用注入器）。
+- 这两个文件需与 `DR2CDebugTool.exe` 放在同一目录；也可在前端 CMake 配置里设置 `DR2C_AGENT_DLL`、`DR2C_INJECTOR_EXE`，构建时自动复制。
+- 附加游戏时会自动注入 Agent，依次尝试 CreateRemoteThread、NtCreateThreadEx、32 位注入器、线程劫持；全部失败时会弹窗列出每种方式的结果和错误码（多为杀毒软件拦截或权限不足）。
+
+### 4. 部署与运行
 - 直接运行 `DR2CDebugTool.exe`（若缺少 Qt 动态库，需将 Qt 的 `bin` 目录加入 PATH，或使用 `windeployqt` 部署）。
 - 首次运行会自动生成 `config.json`（如不存在）。
 

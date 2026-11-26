@@ -76,7 +76,17 @@
 - **「ビルド」** をクリック（または Ctrl+B）。生成された実行ファイルは `build/` 以下のサブディレクトリにあります。
 - ビルド完了後、`build/Release/` または `build/` 以下に `DR2CDebugTool.exe` があります。
 
-### 3. デプロイと実行
+### 3. 32 ビット Agent のビルド（必須）
+- `Agent/CMakeLists.txt` は独立したプロジェクトであり、**32 ビット MinGW** ツールチェーンでビルドする必要があります（フロントエンドは 64 ビット）：
+  ```bat
+  cmake -S Agent -B Agent/build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
+  cmake --build Agent/build -j
+  ```
+- 出力は `DR2CAgent.dll`（注入モジュール）と `DR2CInjector32.exe`（注入失敗時の 32 ビット代替インジェクター）です。
+- この 2 つのファイルを `DR2CDebugTool.exe` と同じディレクトリに置いてください。フロントエンドの CMake 設定で `DR2C_AGENT_DLL`、`DR2C_INJECTOR_EXE` を指定すると、ビルド時に自動コピーされます。
+- アタッチ時に Agent が自動注入されます（CreateRemoteThread → NtCreateThreadEx → 32 ビットインジェクター → スレッドハイジャックの順に試行）。すべて失敗した場合は、各方式の結果とエラーコードがダイアログに表示されます（多くはセキュリティソフトによるブロックか権限不足です）。
+
+### 4. デプロイと実行
 - `DR2CDebugTool.exe` を直接実行します（Qt の動的ライブラリが不足している場合は、Qt の `bin` ディレクトリを PATH に追加するか、`windeployqt` でデプロイしてください）。
 - 初回実行時に `config.json` が自動生成されます（存在しない場合）。
 

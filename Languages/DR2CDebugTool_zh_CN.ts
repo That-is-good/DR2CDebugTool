@@ -795,6 +795,282 @@ X: %4 Y: %5 Z: %6</source>
     </message>
 </context>
 <context>
+    <name>MemoryManager</name>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="51"/>
+        <source>枚举目标进程模块（CreateToolhelp32Snapshot）</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="143"/>
+        <source>目标 kernel32 的 LoadLibraryW 是转发导出，无法作为注入入口。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="188"/>
+        <source>通常是被杀毒/安全软件拦截了远程线程，或目标进程以更高权限运行。请以管理员身份运行本工具，并把本程序与 DR2CAgent.dll 加入白名单。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="193"/>
+        <source>参数无效，可能是目标进程状态异常或注入起始地址无效，请确认游戏仍在运行。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="197"/>
+        <source>目标进程内存不足，无法分配注入所需空间。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="200"/>
+        <source>进程句柄已失效，游戏可能已经退出。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="203"/>
+        <source>只能复制部分目标内存，目标进程可能受到保护。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="207"/>
+        <source>找不到目标线程或模块，请确认游戏仍在运行且未被其他注入器/调试器占用。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="220"/>
+        <source>%1：失败，错误码 %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="224"/>
+        <source>（%1）</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="226"/>
+        <source>。%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="317"/>
+        <source>CreateRemoteThread</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="327"/>
+        <source>CreateRemoteThread：注入线程 10 秒内未返回，LoadLibraryW 可能被卡住</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="332"/>
+        <source>CreateRemoteThread：LoadLibraryW 返回 0（DLL 依赖缺失、位数不符或被安全软件拦截）</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="338"/>
+        <source>CreateRemoteThread：注入线程异常退出（0x%1）</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="343"/>
+        <source>CreateRemoteThread：已创建注入线程</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="358"/>
+        <source>NtCreateThreadEx：无法获取 ntdll.dll</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="365"/>
+        <source>NtCreateThreadEx：当前系统不支持该接口</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="381"/>
+        <source>NtCreateThreadEx（NTSTATUS 0x%1）</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="396"/>
+        <source>NtCreateThreadEx：注入线程 10 秒内未返回</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="401"/>
+        <source>NtCreateThreadEx：LoadLibraryW 返回 0</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="405"/>
+        <source>NtCreateThreadEx：已创建注入线程</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="416"/>
+        <source>32 位注入器：未找到 DR2CInjector32.exe（可选组件，已跳过）</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="430"/>
+        <source>32 位注入器：启动失败（%1）</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="437"/>
+        <source>32 位注入器：执行超时</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="443"/>
+        <source>32 位注入器：已加载 Agent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="447"/>
+        <source>32 位注入器：执行失败（退出码 %1）</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="449"/>
+        <source>32 位注入器：%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="480"/>
+        <source>线程劫持：找不到可用的游戏线程</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="488"/>
+        <source>线程劫持（OpenThread）</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="494"/>
+        <source>线程劫持（SuspendThread）</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="503"/>
+        <source>线程劫持（Wow64GetThreadContext）</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="526"/>
+        <source>线程劫持（分配存根内存）</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="536"/>
+        <source>线程劫持（写入存根）</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="548"/>
+        <source>线程劫持（Wow64SetThreadContext）</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="570"/>
+        <source>线程劫持：已加载 Agent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="571"/>
+        <source>线程劫持：已恢复线程，但未检测到 DR2CAgent.dll 模块</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="738"/>
+        <source>无法打开进程 PID: %1。
+%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="740"/>
+        <source>OpenProcess</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="848"/>
+        <source>未找到注入模块：%1
+请确认 DR2CAgent.dll 与 DR2CDebugTool.exe 在同一目录。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="857"/>
+        <source>无法读取 %1 的 PE 头，文件可能已损坏。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="861"/>
+        <source>DR2CAgent.dll 不是 32 位模块（Machine=0x%1），无法注入 32 位游戏。
+请用 32 位 MinGW 工具链重新构建 Agent。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="878"/>
+        <source>解析出的 LoadLibraryW 地址无效（0x%1），无法注入 32 位 DLL。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="892"/>
+        <source>在目标进程中分配参数内存（VirtualAllocEx）</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="903"/>
+        <source>写入 DLL 路径（WriteProcessMemory）</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="940"/>
+        <source>%1（PID %2）</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="942"/>
+        <source>无法把 DR2CAgent.dll 注入目标进程 %1。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="943"/>
+        <source>
+已尝试以下方式：</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="945"/>
+        <source>
+  · </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="946"/>
+        <source>
+
+环境：本工具为 %1 位进程，%2管理员权限；目标进程为 32 位。</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="948"/>
+        <source>已获得</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="948"/>
+        <source>未获得</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="949"/>
+        <source>
+建议：1) 以管理员身份重新运行本工具；2) 把 DR2CDebugTool.exe、DR2CAgent.dll 加入杀毒/安全软件白名单；3) 关闭其他注入器/调试器后重试。</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>SpawnDialog</name>
     <message>
         <location filename="../Spawn/spawndialog.cpp" line="86"/>

@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.16)
 # 这是一个独立工程，必须用 32 位 MinGW 工具链构建（Qt 前端是 64 位）：
 #   cmake -S Agent -B Agent/build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
 #   cmake --build Agent/build -j
-# 产物 DR2CAgent.dll 需与 DR2CDebugTool.exe 放在同一目录。
+# 产物 DR2CAgent.dll 与 DR2CInjector32.exe 需与 DR2CDebugTool.exe 放在同一目录。
 # ============================================================================
 
 project(DR2CAgent LANGUAGES CXX)
@@ -51,4 +51,34 @@ target_link_options(DR2CAgent PRIVATE
 set_target_properties(DR2CAgent PROPERTIES
     PREFIX ""              # 输出 DR2CAgent.dll 而不是 libDR2CAgent.dll
     OUTPUT_NAME "DR2CAgent"
+)
+
+# ============================================================================
+# DR2CInjector32 —— 32 位命令行注入器。
+#
+# 64 位 Qt 前端在与目标进程跨位数注入失败（CreateRemoteThread / NtCreateThreadEx /
+# 线程劫持都不成功）时，会调用本程序完成 32→32 注入。
+# 用法：DR2CInjector32.exe <pid> <dll 路径>，退出码 0 表示成功。
+# ============================================================================
+
+add_executable(DR2CInjector32 injector_main.cpp)
+
+target_link_libraries(DR2CInjector32 PRIVATE shell32)
+
+target_compile_options(DR2CInjector32 PRIVATE
+    -fno-exceptions
+    -fno-rtti
+    -Wall
+    -Wextra
+)
+target_link_options(DR2CInjector32 PRIVATE
+    -static
+    -static-libgcc
+    -static-libstdc++
+)
+
+set_target_properties(DR2CInjector32 PROPERTIES
+    PREFIX ""
+    OUTPUT_NAME "DR2CInjector32"
+    WIN32_EXECUTABLE FALSE
 )

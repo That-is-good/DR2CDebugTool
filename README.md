@@ -40,7 +40,7 @@ Each language version contains detailed feature descriptions, usage guides, proj
 
 ![New Entity Dialog](./Readme/new_entity.png)
 
-![Mission Panel](./Readme/misson.png)
+![Mission Panel](./Readme/mission.png)
 
 ---
 
@@ -49,6 +49,7 @@ Each language version contains detailed feature descriptions, usage guides, proj
 ### Requirements
 - Windows 10/11
 - CMake 3.19+, C++17 compiler (MSVC 2019+ / MinGW‑w64 8.0+)
+- 32‑bit MinGW‑w64 (required for the injected Agent)
 - Qt 6.5+ (components: `Core`, `Widgets`, `LinguistTools`)
 
 ### Build
@@ -56,9 +57,22 @@ Download source files.
 Open `CMakeLists.txt` with Qt Creator, select a kit with Qt 6.5+, and click “Build”.  
 The executable will be generated under `build/Release/` or `build/`.
 
+The Agent is a separate 32‑bit project (`Agent/CMakeLists.txt`) and must be built with a 32‑bit MinGW toolchain:
+
+```bat
+cmake -S Agent -B Agent/build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
+cmake --build Agent/build -j
+```
+
+It produces `DR2CAgent.dll` (injected module) and `DR2CInjector32.exe` (fallback injector).  
+Keep both next to `DR2CDebugTool.exe`, or set the `DR2C_AGENT_DLL` / `DR2C_INJECTOR_EXE` CMake cache variables to copy them automatically.
+
 ### Run
 Launch `DR2CDebugTool.exe` directly (if Qt DLLs are missing, use `windeployqt` or add Qt’s `bin` directory to your PATH).  
 After startup, select the game process (usually `prog.exe`) from the process list and click “Attach” to begin.
+
+On attach the Agent is injected automatically, trying several methods in order (CreateRemoteThread → NtCreateThreadEx → 32‑bit injector → thread hijack).  
+If all of them fail, the dialog lists every attempt with its error code — in most cases it is antivirus interference or insufficient privileges.
 
 ---
 

@@ -4,7 +4,10 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
+#include <QProcess>
+#include <QStringList>
 
 #include <algorithm>
 #include <cstring>
@@ -25,6 +28,9 @@ constexpr DWORD kProcessAccess =
     PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
     PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ;
 
+// 定义见下方“注入失败诊断”，此处先声明以前面的模块解析复用。
+QString describeWin32Failure(const QString &stage, DWORD code);
+
 bool readProcess(HANDLE process, quint32 address, void *buffer, SIZE_T size)
 {
     SIZE_T done = 0;
@@ -40,7 +46,10 @@ bool resolveRemoteLoadLibrary(HANDLE process, DWORD pid, quint64 *address, QStri
 {
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid);
     if (snapshot == INVALID_HANDLE_VALUE) {
-        *error = QStringLiteral("无法枚举目标进程模块（需要管理员权限？）。");
+        const DWORD code = GetLastError();
+        *error = describeWin32Failure(
+            QCoreApplication::translate("MemoryManager", "枚举目标进程模块（CreateToolhelp32Snapshot）"),
+            code);
         return false;
     }
 
@@ -49,8 +58,12 @@ bool resolveRemoteLoadLibrary(HANDLE process, DWORD pid, quint64 *address, QStri
     entry.dwSize = sizeof(entry);
     if (Module32FirstW(snapshot, &entry)) {
         do {
+            const quintptr base = reinterpret_cast<quintptr>(entry.modBaseAddr);
+            // WOW64 进程里同时存在 32 位与 64 位 kernel32；只认 32 位那份
+            if (base > 0xFFFFFFFFull)
+                continue;
             if (lstrcmpiW(entry.szModule, L"kernel32.dll") == 0) {
-                kernel32Base = static_cast<quint32>(reinterpret_cast<quintptr>(entry.modBaseAddr));
+                kernel32Base = static_cast<quint32>(base);
                 break;
             }
         } while (Module32NextW(snapshot, &entry));
@@ -123,12 +136,441 @@ bool resolveRemoteLoadLibrary(HANDLE process, DWORD pid, quint64 *address, QStri
         if (functionRva == 0)
             break;
 
+        // 转发导出的 RVA 落在导出目录内部，指向 "KERNELBASE.LoadLibraryW" 字符串，
+        // 直接当函数地址执行会让注入线程跑飞，这里明确拒绝。
+        if (functionRva >= directory.VirtualAddress &&
+            functionRva < directory.VirtualAddress + directory.Size) {
+            *error = QCoreApplication::translate(
+                "MemoryManager", "目标 kernel32 的 LoadLibraryW 是转发导出，无法作为注入入口。");
+            return false;
+        }
+
         *address = static_cast<quint64>(kernel32Base) + functionRva;
         return true;
     }
 
     *error = QStringLiteral("目标 kernel32 中找不到 LoadLibraryW 导出。");
     return false;
+}
+
+// ---------------------------------------------------------------------------
+// 注入失败诊断
+//
+// 直接抛一句“无法注入”对反馈者毫无帮助：失败可能来自权限、杀软拦截、位数不符、
+// DLL 依赖缺失等完全不同的原因。下面统一把阶段 + GetLastError + 可操作建议
+// 拼进错误信息，便于用户自助排查。
+// ---------------------------------------------------------------------------
+
+QString win32ErrorText(DWORD code)
+{
+    wchar_t *buffer = nullptr;
+    const DWORD length = FormatMessageW(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+            FORMAT_MESSAGE_IGNORE_INSERTS,
+        nullptr, code, 0, reinterpret_cast<LPWSTR>(&buffer), 0, nullptr);
+
+    QString text;
+    if (length && buffer)
+        text = QString::fromWCharArray(buffer, static_cast<int>(length)).trimmed();
+    if (buffer)
+        LocalFree(buffer);
+
+    // FormatMessage 的文本自带句号/换行，拼到我们自己的句子里会重复
+    while (!text.isEmpty() && QStringLiteral("。.\r\n ").contains(text.back()))
+        text.chop(1);
+    return text;
+}
+
+QString win32ErrorHint(DWORD code)
+{
+    switch (code) {
+    case ERROR_ACCESS_DENIED:
+        return QCoreApplication::translate(
+            "MemoryManager",
+            "通常是被杀毒/安全软件拦截了远程线程，或目标进程以更高权限运行。"
+            "请以管理员身份运行本工具，并把本程序与 DR2CAgent.dll 加入白名单。");
+    case ERROR_INVALID_PARAMETER:
+        return QCoreApplication::translate(
+            "MemoryManager",
+            "参数无效，可能是目标进程状态异常或注入起始地址无效，请确认游戏仍在运行。");
+    case ERROR_NOT_ENOUGH_MEMORY:
+        return QCoreApplication::translate(
+            "MemoryManager", "目标进程内存不足，无法分配注入所需空间。");
+    case ERROR_INVALID_HANDLE:
+        return QCoreApplication::translate(
+            "MemoryManager", "进程句柄已失效，游戏可能已经退出。");
+    case ERROR_PARTIAL_COPY:
+        return QCoreApplication::translate(
+            "MemoryManager", "只能复制部分目标内存，目标进程可能受到保护。");
+    case ERROR_NOT_FOUND:
+    case ERROR_MOD_NOT_FOUND:
+        return QCoreApplication::translate(
+            "MemoryManager",
+            "找不到目标线程或模块，请确认游戏仍在运行且未被其他注入器/调试器占用。");
+    default:
+        return QString();
+    }
+}
+
+QString describeWin32Failure(const QString &stage, DWORD code)
+{
+    const QString system = win32ErrorText(code);
+    const QString hint = win32ErrorHint(code);
+
+    QString text = QCoreApplication::translate("MemoryManager", "%1：失败，错误码 %2")
+                       .arg(stage)
+                       .arg(code);
+    if (!system.isEmpty())
+        text += QCoreApplication::translate("MemoryManager", "（%1）").arg(system);
+    if (!hint.isEmpty())
+        text += QCoreApplication::translate("MemoryManager", "。%1").arg(hint);
+    return text;
+}
+
+bool isCurrentProcessElevated()
+{
+    HANDLE token = nullptr;
+    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token))
+        return false;
+
+    TOKEN_ELEVATION elevation{};
+    DWORD size = 0;
+    const bool ok = GetTokenInformation(token, TokenElevation, &elevation,
+                                        sizeof(elevation), &size) != FALSE;
+    CloseHandle(token);
+    return ok && elevation.TokenIsElevated != 0;
+}
+
+// 读取本地 DLL 的 PE Machine 字段，确认它确实是 32 位模块。
+bool queryDllMachineType(const QString &path, quint16 *machine)
+{
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly))
+        return false;
+
+    const QByteArray dosHeader = file.read(0x40);
+    if (dosHeader.size() < 0x40 ||
+        dosHeader.at(0) != 'M' || dosHeader.at(1) != 'Z')
+        return false;
+
+    quint32 peOffset = 0;
+    std::memcpy(&peOffset, dosHeader.constData() + 0x3C, sizeof(peOffset));
+    if (!file.seek(static_cast<qint64>(peOffset)))
+        return false;
+
+    const QByteArray ntHeader = file.read(6);
+    if (ntHeader.size() < 6 ||
+        ntHeader.at(0) != 'P' || ntHeader.at(1) != 'E' ||
+        ntHeader.at(2) != '\0' || ntHeader.at(3) != '\0')
+        return false;
+
+    *machine = static_cast<quint16>(
+        static_cast<quint8>(ntHeader.at(4)) |
+        (static_cast<quint16>(static_cast<quint8>(ntHeader.at(5))) << 8));
+    return true;
+}
+
+bool isModuleLoaded(DWORD pid, const wchar_t *moduleName)
+{
+    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid);
+    if (snapshot == INVALID_HANDLE_VALUE)
+        return false;
+
+    bool found = false;
+    MODULEENTRY32W entry{};
+    entry.dwSize = sizeof(entry);
+    if (Module32FirstW(snapshot, &entry)) {
+        do {
+            if (lstrcmpiW(entry.szModule, moduleName) == 0) {
+                found = true;
+                break;
+            }
+        } while (Module32NextW(snapshot, &entry));
+    }
+    CloseHandle(snapshot);
+    return found;
+}
+
+bool waitForModule(DWORD pid, const wchar_t *moduleName, int timeoutMs)
+{
+    constexpr int kStep = 100;
+    for (int waited = 0; waited <= timeoutMs; waited += kStep) {
+        if (isModuleLoaded(pid, moduleName))
+            return true;
+        Sleep(kStep);
+    }
+    return false;
+}
+
+// 方式一：CreateRemoteThread。最经典，但最容易被安全软件 hook 或拦截。
+bool injectViaCreateRemoteThread(HANDLE process, quint64 loadLibrary, void *remotePath,
+                                 QString *detail)
+{
+    SetLastError(ERROR_SUCCESS);
+    HANDLE thread = CreateRemoteThread(
+        process, nullptr, 0,
+        reinterpret_cast<LPTHREAD_START_ROUTINE>(static_cast<quintptr>(loadLibrary)),
+        remotePath, 0, nullptr);
+    const DWORD createError = GetLastError();
+    if (!thread) {
+        *detail = describeWin32Failure(
+            QCoreApplication::translate("MemoryManager", "CreateRemoteThread"), createError);
+        return false;
+    }
+
+    const DWORD wait = WaitForSingleObject(thread, 10000);
+    DWORD exitCode = 0;
+    GetExitCodeThread(thread, &exitCode);
+    CloseHandle(thread);
+
+    if (wait != WAIT_OBJECT_0) {
+        *detail = QCoreApplication::translate(
+            "MemoryManager", "CreateRemoteThread：注入线程 10 秒内未返回，LoadLibraryW 可能被卡住");
+        return false;
+    }
+    if (exitCode == 0) {
+        *detail = QCoreApplication::translate(
+            "MemoryManager",
+            "CreateRemoteThread：LoadLibraryW 返回 0（DLL 依赖缺失、位数不符或被安全软件拦截）");
+        return false;
+    }
+    if (exitCode >= 0xC0000000u) {
+        *detail = QCoreApplication::translate(
+                      "MemoryManager", "CreateRemoteThread：注入线程异常退出（0x%1）")
+                      .arg(exitCode, 8, 16, QLatin1Char('0'));
+        return false;
+    }
+    *detail = QCoreApplication::translate("MemoryManager", "CreateRemoteThread：已创建注入线程");
+    return true;
+}
+
+using NtCreateThreadExFunction = LONG (NTAPI *)(PHANDLE, DWORD, void *, HANDLE,
+                                                void *, void *, DWORD, SIZE_T,
+                                                SIZE_T, SIZE_T, void *);
+using RtlNtStatusToDosErrorFunction = ULONG (NTAPI *)(LONG);
+
+// 方式二：NtCreateThreadEx。绕过用户态对 CreateRemoteThread 的 hook。
+bool injectViaNtCreateThreadEx(HANDLE process, quint64 loadLibrary, void *remotePath,
+                               QString *detail)
+{
+    HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
+    if (!ntdll) {
+        *detail = QCoreApplication::translate("MemoryManager", "NtCreateThreadEx：无法获取 ntdll.dll");
+        return false;
+    }
+
+    const auto createThreadEx = reinterpret_cast<NtCreateThreadExFunction>(
+        GetProcAddress(ntdll, "NtCreateThreadEx"));
+    if (!createThreadEx) {
+        *detail = QCoreApplication::translate("MemoryManager",
+                                              "NtCreateThreadEx：当前系统不支持该接口");
+        return false;
+    }
+
+    HANDLE thread = nullptr;
+    const LONG status = createThreadEx(
+        &thread, THREAD_ALL_ACCESS, nullptr, process,
+        reinterpret_cast<void *>(static_cast<quintptr>(loadLibrary)),
+        remotePath, 0, 0, 0, 0, nullptr);
+    if (status < 0 || !thread) {
+        const auto rtlNtStatusToDosError = reinterpret_cast<RtlNtStatusToDosErrorFunction>(
+            GetProcAddress(ntdll, "RtlNtStatusToDosError"));
+        const DWORD code = (rtlNtStatusToDosError && status < 0)
+            ? static_cast<DWORD>(rtlNtStatusToDosError(status))
+            : GetLastError();
+        const QString stage = QCoreApplication::translate(
+                                  "MemoryManager", "NtCreateThreadEx（NTSTATUS 0x%1）")
+                                  .arg(static_cast<quint32>(status), 8, 16, QLatin1Char('0'));
+        *detail = describeWin32Failure(stage, code);
+        if (thread)
+            CloseHandle(thread);
+        return false;
+    }
+
+    const DWORD wait = WaitForSingleObject(thread, 10000);
+    DWORD exitCode = 0;
+    GetExitCodeThread(thread, &exitCode);
+    CloseHandle(thread);
+
+    if (wait != WAIT_OBJECT_0) {
+        *detail = QCoreApplication::translate("MemoryManager",
+                                              "NtCreateThreadEx：注入线程 10 秒内未返回");
+        return false;
+    }
+    if (exitCode == 0) {
+        *detail = QCoreApplication::translate("MemoryManager",
+                                              "NtCreateThreadEx：LoadLibraryW 返回 0");
+        return false;
+    }
+    *detail = QCoreApplication::translate("MemoryManager", "NtCreateThreadEx：已创建注入线程");
+    return true;
+}
+
+// 方式三：调用随附的 32 位注入器。
+// 部分环境下 64 位进程无法向 WOW64 进程创建远程线程，交给同为 32 位的进程处理最稳。
+bool injectViaHelperProcess(DWORD pid, const QString &dllPath, QString *detail)
+{
+    const QString helper = QDir::toNativeSeparators(
+        QCoreApplication::applicationDirPath() + QStringLiteral("/DR2CInjector32.exe"));
+    if (!QFileInfo::exists(helper)) {
+        *detail = QCoreApplication::translate(
+            "MemoryManager", "32 位注入器：未找到 DR2CInjector32.exe（可选组件，已跳过）");
+        return false;
+    }
+
+    QProcess process;
+    process.setProgram(helper);
+    process.setArguments({QString::number(pid), QDir::toNativeSeparators(dllPath)});
+    process.setCreateProcessArgumentsModifier(
+        [](QProcess::CreateProcessArguments *arguments) {
+            arguments->flags |= CREATE_NO_WINDOW;
+        });
+    process.start();
+    if (!process.waitForStarted(5000)) {
+        *detail = QCoreApplication::translate("MemoryManager", "32 位注入器：启动失败（%1）")
+                      .arg(process.errorString());
+        return false;
+    }
+    if (!process.waitForFinished(20000)) {
+        process.kill();
+        process.waitForFinished(2000);
+        *detail = QCoreApplication::translate("MemoryManager", "32 位注入器：执行超时");
+        return false;
+    }
+
+    const QString output = QString::fromUtf8(process.readAllStandardError()).trimmed();
+    if (process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0) {
+        *detail = QCoreApplication::translate("MemoryManager", "32 位注入器：已加载 Agent");
+        return true;
+    }
+    *detail = output.isEmpty()
+        ? QCoreApplication::translate("MemoryManager", "32 位注入器：执行失败（退出码 %1）")
+              .arg(process.exitCode())
+        : QCoreApplication::translate("MemoryManager", "32 位注入器：%1").arg(output);
+    return false;
+}
+
+DWORD findThreadForHijack(DWORD pid)
+{
+    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (snapshot == INVALID_HANDLE_VALUE)
+        return 0;
+
+    DWORD best = 0;
+    THREADENTRY32 entry{};
+    entry.dwSize = sizeof(entry);
+    if (Thread32First(snapshot, &entry)) {
+        do {
+            if (entry.th32OwnerProcessID == pid &&
+                (best == 0 || entry.th32ThreadID < best))
+                best = entry.th32ThreadID;
+        } while (Thread32Next(snapshot, &entry));
+    }
+    CloseHandle(snapshot);
+    return best;
+}
+
+// 方式四：线程劫持。挂起游戏线程，把 32 位上下文改到 LoadLibraryW 存根上，
+// 加载完成后再原样恢复。不经过任何“创建远程线程”接口，能绕开多数 hook。
+bool injectViaThreadHijack(HANDLE process, DWORD pid, quint64 loadLibrary,
+                           void *remotePath, QString *detail)
+{
+    const DWORD threadId = findThreadForHijack(pid);
+    if (!threadId) {
+        *detail = QCoreApplication::translate("MemoryManager", "线程劫持：找不到可用的游戏线程");
+        return false;
+    }
+
+    HANDLE thread = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_SET_CONTEXT,
+                               FALSE, threadId);
+    if (!thread) {
+        *detail = describeWin32Failure(
+            QCoreApplication::translate("MemoryManager", "线程劫持（OpenThread）"), GetLastError());
+        return false;
+    }
+
+    if (SuspendThread(thread) == static_cast<DWORD>(-1)) {
+        *detail = describeWin32Failure(
+            QCoreApplication::translate("MemoryManager", "线程劫持（SuspendThread）"), GetLastError());
+        CloseHandle(thread);
+        return false;
+    }
+
+    WOW64_CONTEXT saved{};
+    saved.ContextFlags = WOW64_CONTEXT_CONTROL | WOW64_CONTEXT_INTEGER;
+    if (!Wow64GetThreadContext(thread, &saved)) {
+        *detail = describeWin32Failure(
+            QCoreApplication::translate("MemoryManager", "线程劫持（Wow64GetThreadContext）"),
+            GetLastError());
+        ResumeThread(thread);
+        CloseHandle(thread);
+        return false;
+    }
+
+    // 32 位存根：push <路径>; mov eax, <LoadLibraryW>; call eax; jmp $
+    unsigned char stub[14] = {
+        0x68, 0, 0, 0, 0,
+        0xB8, 0, 0, 0, 0,
+        0xFF, 0xD0,
+        0xEB, 0xFE,
+    };
+    const quint32 pathLow = static_cast<quint32>(reinterpret_cast<quintptr>(remotePath));
+    const quint32 loadLow = static_cast<quint32>(loadLibrary);
+    std::memcpy(stub + 1, &pathLow, sizeof(pathLow));
+    std::memcpy(stub + 6, &loadLow, sizeof(loadLow));
+
+    void *stubAddress = VirtualAllocEx(process, nullptr, sizeof(stub),
+                                       MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    if (!stubAddress) {
+        *detail = describeWin32Failure(
+            QCoreApplication::translate("MemoryManager", "线程劫持（分配存根内存）"), GetLastError());
+        ResumeThread(thread);
+        CloseHandle(thread);
+        return false;
+    }
+
+    SIZE_T written = 0;
+    if (!WriteProcessMemory(process, stubAddress, stub, sizeof(stub), &written) ||
+        written != sizeof(stub)) {
+        *detail = describeWin32Failure(
+            QCoreApplication::translate("MemoryManager", "线程劫持（写入存根）"), GetLastError());
+        VirtualFreeEx(process, stubAddress, 0, MEM_RELEASE);
+        ResumeThread(thread);
+        CloseHandle(thread);
+        return false;
+    }
+
+    WOW64_CONTEXT hijacked = saved;
+    hijacked.ContextFlags = WOW64_CONTEXT_CONTROL | WOW64_CONTEXT_INTEGER;
+    hijacked.Eip = static_cast<DWORD>(reinterpret_cast<quintptr>(stubAddress));
+    if (!Wow64SetThreadContext(thread, &hijacked)) {
+        *detail = describeWin32Failure(
+            QCoreApplication::translate("MemoryManager", "线程劫持（Wow64SetThreadContext）"),
+            GetLastError());
+        VirtualFreeEx(process, stubAddress, 0, MEM_RELEASE);
+        ResumeThread(thread);
+        CloseHandle(thread);
+        return false;
+    }
+
+    ResumeThread(thread);
+    const bool loaded = waitForModule(pid, L"DR2CAgent.dll", 10000);
+    if (loaded)
+        Sleep(300); // 模块出现时 DllMain 可能还没跑完，稍等再还原线程
+
+    // 无论成功与否都要还原被劫持的线程，否则游戏会停在我们写入的存根里
+    SuspendThread(thread);
+    saved.ContextFlags = WOW64_CONTEXT_CONTROL | WOW64_CONTEXT_INTEGER;
+    Wow64SetThreadContext(thread, &saved);
+    ResumeThread(thread);
+    CloseHandle(thread);
+    VirtualFreeEx(process, stubAddress, 0, MEM_RELEASE);
+
+    *detail = loaded
+        ? QCoreApplication::translate("MemoryManager", "线程劫持：已加载 Agent")
+        : QCoreApplication::translate("MemoryManager",
+                                      "线程劫持：已恢复线程，但未检测到 DR2CAgent.dll 模块");
+    return loaded;
 }
 
 bool writeAll(HANDLE pipe, const void *buffer, quint32 size)
@@ -292,7 +734,10 @@ bool MemoryManager::attachProcessById(quint32 pid)
 
     HANDLE process = OpenProcess(kProcessAccess, FALSE, pid);
     if (!process) {
-        emit attachError(QStringLiteral("无法打开进程 PID: %1（请以管理员身份运行）。").arg(pid));
+        const DWORD code = GetLastError();
+        emit attachError(tr("无法打开进程 PID: %1。\n%2")
+                             .arg(pid)
+                             .arg(describeWin32Failure(tr("OpenProcess"), code)));
         return false;
     }
 
@@ -400,14 +845,40 @@ bool MemoryManager::injectAgent(QString *error)
     const QString dllPath = QDir::toNativeSeparators(
         QCoreApplication::applicationDirPath() + QStringLiteral("/DR2CAgent.dll"));
     if (!QFileInfo::exists(dllPath)) {
-        *error = QStringLiteral("未找到注入模块：%1").arg(dllPath);
+        *error = tr("未找到注入模块：%1\n请确认 DR2CAgent.dll 与 DR2CDebugTool.exe 在同一目录。")
+                     .arg(dllPath);
         return false;
+    }
+
+    // 前端是 64 位，Agent 必须是 32 位；放错 DLL 时先明确报出来，
+    // 否则只会得到含糊的“注入失败”。
+    quint16 machine = 0;
+    if (!queryDllMachineType(dllPath, &machine)) {
+        *error = tr("无法读取 %1 的 PE 头，文件可能已损坏。").arg(dllPath);
+        return false;
+    }
+    if (machine != IMAGE_FILE_MACHINE_I386) {
+        *error = tr("DR2CAgent.dll 不是 32 位模块（Machine=0x%1），无法注入 32 位游戏。\n"
+                    "请用 32 位 MinGW 工具链重新构建 Agent。")
+                     .arg(static_cast<uint>(machine), 4, 16, QLatin1Char('0'));
+        return false;
+    }
+
+    // 重复“附加”（例如上一次只是断开连接）时 DLL 还在进程里，直接复用。
+    if (isModuleLoaded(m_processId, L"DR2CAgent.dll")) {
+        m_agentInjected = true;
+        return true;
     }
 
     HANDLE process = static_cast<HANDLE>(m_handle);
     quint64 loadLibrary = 0;
     if (!resolveRemoteLoadLibrary(process, m_processId, &loadLibrary, error))
         return false;
+    if (loadLibrary == 0 || loadLibrary > 0xFFFFFFFFull) {
+        *error = tr("解析出的 LoadLibraryW 地址无效（0x%1），无法注入 32 位 DLL。")
+                     .arg(loadLibrary, 0, 16);
+        return false;
+    }
 
     // 把 DLL 路径以 UTF-16（含结尾 NUL）写入目标进程
     const QByteArray pathBytes(
@@ -418,7 +889,8 @@ bool MemoryManager::injectAgent(QString *error)
                                       static_cast<SIZE_T>(pathBytes.size()),
                                       MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     if (!remotePath) {
-        *error = QStringLiteral("无法在目标进程中分配注入参数内存。");
+        *error = describeWin32Failure(tr("在目标进程中分配参数内存（VirtualAllocEx）"),
+                                      GetLastError());
         return false;
     }
 
@@ -426,36 +898,58 @@ bool MemoryManager::injectAgent(QString *error)
     if (!WriteProcessMemory(process, remotePath, pathBytes.constData(),
                             static_cast<SIZE_T>(pathBytes.size()), &written) ||
         written != static_cast<SIZE_T>(pathBytes.size())) {
+        const DWORD code = GetLastError();
         VirtualFreeEx(process, remotePath, 0, MEM_RELEASE);
-        *error = QStringLiteral("写入注入参数失败。");
+        *error = describeWin32Failure(tr("写入 DLL 路径（WriteProcessMemory）"), code);
         return false;
     }
 
-    HANDLE thread = CreateRemoteThread(
-        process, nullptr, 0,
-        reinterpret_cast<LPTHREAD_START_ROUTINE>(
-            static_cast<quintptr>(loadLibrary)),
-        remotePath, 0, nullptr);
-    if (!thread) {
-        VirtualFreeEx(process, remotePath, 0, MEM_RELEASE);
-        *error = QStringLiteral("无法在目标进程中创建注入线程。");
-        return false;
+    // 依次尝试多种注入方式。是否成功以“目标进程里真的出现了 DR2CAgent.dll”为准，
+    // 而不看单个 API 的返回值——跨位数时 CreateRemoteThread 可能成功返回但线程跑飞。
+    QStringList attempts;
+    QString detail;
+    bool loaded = false;
+
+    injectViaCreateRemoteThread(process, loadLibrary, remotePath, &detail);
+    attempts << detail;
+    loaded = waitForModule(m_processId, L"DR2CAgent.dll", 1500);
+
+    if (!loaded) {
+        injectViaNtCreateThreadEx(process, loadLibrary, remotePath, &detail);
+        attempts << detail;
+        loaded = waitForModule(m_processId, L"DR2CAgent.dll", 1500);
     }
 
-    if (WaitForSingleObject(thread, 10000) != WAIT_OBJECT_0) {
-        CloseHandle(thread);
-        VirtualFreeEx(process, remotePath, 0, MEM_RELEASE);
-        *error = QStringLiteral("注入线程等待超时（LoadLibrary 未返回）。");
-        return false;
+    if (!loaded) {
+        injectViaHelperProcess(m_processId, dllPath, &detail);
+        attempts << detail;
+        loaded = waitForModule(m_processId, L"DR2CAgent.dll", 2000);
     }
 
-    DWORD moduleHandle = 0;
-    GetExitCodeThread(thread, &moduleHandle);
-    CloseHandle(thread);
+    if (!loaded) {
+        injectViaThreadHijack(process, m_processId, loadLibrary, remotePath, &detail);
+        attempts << detail;
+        loaded = waitForModule(m_processId, L"DR2CAgent.dll", 2000);
+    }
+
     VirtualFreeEx(process, remotePath, 0, MEM_RELEASE);
 
-    if (moduleHandle == 0) {
-        *error = QStringLiteral("注入 DR2CAgent.dll 失败（LoadLibrary 返回 0）。");
+    if (!loaded) {
+        const QString target = m_processName.isEmpty()
+            ? QStringLiteral("PID %1").arg(m_processId)
+            : tr("%1（PID %2）").arg(m_processName).arg(m_processId);
+
+        QString message = tr("无法把 DR2CAgent.dll 注入目标进程 %1。").arg(target);
+        message += tr("\n已尝试以下方式：");
+        for (const QString &line : attempts)
+            message += tr("\n  · ") + line;
+        message += tr("\n\n环境：本工具为 %1 位进程，%2管理员权限；目标进程为 32 位。")
+                       .arg(static_cast<int>(sizeof(void *)) * 8)
+                       .arg(isCurrentProcessElevated() ? tr("已获得") : tr("未获得"));
+        message += tr("\n建议：1) 以管理员身份重新运行本工具；"
+                      "2) 把 DR2CDebugTool.exe、DR2CAgent.dll 加入杀毒/安全软件白名单；"
+                      "3) 关闭其他注入器/调试器后重试。");
+        *error = message;
         return false;
     }
 

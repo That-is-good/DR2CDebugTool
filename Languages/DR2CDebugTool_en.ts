@@ -4,6 +4,11 @@
 <context>
     <name>AddrSetting</name>
     <message>
+        <location filename="../Setting/addrsetting.ui" line="14"/>
+        <source>设置</source>
+        <translation>Setting</translation>
+    </message>
+    <message>
         <location filename="../Setting/addrsetting.ui" line="29"/>
         <source>语言</source>
         <translation>Language</translation>
@@ -17,6 +22,11 @@
         <location filename="../Setting/addrsetting.ui" line="59"/>
         <source>刷新</source>
         <translation>Refresh</translation>
+    </message>
+    <message>
+        <location filename="../Setting/addrsetting.ui" line="65"/>
+        <source>更新频率(ms)</source>
+        <translation>Update Frequency(ms)</translation>
     </message>
     <message>
         <location filename="../Setting/addrsetting.ui" line="91"/>
@@ -53,52 +63,6 @@
         <source>用于排查 mod 图集匹配问题，报告写入程序所在目录。</source>
         <translation>Used to troubleshoot mod sprite sheet matching issues; the report is written to the program&apos;s directory.</translation>
     </message>
-    <message>
-        <source>角色</source>
-        <translation type="obsolete">Character</translation>
-    </message>
-    <message>
-        <source>偏移(Hex)</source>
-        <translation type="obsolete">Offset(Hex)</translation>
-    </message>
-    <message>
-        <source>数量</source>
-        <translation type="obsolete">Length</translation>
-    </message>
-    <message>
-        <source>大小(Hex)</source>
-        <translation type="obsolete">Size(Hex)</translation>
-    </message>
-    <message>
-        <source>实体</source>
-        <translation type="obsolete">Entity</translation>
-    </message>
-    <message>
-        <location filename="../Setting/addrsetting.ui" line="14"/>
-        <source>设置</source>
-        <translation>Setting</translation>
-    </message>
-    <message>
-        <source>武器</source>
-        <translation type="obsolete">Weapon</translation>
-    </message>
-    <message>
-        <source>地图</source>
-        <translation type="obsolete">Map</translation>
-    </message>
-    <message>
-        <source>任务</source>
-        <translation type="obsolete">Mission</translation>
-    </message>
-    <message>
-        <source>其他</source>
-        <translation type="obsolete">Other</translation>
-    </message>
-    <message>
-        <location filename="../Setting/addrsetting.ui" line="65"/>
-        <source>更新频率(ms)</source>
-        <translation>Update Frequency(ms)</translation>
-    </message>
 </context>
 <context>
     <name>GameDataReader</name>
@@ -130,7 +94,7 @@
     <message>
         <location filename="../Memory/gamedatareader.cpp" line="123"/>
         <source>拾取物</source>
-        <translation>Pick up</translation>
+        <translation>Pickup</translation>
     </message>
     <message>
         <location filename="../Memory/gamedatareader.cpp" line="124"/>
@@ -140,12 +104,12 @@
     <message>
         <location filename="../Memory/gamedatareader.cpp" line="125"/>
         <source>车辆</source>
-        <translation>Vehicle</translation>
+        <translation>Vehicles</translation>
     </message>
     <message>
         <location filename="../Memory/gamedatareader.cpp" line="126"/>
         <source>特殊拾取</source>
-        <translation>Pick Special</translation>
+        <translation>Special Pickup</translation>
     </message>
     <message>
         <location filename="../Memory/gamedatareader.cpp" line="127"/>
@@ -191,14 +155,9 @@
         <translation>Basic Info</translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="225"/>
-        <source>角色特性</source>
-        <translation>Perk</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.ui" line="171"/>
-        <source>角色名</source>
-        <translation>Name</translation>
+        <location filename="../mainwindow.ui" line="140"/>
+        <source>角色血量</source>
+        <translation>Health</translation>
     </message>
     <message>
         <location filename="../mainwindow.ui" line="147"/>
@@ -206,9 +165,14 @@
         <translation>Current</translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="140"/>
-        <source>角色血量</source>
-        <translation>Health</translation>
+        <location filename="../mainwindow.ui" line="164"/>
+        <source>角色特长</source>
+        <translation>Trait</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.ui" line="171"/>
+        <source>角色名</source>
+        <translation>Name</translation>
     </message>
     <message>
         <location filename="../mainwindow.ui" line="178"/>
@@ -216,19 +180,19 @@
         <translation>EntityID</translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="232"/>
-        <source>额外速度</source>
-        <translation>Speed</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.ui" line="164"/>
-        <source>角色特长</source>
-        <translation>Trait</translation>
-    </message>
-    <message>
         <location filename="../mainwindow.ui" line="218"/>
         <source>角色描述</source>
         <translation>Description</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.ui" line="225"/>
+        <source>角色特性</source>
+        <translation>Perk</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.ui" line="232"/>
+        <source>额外速度</source>
+        <translation>Speed</translation>
     </message>
     <message>
         <location filename="../mainwindow.ui" line="275"/>
@@ -237,28 +201,9 @@
         <translation>Status</translation>
     </message>
     <message>
-        <source>属性8</source>
-        <translation type="obsolete">Status8</translation>
-    </message>
-    <message>
-        <source>属性7</source>
-        <translation type="obsolete">Status7</translation>
-    </message>
-    <message>
-        <source>属性6</source>
-        <translation type="obsolete">Status6</translation>
-    </message>
-    <message>
-        <source>属性5</source>
-        <translation type="obsolete">Status5</translation>
-    </message>
-    <message>
-        <source>属性4</source>
-        <translation type="obsolete">Status4</translation>
-    </message>
-    <message>
-        <source>属性3</source>
-        <translation type="obsolete">Status3</translation>
+        <location filename="../mainwindow.ui" line="287"/>
+        <source>属性1</source>
+        <translation>Status1</translation>
     </message>
     <message>
         <location filename="../mainwindow.ui" line="322"/>
@@ -266,9 +211,14 @@
         <translation>Status2</translation>
     </message>
     <message>
-        <location filename="../mainwindow.ui" line="287"/>
-        <source>属性1</source>
-        <translation>Status1</translation>
+        <location filename="../mainwindow.ui" line="345"/>
+        <source>是否是女性</source>
+        <translation>Female</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.ui" line="352"/>
+        <source>是否是宠物</source>
+        <translation>Pet</translation>
     </message>
     <message>
         <location filename="../mainwindow.ui" line="396"/>
@@ -286,211 +236,6 @@
         <translation>Entity: 0</translation>
     </message>
     <message>
-        <source>类型</source>
-        <translation type="obsolete">Type</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.ui" line="452"/>
-        <location filename="../mainwindow.cpp" line="1447"/>
-        <source>区域</source>
-        <translation>Area</translation>
-    </message>
-    <message>
-        <source>实体属性</source>
-        <translation type="obsolete">Entity Status</translation>
-    </message>
-    <message>
-        <source>不发光</source>
-        <translation type="obsolete">Nolighting</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1376"/>
-        <source>不可被击中</source>
-        <translation>No Hit</translation>
-    </message>
-    <message>
-        <source>不可见</source>
-        <translation type="obsolete">NoSeen</translation>
-    </message>
-    <message>
-        <source>不受伤害</source>
-        <translation type="obsolete">NoDamage</translation>
-    </message>
-    <message>
-        <source>淡去</source>
-        <translation type="obsolete">Fade</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1373"/>
-        <source>无碰撞</source>
-        <translation>No Collide</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1375"/>
-        <source>不绘制</source>
-        <translation>No Draw</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1378"/>
-        <source>发光</source>
-        <translation>Glow</translation>
-    </message>
-    <message>
-        <source>暂停</source>
-        <translation type="obsolete">Pause</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1503"/>
-        <source>速度X</source>
-        <translation>VelX</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1547"/>
-        <source>摩擦力</source>
-        <translation>Friction</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1505"/>
-        <source>速度Z</source>
-        <translation>VelZ</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1459"/>
-        <source>坐标X</source>
-        <translation>PosX</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1548"/>
-        <source>弹跳力</source>
-        <translation>Bounce</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1546"/>
-        <source>质量</source>
-        <translation>Mass</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1460"/>
-        <source>坐标Y</source>
-        <translation>PosY</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1461"/>
-        <source>坐标Z</source>
-        <translation>PosZ</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1504"/>
-        <source>速度Y</source>
-        <translation>VelY</translation>
-    </message>
-    <message>
-        <source>生命值</source>
-        <translation type="obsolete">Health</translation>
-    </message>
-    <message>
-        <source>AI发呆</source>
-        <translation type="obsolete">AI Idle</translation>
-    </message>
-    <message>
-        <source>AI状态</source>
-        <translation type="obsolete">AI Stat</translation>
-    </message>
-    <message>
-        <source>底盘</source>
-        <translation type="obsolete">Chassis</translation>
-    </message>
-    <message>
-        <source>底盘上限</source>
-        <translation type="obsolete">Chassis Max</translation>
-    </message>
-    <message>
-        <source>引擎</source>
-        <translation type="obsolete">Engine</translation>
-    </message>
-    <message>
-        <source>引擎上限</source>
-        <translation type="obsolete">Engine Max</translation>
-    </message>
-    <message>
-        <source>装甲</source>
-        <translation type="obsolete">Armour</translation>
-    </message>
-    <message>
-        <source>装甲上限</source>
-        <translation type="obsolete">Armour Max</translation>
-    </message>
-    <message>
-        <source>速度上限</source>
-        <translation type="obsolete">Speed Max</translation>
-    </message>
-    <message>
-        <source>修理值</source>
-        <translation type="obsolete">Repair</translation>
-    </message>
-    <message>
-        <source>MPG</source>
-        <translation type="obsolete">MPG</translation>
-    </message>
-    <message>
-        <source>战利品</source>
-        <translation type="obsolete">Loot</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="38"/>
-        <source>步枪弹</source>
-        <translation>Rifle Ammo</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="38"/>
-        <source>废料</source>
-        <translation>Junk</translation>
-    </message>
-    <message>
-        <source>设置目标实体</source>
-        <translation type="obsolete">Set Target</translation>
-    </message>
-    <message>
-        <source>传送至目标实体</source>
-        <translation type="obsolete">Teleport Target</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.ui" line="345"/>
-        <source>是否是女性</source>
-        <translation>Female</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.ui" line="352"/>
-        <source>是否是宠物</source>
-        <translation>Pet</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1374"/>
-        <source>隐身</source>
-        <translation>Invisible</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1377"/>
-        <source>不可拾取</source>
-        <translation>No Pickable</translation>
-    </message>
-    <message>
-        <source>精灵图ID</source>
-        <translation type="obsolete">Sprite ID</translation>
-    </message>
-    <message>
-        <source>交换实体位置</source>
-        <translation type="obsolete">Swap Target</translation>
-    </message>
-    <message>
-        <source>生成实体</source>
-        <translation type="obsolete">Spawn Entity</translation>
-    </message>
-    <message>
-        <source>销毁实体</source>
-        <translation type="obsolete">Destory Entity</translation>
-    </message>
-    <message>
         <location filename="../mainwindow.ui" line="431"/>
         <source>选择</source>
         <translation>Select</translation>
@@ -506,6 +251,12 @@
         <translation>Move</translation>
     </message>
     <message>
+        <location filename="../mainwindow.ui" line="452"/>
+        <location filename="../mainwindow.cpp" line="1447"/>
+        <source>区域</source>
+        <translation>Area</translation>
+    </message>
+    <message>
         <location filename="../mainwindow.ui" line="478"/>
         <source>全局</source>
         <translation>Mission</translation>
@@ -514,26 +265,6 @@
         <location filename="../mainwindow.ui" line="505"/>
         <source>命令</source>
         <translation>Command</translation>
-    </message>
-    <message>
-        <source>角色ID</source>
-        <translation type="obsolete">Character ID</translation>
-    </message>
-    <message>
-        <source>角色1</source>
-        <translation type="obsolete">Character 1</translation>
-    </message>
-    <message>
-        <source>角色2</source>
-        <translation type="obsolete">Character 2</translation>
-    </message>
-    <message>
-        <source>角色3</source>
-        <translation type="obsolete">Character 3</translation>
-    </message>
-    <message>
-        <source>角色4</source>
-        <translation type="obsolete">Character 4</translation>
     </message>
     <message>
         <location filename="../mainwindow.ui" line="527"/>
@@ -549,12 +280,9 @@
         <translation>Weapon</translation>
     </message>
     <message>
-        <source>DR2C 调试工具</source>
-        <translation type="obsolete">DR2C Debug Tool</translation>
-    </message>
-    <message>
-        <source>资源0</source>
-        <translation type="obsolete">Resource0</translation>
+        <location filename="../mainwindow.cpp" line="38"/>
+        <source>无</source>
+        <translation>Empty</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="38"/>
@@ -578,8 +306,9 @@
         <translation>Bullet</translation>
     </message>
     <message>
-        <source>步枪</source>
-        <translation type="obsolete">Rifle</translation>
+        <location filename="../mainwindow.cpp" line="38"/>
+        <source>步枪弹</source>
+        <translation>Rifle Ammo</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="38"/>
@@ -587,12 +316,9 @@
         <translation>Shell</translation>
     </message>
     <message>
-        <source>手枪</source>
-        <translation type="obsolete">Bullet</translation>
-    </message>
-    <message>
-        <source>垃圾</source>
-        <translation type="obsolete">Junk</translation>
+        <location filename="../mainwindow.cpp" line="38"/>
+        <source>废料</source>
+        <translation>Junk</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="41"/>
@@ -623,10 +349,6 @@
         <location filename="../mainwindow.cpp" line="41"/>
         <source>忠诚</source>
         <translation>Loyalty</translation>
-    </message>
-    <message>
-        <source>医疗技能</source>
-        <translation type="obsolete">Medical</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="42"/>
@@ -675,26 +397,6 @@
         <translation>All</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1402"/>
-        <source>修改属性…</source>
-        <translation>Edit Attributes…</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1415"/>
-        <source>新建实体…</source>
-        <translation>New Entity…</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1839"/>
-        <source>角色 %1</source>
-        <translation>Character %1</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="363"/>
-        <source>此游戏构建未能识别脚本执行函数。</source>
-        <translation>This game build does not expose a recognizable script-execution function.</translation>
-    </message>
-    <message>
         <location filename="../mainwindow.cpp" line="250"/>
         <source>世界交互（悬停/拖拽）</source>
         <translation>World Interaction (hover/drag)</translation>
@@ -705,180 +407,19 @@
         <translation>When checked, a transparent overlay is displayed on the game window: hovering highlights entities, and holding the left mouse button drags entities.</translation>
     </message>
     <message>
+        <location filename="../mainwindow.cpp" line="332"/>
+        <source>已附加: %1 (PID: %2) 模块基址: 0x%3</source>
+        <translation>Attached: %1 (PID: %2) Module Addr: 0x%3</translation>
+    </message>
+    <message>
         <location filename="../mainwindow.cpp" line="344"/>
         <source>精灵图集就绪：运行时扫描到 %1 张</source>
         <translation>Sprite atlas ready: %1 sheets found at runtime</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="992"/>
-        <source>已移动实体至区域%1 (X:%2 Y:%3)</source>
-        <translation>Moved entity to area %1 (X:%2 Y:%3)</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1022"/>
-        <source>此游戏构建未能识别武器生成函数，已取消</source>
-        <translation>This game build does not expose a recognizable weapon-creation function; cancelled</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1027"/>
-        <source>生成武器失败（武器索引无效或实体池已满）</source>
-        <translation>Failed to create weapon (invalid weapon index or entity pool full)</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1088"/>
-        <source>已设置渲染图层</source>
-        <translation>Render layer has been set</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1090"/>
-        <source>设置图层失败</source>
-        <translation>Failed to set render layer</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1295"/>
-        <source>ID: %1 | %2 | 区域：%3
-X: %4 Y: %5 Z: %6</source>
-        <translation>ID: %1 | %2 | MapID：%3
-X: %4 Y: %5 Z: %6</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1365"/>
-        <source>设置为中心</source>
-        <translation>Set as Center</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1367"/>
-        <source>已设置中心实体: 0x%1</source>
-        <translation>Set center entity: 0x%1</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1372"/>
-        <source>标志</source>
-        <translation>Flags</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1399"/>
-        <location filename="../mainwindow.cpp" line="1441"/>
-        <source>修改位置</source>
-        <translation>Modify Position</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1400"/>
-        <location filename="../mainwindow.cpp" line="1490"/>
-        <source>修改速度</source>
-        <translation>Modify Velocity</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1401"/>
-        <location filename="../mainwindow.cpp" line="1533"/>
-        <source>修改物理</source>
-        <translation>Modify Physics</translation>
-    </message>
-    <message>
-        <source>修改其他</source>
-        <translation type="obsolete">Modify Other</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1405"/>
-        <source>销毁</source>
-        <translation>Destroy</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1408"/>
-        <source>传送至中心</source>
-        <translation>Teleport to Center</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1409"/>
-        <source>随机交换</source>
-        <translation>Random Swap</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1410"/>
-        <source>克隆</source>
-        <translation>Clone</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1411"/>
-        <source>设为玩家实体</source>
-        <translation>Set as Player Entity</translation>
-    </message>
-    <message>
-        <source>新建</source>
-        <translation type="obsolete">New</translation>
-    </message>
-    <message>
-        <source>人类</source>
-        <translation type="obsolete">Human</translation>
-    </message>
-    <message>
-        <source>僵尸</source>
-        <translation type="obsolete">Zombie</translation>
-    </message>
-    <message>
-        <source>物品</source>
-        <translation type="obsolete">Item</translation>
-    </message>
-    <message>
-        <source>抛射物</source>
-        <translation type="obsolete">Projectile</translation>
-    </message>
-    <message>
-        <source>家具</source>
-        <translation type="obsolete">Furniture</translation>
-    </message>
-    <message>
-        <source>拾取物</source>
-        <translation type="obsolete">Pick up</translation>
-    </message>
-    <message>
-        <source>车辆</source>
-        <translation type="obsolete">Vehicle</translation>
-    </message>
-    <message>
-        <source>特殊拾取</source>
-        <translation type="obsolete">Pick Special</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1416"/>
-        <source>设置渲染图层</source>
-        <translation>Set render layer</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1716"/>
-        <source>此游戏构建未能识别实体释放函数，已禁用人类生成以避免留下未清理实体</source>
-        <translation>This game build does not expose a recognizable entity-release function; human spawning is disabled to avoid leaving un-cleaned entities</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1735"/>
-        <source>生成实体失败: 无法绑定角色数据</source>
-        <translation>Failed to spawn entity: cannot bind character data</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1778"/>
-        <source>已设置为玩家实体</source>
-        <translation>Player Entity Set</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1780"/>
-        <source>设置为玩家实体失败</source>
-        <translation>Failed to set as Player Entity</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1936"/>
-        <source>目标进程已退出，自动分离</source>
-        <translation>Target process has exited, auto-detaching</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="914"/>
-        <location filename="../mainwindow.cpp" line="1125"/>
-        <source>区域%1</source>
-        <translation>Area%1</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="332"/>
-        <source>已附加: %1 (PID: %2) 模块基址: 0x%3</source>
-        <translation>Attached: %1 (PID: %2) Module Addr: 0x%3</translation>
+        <location filename="../mainwindow.cpp" line="363"/>
+        <source>此游戏构建未能识别脚本执行函数。</source>
+        <translation>This game build does not expose a recognizable script-execution function.</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="373"/>
@@ -896,17 +437,14 @@ X: %4 Y: %5 Z: %6</translation>
         <translation>Error</translation>
     </message>
     <message>
-        <source>子类型</source>
-        <translation type="obsolete">SubType</translation>
-    </message>
-    <message>
-        <source>地址</source>
-        <translation type="obsolete">Address</translation>
-    </message>
-    <message>
         <location filename="../mainwindow.cpp" line="454"/>
         <source>基础值</source>
         <translation>Base</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="454"/>
+        <source>临时值</source>
+        <translation>Temp</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="454"/>
@@ -924,16 +462,11 @@ X: %4 Y: %5 Z: %6</translation>
         <translation>Known</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="454"/>
-        <source>临时值</source>
-        <translation>Temp</translation>
-    </message>
-    <message>
         <location filename="../mainwindow.cpp" line="481"/>
         <location filename="../mainwindow.cpp" line="496"/>
         <location filename="../mainwindow.cpp" line="519"/>
         <source>数量</source>
-        <translation>Count</translation>
+        <translation>Amount</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="496"/>
@@ -964,42 +497,25 @@ X: %4 Y: %5 Z: %6</translation>
         <translation>Please Select Process</translation>
     </message>
     <message>
-        <source>类型%1</source>
-        <translation type="obsolete">Type%1</translation>
+        <location filename="../mainwindow.cpp" line="914"/>
+        <location filename="../mainwindow.cpp" line="1125"/>
+        <source>区域%1</source>
+        <translation>Area%1</translation>
     </message>
     <message>
-        <source>子类型%1</source>
-        <translation type="obsolete">SubType%1</translation>
+        <location filename="../mainwindow.cpp" line="992"/>
+        <source>已移动实体至区域%1 (X:%2 Y:%3)</source>
+        <translation>Moved entity to area %1 (X:%2 Y:%3)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1327"/>
-        <source>实体: %1</source>
-        <translation>Entity: %1</translation>
+        <location filename="../mainwindow.cpp" line="1022"/>
+        <source>此游戏构建未能识别武器生成函数，已取消</source>
+        <translation>This game build does not expose a recognizable weapon-creation function; cancelled</translation>
     </message>
     <message>
-        <source>目标: ID=%1, 索引=%2</source>
-        <translation type="obsolete">Target: ID=%1, Index=%2</translation>
-    </message>
-    <message>
-        <source>请先选择实体并设置目标</source>
-        <translation type="obsolete">Please Select Entity and Target</translation>
-    </message>
-    <message>
-        <source>已传送至目标</source>
-        <translation type="obsolete">Teleported to Target</translation>
-    </message>
-    <message>
-        <source>已交换位置</source>
-        <translation type="obsolete">Swapped Target</translation>
-    </message>
-    <message>
-        <source>已销毁实体</source>
-        <translation type="obsolete">Destroyed Entity</translation>
-    </message>
-    <message>
-        <location filename="../mainwindow.cpp" line="1709"/>
-        <source>销毁实体失败</source>
-        <translation>Failed to destroy Entity</translation>
+        <location filename="../mainwindow.cpp" line="1027"/>
+        <source>生成武器失败（武器索引无效或实体池已满）</source>
+        <translation>Failed to create weapon (invalid weapon index or entity pool full)</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="1078"/>
@@ -1008,14 +524,174 @@ X: %4 Y: %5 Z: %6</translation>
         <translation>Spawned Entity</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1724"/>
-        <location filename="../mainwindow.cpp" line="1749"/>
-        <source>生成实体失败</source>
-        <translation>Failed to spawn Entity</translation>
+        <location filename="../mainwindow.cpp" line="1088"/>
+        <source>已设置渲染图层</source>
+        <translation>Render layer has been set</translation>
     </message>
     <message>
-        <source>精灵图</source>
-        <translation type="obsolete">Sprite</translation>
+        <location filename="../mainwindow.cpp" line="1090"/>
+        <source>设置图层失败</source>
+        <translation>Failed to set render layer</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1295"/>
+        <source>ID: %1 | %2 | 区域：%3
+X: %4 Y: %5 Z: %6</source>
+        <translation>ID: %1 | %2 | MapID：%3
+X: %4 Y: %5 Z: %6</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1327"/>
+        <source>实体: %1</source>
+        <translation>Entity: %1</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1365"/>
+        <source>设置为中心</source>
+        <translation>Set as Center</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1367"/>
+        <source>已设置中心实体: 0x%1</source>
+        <translation>Set center entity: 0x%1</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1372"/>
+        <source>标志</source>
+        <translation>Flags</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1373"/>
+        <source>无碰撞</source>
+        <translation>No Collide</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1374"/>
+        <source>隐身</source>
+        <translation>Invisible</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1375"/>
+        <source>不绘制</source>
+        <translation>No Draw</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1376"/>
+        <source>不可被击中</source>
+        <translation>No Hit</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1377"/>
+        <source>不可拾取</source>
+        <translation>No Pickable</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1378"/>
+        <source>发光</source>
+        <translation>Glow</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1399"/>
+        <location filename="../mainwindow.cpp" line="1441"/>
+        <source>修改位置</source>
+        <translation>Modify Position</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1400"/>
+        <location filename="../mainwindow.cpp" line="1490"/>
+        <source>修改速度</source>
+        <translation>Modify Velocity</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1401"/>
+        <location filename="../mainwindow.cpp" line="1533"/>
+        <source>修改物理</source>
+        <translation>Modify Physics</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1402"/>
+        <source>修改属性…</source>
+        <translation>Edit Attributes…</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1405"/>
+        <source>销毁</source>
+        <translation>Destroy</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1408"/>
+        <source>传送至中心</source>
+        <translation>Teleport to Center</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1409"/>
+        <source>随机交换</source>
+        <translation>Random Swap</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1410"/>
+        <source>克隆</source>
+        <translation>Clone</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1411"/>
+        <source>设为玩家实体</source>
+        <translation>Set as Player Entity</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1415"/>
+        <source>新建实体…</source>
+        <translation>New Entity…</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1416"/>
+        <source>设置渲染图层</source>
+        <translation>Set render layer</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1459"/>
+        <source>坐标X</source>
+        <translation>PosX</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1460"/>
+        <source>坐标Y</source>
+        <translation>PosY</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1461"/>
+        <source>坐标Z</source>
+        <translation>PosZ</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1503"/>
+        <source>速度X</source>
+        <translation>VelX</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1504"/>
+        <source>速度Y</source>
+        <translation>VelY</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1505"/>
+        <source>速度Z</source>
+        <translation>VelZ</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1546"/>
+        <source>质量</source>
+        <translation>Mass</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1547"/>
+        <source>摩擦力</source>
+        <translation>Friction</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1548"/>
+        <source>弹跳力</source>
+        <translation>Bounce</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="1620"/>
@@ -1053,9 +729,30 @@ X: %4 Y: %5 Z: %6</translation>
         <translation>Destroyed %1 entities</translation>
     </message>
     <message>
+        <location filename="../mainwindow.cpp" line="1709"/>
+        <source>销毁实体失败</source>
+        <translation>Failed to destroy Entity</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1716"/>
+        <source>此游戏构建未能识别实体释放函数，已禁用人类生成以避免留下未清理实体</source>
+        <translation>This game build does not expose a recognizable entity-release function; human spawning is disabled to avoid leaving un-cleaned entities</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1724"/>
+        <location filename="../mainwindow.cpp" line="1749"/>
+        <source>生成实体失败</source>
+        <translation>Failed to spawn Entity</translation>
+    </message>
+    <message>
         <location filename="../mainwindow.cpp" line="1730"/>
         <source>生成实体失败: 角色池已满</source>
         <translation>Failed to spawn entity: character pool full</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1735"/>
+        <source>生成实体失败: 无法绑定角色数据</source>
+        <translation>Failed to spawn entity: cannot bind character data</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="1767"/>
@@ -1068,6 +765,16 @@ X: %4 Y: %5 Z: %6</translation>
         <translation>Failed to clone entity</translation>
     </message>
     <message>
+        <location filename="../mainwindow.cpp" line="1778"/>
+        <source>已设置为玩家实体</source>
+        <translation>Player Entity Set</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1780"/>
+        <source>设置为玩家实体失败</source>
+        <translation>Failed to set as Player Entity</translation>
+    </message>
+    <message>
         <location filename="../mainwindow.cpp" line="1814"/>
         <source>已发送命令</source>
         <translation>Sent Command</translation>
@@ -1078,13 +785,347 @@ X: %4 Y: %5 Z: %6</translation>
         <translation>Failed to send Command</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="38"/>
-        <source>无</source>
-        <translation>Empty</translation>
+        <location filename="../mainwindow.cpp" line="1839"/>
+        <source>角色 %1</source>
+        <translation>Character %1</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1936"/>
+        <source>目标进程已退出，自动分离</source>
+        <translation>Target process has exited, auto-detaching</translation>
+    </message>
+</context>
+<context>
+    <name>MemoryManager</name>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="51"/>
+        <source>枚举目标进程模块（CreateToolhelp32Snapshot）</source>
+        <translation>Enumerating target process modules (CreateToolhelp32Snapshot)</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="143"/>
+        <source>目标 kernel32 的 LoadLibraryW 是转发导出，无法作为注入入口。</source>
+        <translation>LoadLibraryW in the target kernel32 is a forwarded export and cannot be used as an injection entry point.</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="188"/>
+        <source>通常是被杀毒/安全软件拦截了远程线程，或目标进程以更高权限运行。请以管理员身份运行本工具，并把本程序与 DR2CAgent.dll 加入白名单。</source>
+        <translation>This usually means antivirus/security software blocked remote thread creation, or the target process runs with higher privileges. Run this tool as administrator and add it and DR2CAgent.dll to the whitelist.</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="193"/>
+        <source>参数无效，可能是目标进程状态异常或注入起始地址无效，请确认游戏仍在运行。</source>
+        <translation>Invalid parameter; the target process may be in an unexpected state or the injection start address is invalid. Make sure the game is still running.</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="197"/>
+        <source>目标进程内存不足，无法分配注入所需空间。</source>
+        <translation>Not enough memory in the target process to allocate space for injection.</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="200"/>
+        <source>进程句柄已失效，游戏可能已经退出。</source>
+        <translation>The process handle is no longer valid; the game may have exited.</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="203"/>
+        <source>只能复制部分目标内存，目标进程可能受到保护。</source>
+        <translation>Only part of the target memory could be copied; the target process may be protected.</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="207"/>
+        <source>找不到目标线程或模块，请确认游戏仍在运行且未被其他注入器/调试器占用。</source>
+        <translation>The target thread or module was not found. Make sure the game is running and not held by another injector or debugger.</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="220"/>
+        <source>%1：失败，错误码 %2</source>
+        <translation>%1: failed, error code %2</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="224"/>
+        <source>（%1）</source>
+        <translation> (%1)</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="226"/>
+        <source>。%1</source>
+        <translation>. %1</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="317"/>
+        <source>CreateRemoteThread</source>
+        <translation>CreateRemoteThread</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="327"/>
+        <source>CreateRemoteThread：注入线程 10 秒内未返回，LoadLibraryW 可能被卡住</source>
+        <translation>CreateRemoteThread: the injection thread did not return within 10 seconds; LoadLibraryW may be stuck</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="332"/>
+        <source>CreateRemoteThread：LoadLibraryW 返回 0（DLL 依赖缺失、位数不符或被安全软件拦截）</source>
+        <translation>CreateRemoteThread: LoadLibraryW returned 0 (missing DLL dependency, wrong architecture, or blocked by security software)</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="338"/>
+        <source>CreateRemoteThread：注入线程异常退出（0x%1）</source>
+        <translation>CreateRemoteThread: the injection thread exited abnormally (0x%1)</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="343"/>
+        <source>CreateRemoteThread：已创建注入线程</source>
+        <translation>CreateRemoteThread: injection thread created</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="358"/>
+        <source>NtCreateThreadEx：无法获取 ntdll.dll</source>
+        <translation>NtCreateThreadEx: cannot obtain ntdll.dll</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="365"/>
+        <source>NtCreateThreadEx：当前系统不支持该接口</source>
+        <translation>NtCreateThreadEx: this API is not supported on the current system</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="381"/>
+        <source>NtCreateThreadEx（NTSTATUS 0x%1）</source>
+        <translation>NtCreateThreadEx (NTSTATUS 0x%1)</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="396"/>
+        <source>NtCreateThreadEx：注入线程 10 秒内未返回</source>
+        <translation>NtCreateThreadEx: the injection thread did not return within 10 seconds</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="401"/>
+        <source>NtCreateThreadEx：LoadLibraryW 返回 0</source>
+        <translation>NtCreateThreadEx: LoadLibraryW returned 0</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="405"/>
+        <source>NtCreateThreadEx：已创建注入线程</source>
+        <translation>NtCreateThreadEx: injection thread created</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="416"/>
+        <source>32 位注入器：未找到 DR2CInjector32.exe（可选组件，已跳过）</source>
+        <translation>32-bit injector: DR2CInjector32.exe not found (optional component, skipped)</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="430"/>
+        <source>32 位注入器：启动失败（%1）</source>
+        <translation>32-bit injector: failed to start (%1)</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="437"/>
+        <source>32 位注入器：执行超时</source>
+        <translation>32-bit injector: timed out</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="443"/>
+        <source>32 位注入器：已加载 Agent</source>
+        <translation>32-bit injector: Agent loaded</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="447"/>
+        <source>32 位注入器：执行失败（退出码 %1）</source>
+        <translation>32-bit injector: failed (exit code %1)</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="449"/>
+        <source>32 位注入器：%1</source>
+        <translation>32-bit injector: %1</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="480"/>
+        <source>线程劫持：找不到可用的游戏线程</source>
+        <translation>Thread hijack: no usable game thread found</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="488"/>
+        <source>线程劫持（OpenThread）</source>
+        <translation>Thread hijack (OpenThread)</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="494"/>
+        <source>线程劫持（SuspendThread）</source>
+        <translation>Thread hijack (SuspendThread)</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="503"/>
+        <source>线程劫持（Wow64GetThreadContext）</source>
+        <translation>Thread hijack (Wow64GetThreadContext)</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="526"/>
+        <source>线程劫持（分配存根内存）</source>
+        <translation>Thread hijack (allocating stub memory)</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="536"/>
+        <source>线程劫持（写入存根）</source>
+        <translation>Thread hijack (writing stub)</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="548"/>
+        <source>线程劫持（Wow64SetThreadContext）</source>
+        <translation>Thread hijack (Wow64SetThreadContext)</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="570"/>
+        <source>线程劫持：已加载 Agent</source>
+        <translation>Thread hijack: Agent loaded</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="571"/>
+        <source>线程劫持：已恢复线程，但未检测到 DR2CAgent.dll 模块</source>
+        <translation>Thread hijack: thread restored, but DR2CAgent.dll was not detected</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="738"/>
+        <source>无法打开进程 PID: %1。
+%2</source>
+        <translation>Cannot open process PID: %1.
+%2</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="740"/>
+        <source>OpenProcess</source>
+        <translation>OpenProcess</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="848"/>
+        <source>未找到注入模块：%1
+请确认 DR2CAgent.dll 与 DR2CDebugTool.exe 在同一目录。</source>
+        <translation>Injection module not found: %1
+Make sure DR2CAgent.dll is in the same directory as DR2CDebugTool.exe.</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="857"/>
+        <source>无法读取 %1 的 PE 头，文件可能已损坏。</source>
+        <translation>Cannot read the PE header of %1; the file may be corrupted.</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="861"/>
+        <source>DR2CAgent.dll 不是 32 位模块（Machine=0x%1），无法注入 32 位游戏。
+请用 32 位 MinGW 工具链重新构建 Agent。</source>
+        <translation>DR2CAgent.dll is not a 32-bit module (Machine=0x%1) and cannot be injected into a 32-bit game.
+Please rebuild the Agent with a 32-bit MinGW toolchain.</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="878"/>
+        <source>解析出的 LoadLibraryW 地址无效（0x%1），无法注入 32 位 DLL。</source>
+        <translation>The resolved LoadLibraryW address is invalid (0x%1); a 32-bit DLL cannot be injected.</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="892"/>
+        <source>在目标进程中分配参数内存（VirtualAllocEx）</source>
+        <translation>Allocating argument memory in the target process (VirtualAllocEx)</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="903"/>
+        <source>写入 DLL 路径（WriteProcessMemory）</source>
+        <translation>Writing the DLL path (WriteProcessMemory)</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="940"/>
+        <source>%1（PID %2）</source>
+        <translation>%1 (PID %2)</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="942"/>
+        <source>无法把 DR2CAgent.dll 注入目标进程 %1。</source>
+        <translation>Failed to inject DR2CAgent.dll into target process %1.</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="943"/>
+        <source>
+已尝试以下方式：</source>
+        <translation>
+The following methods were tried:</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="945"/>
+        <source>
+  · </source>
+        <translation>
+  · </translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="946"/>
+        <source>
+
+环境：本工具为 %1 位进程，%2管理员权限；目标进程为 32 位。</source>
+        <translation>
+
+Environment: this tool is a %1-bit process (%2 administrator rights); the target process is 32-bit.</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="948"/>
+        <source>已获得</source>
+        <translation>with</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="948"/>
+        <source>未获得</source>
+        <translation>without</translation>
+    </message>
+    <message>
+        <location filename="../Memory/memorymanager.cpp" line="949"/>
+        <source>
+建议：1) 以管理员身份重新运行本工具；2) 把 DR2CDebugTool.exe、DR2CAgent.dll 加入杀毒/安全软件白名单；3) 关闭其他注入器/调试器后重试。</source>
+        <translation>
+Suggestions: 1) run this tool as administrator; 2) add DR2CDebugTool.exe and DR2CAgent.dll to your antivirus/security software whitelist; 3) close other injectors/debuggers and try again.</translation>
     </message>
 </context>
 <context>
     <name>SpawnDialog</name>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="38"/>
+        <source>人类</source>
+        <translation>Human</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="39"/>
+        <source>僵尸</source>
+        <translation>Zombie</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="40"/>
+        <source>物品</source>
+        <translation>Item</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="41"/>
+        <source>抛射物</source>
+        <translation>Projectile</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="42"/>
+        <source>家具</source>
+        <translation>Furniture</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="43"/>
+        <source>拾取物</source>
+        <translation>Pickup</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="44"/>
+        <source>武器</source>
+        <translation>Weapon</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="45"/>
+        <source>车辆</source>
+        <translation>Vehicles</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="46"/>
+        <source>特殊拾取</source>
+        <translation>Special Pickup</translation>
+    </message>
     <message>
         <location filename="../Spawn/spawndialog.cpp" line="86"/>
         <source>修改实体属性</source>
@@ -1131,26 +1172,24 @@ X: %4 Y: %5 Z: %6</translation>
         <translation>AI Stat</translation>
     </message>
     <message>
+        <location filename="../Spawn/spawndialog.cpp" line="187"/>
+        <source>脚本槽说明：
+cyoa：别人主动交互它时运行（选项/对话/商店）
+events：游戏派发事件时运行（受击、死亡、拾取等）
+action：别人对它做动作时运行（被使用/被操作）
+三者互不覆盖，可同时填写；选“不修改”则不写入。拾取物不需要脚本。</source>
+        <translation>Script slots:
+cyoa: runs when someone actively interacts with it (choices/dialogue/shops)
+events: runs when the game dispatches an event (hit, death, pickup, etc.)
+action: runs when someone performs an action on it (used/operated)
+The three are independent and can all be set; &quot;do not change&quot; writes nothing. Pickups need no scripts.</translation>
+    </message>
+    <message>
         <location filename="../Spawn/spawndialog.cpp" line="199"/>
         <source>
 可直接输入脚本对象地址，例如 0x5A1B2C3D</source>
         <translation>
 You can type a script object address directly, e.g. 0x5A1B2C3D</translation>
-    </message>
-    <message>
-        <location filename="../Spawn/spawndialog.cpp" line="222"/>
-        <source>数量</source>
-        <translation>Amount</translation>
-    </message>
-    <message>
-        <location filename="../Spawn/spawndialog.cpp" line="441"/>
-        <source>无</source>
-        <translation>Empty</translation>
-    </message>
-    <message>
-        <location filename="../Spawn/spawndialog.cpp" line="229"/>
-        <source>食物</source>
-        <translation>Food</translation>
     </message>
     <message>
         <location filename="../Spawn/spawndialog.cpp" line="201"/>
@@ -1188,22 +1227,19 @@ You can type a script object address directly, e.g. 0x5A1B2C3D</translation>
         <translation>Action script: runs when another character performs an action on this entity (being used/operated). It only triggers when the AI actually performs an action on it.</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="187"/>
-        <source>脚本槽说明：
-cyoa：别人主动交互它时运行（选项/对话/商店）
-events：游戏派发事件时运行（受击、死亡、拾取等）
-action：别人对它做动作时运行（被使用/被操作）
-三者互不覆盖，可同时填写；选“不修改”则不写入。拾取物不需要脚本。</source>
-        <translation>Script slots:
-cyoa: runs when someone actively interacts with it (choices/dialogue/shops)
-events: runs when the game dispatches an event (hit, death, pickup, etc.)
-action: runs when someone performs an action on it (used/operated)
-The three are independent and can all be set; &quot;do not change&quot; writes nothing. Pickups need no scripts.</translation>
+        <location filename="../Spawn/spawndialog.cpp" line="222"/>
+        <source>数量</source>
+        <translation>Amount</translation>
     </message>
     <message>
         <location filename="../Spawn/spawndialog.cpp" line="229"/>
         <source>汽油</source>
         <translation>Gas</translation>
+    </message>
+    <message>
+        <location filename="../Spawn/spawndialog.cpp" line="229"/>
+        <source>食物</source>
+        <translation>Food</translation>
     </message>
     <message>
         <location filename="../Spawn/spawndialog.cpp" line="229"/>
@@ -1346,9 +1382,9 @@ The three are independent and can all be set; &quot;do not change&quot; writes n
         <translation>action of entity %1</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="582"/>
-        <source>类别：%1</source>
-        <translation>Category: %1</translation>
+        <location filename="../Spawn/spawndialog.cpp" line="441"/>
+        <source>无</source>
+        <translation>Empty</translation>
     </message>
     <message>
         <location filename="../Spawn/spawndialog.cpp" line="551"/>
@@ -1362,49 +1398,9 @@ The three are independent and can all be set; &quot;do not change&quot; writes n
         <translation>No preview</translation>
     </message>
     <message>
-        <location filename="../Spawn/spawndialog.cpp" line="38"/>
-        <source>人类</source>
-        <translation>Human</translation>
-    </message>
-    <message>
-        <location filename="../Spawn/spawndialog.cpp" line="39"/>
-        <source>僵尸</source>
-        <translation>Zombie</translation>
-    </message>
-    <message>
-        <location filename="../Spawn/spawndialog.cpp" line="40"/>
-        <source>物品</source>
-        <translation>Item</translation>
-    </message>
-    <message>
-        <location filename="../Spawn/spawndialog.cpp" line="41"/>
-        <source>抛射物</source>
-        <translation>Projectile</translation>
-    </message>
-    <message>
-        <location filename="../Spawn/spawndialog.cpp" line="42"/>
-        <source>家具</source>
-        <translation>Furniture</translation>
-    </message>
-    <message>
-        <location filename="../Spawn/spawndialog.cpp" line="43"/>
-        <source>拾取物</source>
-        <translation>Pickup</translation>
-    </message>
-    <message>
-        <location filename="../Spawn/spawndialog.cpp" line="44"/>
-        <source>武器</source>
-        <translation>Weapon</translation>
-    </message>
-    <message>
-        <location filename="../Spawn/spawndialog.cpp" line="45"/>
-        <source>车辆</source>
-        <translation>Vehicle</translation>
-    </message>
-    <message>
-        <location filename="../Spawn/spawndialog.cpp" line="46"/>
-        <source>特殊拾取</source>
-        <translation>Special Pickup</translation>
+        <location filename="../Spawn/spawndialog.cpp" line="582"/>
+        <source>类别：%1</source>
+        <translation>Category: %1</translation>
     </message>
 </context>
 <context>

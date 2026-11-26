@@ -52,6 +52,8 @@ target_link_libraries(DR2CDebugTool
 if(WIN32)
     enable_language(RC)
     target_sources(DR2CDebugTool PRIVATE appicon.rc)
+    # 注入失败诊断需要读取令牌信息（OpenProcessToken / GetTokenInformation）
+    target_link_libraries(DR2CDebugTool PRIVATE advapi32)
 endif()
 
 # Common/protocol.h 同时被 64 位前端与 32 位 Agent 使用
@@ -66,6 +68,18 @@ if(DR2C_AGENT_DLL)
             "${DR2C_AGENT_DLL}"
             "$<TARGET_FILE_DIR:DR2CDebugTool>/DR2CAgent.dll"
         COMMENT "复制 DR2CAgent.dll 到输出目录"
+    )
+endif()
+
+# 可选：把预先构建好的 32 位注入器自动复制到可执行文件目录。
+# 缺少它时前端仍会尝试其他注入方式，只是少了一条回退路径。
+set(DR2C_INJECTOR_EXE "" CACHE FILEPATH "预构建的 DR2CInjector32.exe 路径（可选）")
+if(DR2C_INJECTOR_EXE)
+    add_custom_command(TARGET DR2CDebugTool POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${DR2C_INJECTOR_EXE}"
+            "$<TARGET_FILE_DIR:DR2CDebugTool>/DR2CInjector32.exe"
+        COMMENT "复制 DR2CInjector32.exe 到输出目录"
     )
 endif()
 

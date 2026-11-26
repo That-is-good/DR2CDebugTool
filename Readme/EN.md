@@ -75,7 +75,17 @@ A game memory debugging/modification tool for *Death Road to Canada*, built with
 - Click **"Build"** (or press Ctrl+B). The generated executable will be under a subdirectory of `build/`.
 - After building, you can find `DR2CDebugTool.exe` under `build/Release/` or `build/`.
 
-### 3. Deploy and run
+### 3. Build the 32-bit Agent (required)
+- `Agent/CMakeLists.txt` is a standalone project and **must** be built with a **32-bit MinGW** toolchain (the frontend is 64-bit):
+  ```bat
+  cmake -S Agent -B Agent/build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
+  cmake --build Agent/build -j
+  ```
+- Outputs: `DR2CAgent.dll` (the injected module) and `DR2CInjector32.exe` (the 32-bit fallback injector).
+- Keep both files next to `DR2CDebugTool.exe`. Optionally set the `DR2C_AGENT_DLL` / `DR2C_INJECTOR_EXE` CMake cache variables so they are copied automatically during the build.
+- On attach, the Agent is injected automatically with a fallback chain (CreateRemoteThread → NtCreateThreadEx → 32-bit injector → thread hijack). If every method fails, the dialog lists each attempt with its error code — usually antivirus interference or insufficient privileges.
+
+### 4. Deploy and run
 - Run `DR2CDebugTool.exe` directly. If Qt dynamic libraries are missing, add Qt's `bin` directory to PATH or use `windeployqt`.
 - On first run, `config.json` is generated automatically if it does not exist.
 
